@@ -23,10 +23,10 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "",
+        "ascAppId": "6785608333",
         "ascApiKeyPath": "./credentials/asc-api-key.p8",
-        "ascApiKeyId": "",
-        "ascApiKeyIssuerId": ""
+        "ascApiKeyId": "26MQ5Z26AH",
+        "ascApiKeyIssuerId": "ab0ac54e-524e-4fe0-be15-735f92f189d6"
       },
       "android": {
         "serviceAccountKeyPath": "./credentials/play-service-account.json"
