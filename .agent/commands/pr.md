@@ -47,9 +47,15 @@ Any failure → fix → **GOTO Step 0**.
 
 Read `git log origin/develop..HEAD --oneline` to enumerate the work.
 
-- **Title**: Conventional Commit format. Single-commit branches mirror that commit; multi-commit branches synthesize an umbrella title.
-- **Body sections**: **What** / **Why** / **How** (grouped by area) / **Testing** / **Screenshots** / **Out of scope** / **Open questions**.
-- AI-made PR → end the body with the assisting tool's attribution footer (e.g. `🤖 Generated with [Claude Code](https://claude.com/claude-code)`), so AI-authored work stays traceable.
+**Title**: Conventional Commit format. Single-commit branches mirror that commit; multi-commit branches synthesize an umbrella title.
+
+**Body — keep it lean.** The diff already shows the *how*; the body explains what the diff can't: the intent and anything non-obvious. Default to short. A section exists only when it carries real content — never write an empty, "N/A", or "to add" section; omit it. Do NOT re-narrate the code file by file — that is what the diff is for.
+
+- **Summary** (required): 1-3 sentences — what changed and why.
+- **Changes** (required): 3-6 bullets of the substantive changes. Skip the obvious; name a file or area only when it helps a reviewer.
+- **Notes** (optional): one place for anything worth flagging — how it was tested, a risk, out-of-scope, a follow-up, an open question. Omit entirely if there is nothing.
+
+AI-made PR → end the body with the assisting tool's attribution footer (e.g. `Co-Authored-By: Cursor <cursoragent@cursor.com>`), so AI-authored work stays traceable.
 
 ### Step 7 — Open the PR
 
