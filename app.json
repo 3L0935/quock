@@ -3,7 +3,7 @@
     "name": "Quock",
     "slug": "quock",
     "scheme": "quock",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -28,7 +28,12 @@
         "monochromeImage": "./assets/images/adaptive-icon-monochrome.png",
         "backgroundColor": "#FFFFFF"
       },
-      "permissions": ["CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -58,6 +63,18 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "de45afed-c567-47d2-83c4-3d464ce78fd9"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/de45afed-c567-47d2-83c4-3d464ce78fd9"
     }
   }
 }
