@@ -415,8 +415,7 @@ The docs are the contract. If a rule in AGENTS.md no longer matches reality:
 | `chore/` | Maintenance, deps, config, tooling | `chore/deps-reanimated-4-3`, `chore/agents-rewrite` |
 | `docs/` | Docs-only change | `docs/onboarding` |
 | `refactor/` | Refactor without new feature or fix | `refactor/sheet-primitive` |
-| `release/X.Y.Z` | Release candidate frozen for App Store submission. Fixes during Apple review land here. | `release/0.1.0` |
-| `hotfix/X.Y.Z` | Emergency fix on the version currently live in the App Store. Branched from `main`. | `hotfix/0.1.1` |
+| `release/X.Y.Z` | Release line cut from `develop` (or from `main` for a patch to the live version). Absorbs store review; fixes land here and are cherry-picked back to `develop`. | `release/0.1.2` |
 
 Branch names are kebab-case, descriptive, no ticket numbers (Quock has no tracker in repo).
 
@@ -438,9 +437,9 @@ Command-specific anti-patterns (force-push, mega-commit, English-only, merge own
 
 ## Versioning & releases
 
-Quock follows **SemVer** (`MAJOR.MINOR.PATCH`). `main` reflects exactly the version currently published on the App Store; `develop` is the next release in flight. App Store review is slow (weeks), so the two branches stay separated to let work on the next version proceed while the submitted one is in review.
+Quock follows **SemVer** (`MAJOR.MINOR.PATCH`). A released version is a git **tag** (`vX.Y.Z`), not a branch — that keeps the flow linear. `develop` is the trunk where all work lands and never freezes; a `release/X.Y.Z` branch is cut from it to ship one version and absorbs the slow, async store review while `develop` keeps moving; `main` is only a marker of what is currently live, advanced on approval.
 
-Full lifecycle, version-bump table, and branch model (release/X.Y.Z, hotfix/X.Y.Z, tag-on-approval) live in [`.agent/commands/release.md`](.agent/commands/release.md). Read it when starting a release.
+The full flow — branch model, when the version bump happens (first step of a release, on `develop`), cherry-picking review fixes back to `develop`, and the store-review cases — lives in [`.agent/commands/release.md`](.agent/commands/release.md). Read it when starting a release.
 
 ---
 
@@ -453,8 +452,7 @@ Procedures live in `.agent/commands/`. Each is an iterative loop: read AGENTS.md
 | `/commit` | Stage + diff + Conventional Commit + push | `.agent/commands/commit.md` |
 | `/pr` | Run `/review` + rebase on `develop` + push + `gh pr create` | `.agent/commands/pr.md` |
 | `/review` | Self-review + adversarial panel (independent critics + skeptic verify per finding) + auto-fix loop | `.agent/commands/code-review.md` |
-| `/release-start X.Y.Z` | Freeze `develop` into `release/X.Y.Z`, bump version + buildNumber, open draft PR to `main` | `.agent/commands/release.md` |
-| `/hotfix X.Y.Z` | Branch from `main` for an emergency fix on the live App Store version | `.agent/commands/release.md` |
+| `/release-start X.Y.Z` | Bump version on `develop`, cut `release/X.Y.Z`, build + submit; tag on approval | `.agent/commands/release.md` |
 | `/cleanup` (post-merge) | Checkout `develop`, pull, prune local branch | inline in `.agent/commands/pr.md` |
 
 Conventional Commit `type`s and `scope`s are listed in `.agent/commands/commit.md` — that file is canonical, do not duplicate here. Each command's NEVER list (in its own `.md`) is the canonical reminder of procedure-specific rules; the AI-attribution policy (always co-author AI-made commits/PRs) lives in each command's write step.
