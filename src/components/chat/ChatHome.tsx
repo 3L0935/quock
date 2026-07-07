@@ -78,7 +78,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     if (chatGone) router.replace("/c");
   }, [chatGone, router]);
   const isStreaming = useIsStreaming(chatId);
-  const { regenerate, retry, editAndResend } = useSendMessage(chatId);
+  const { regenerate, retry, editAndResend, abort } = useSendMessage(chatId);
   const toast = useToast();
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
@@ -114,19 +114,17 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
+      // Editing mid-stream means "abandon this answer and re-ask": abort the in-flight stream, then resend. The
+      // pipeline's teardown is ownership-gated, so the aborted stream can't tear down the fresh one that replaces it.
       if (isStreaming) {
-        toast({
-          title: "Already streaming",
-          description: "Stop the current response before editing.",
-        });
-        return;
+        abort();
       }
       void editAndResend(userMessageId, newContent).catch((err: unknown) => {
         console.warn("ChatHome: editAndResend failed", err);
         toast({ title: "Edit failed", tone: "error" });
       });
     },
-    [editAndResend, isStreaming, toast],
+    [abort, editAndResend, isStreaming, toast],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {
