@@ -304,8 +304,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         assistantMessageId,
         "Regenerate",
       );
-      // Drop the assistant turn from disk; the replacement placeholder is appended below so streaming throttles can patch a stable tail row.
-      await messages.delete(assistantMessageId);
+      // Truncate the assistant turn AND every later turn: regenerate re-asks from the prior user turn, matching the
+      // head-sliced cache below. Deleting only the target row left the tail on disk to resurface, re-homed, on refetch.
+      await messages.deleteAfter(chatId, priorUser.id);
       // Reload the user message's attachments so the regenerated turn carries the same wire payload as the original send.
       const persistedAttachments = await attachments.listByMessage(
         priorUser.id,
