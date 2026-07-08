@@ -123,6 +123,13 @@ function AssistantMessageImpl({
     s.toolActivity.get(message.chatId),
   );
   const openSelectText = useUIStore((s) => s.openSelectText);
+  const openExcerptPill = useUIStore((s) => s.openExcerptPill);
+  // Scoped so only THIS message re-renders when its own unit is highlighted (others get a stable undefined).
+  const activeHighlightKey = useUIStore((s) =>
+    s.excerptPillOpen && s.excerptPillKey.startsWith(`${message.id}:`)
+      ? s.excerptPillKey
+      : undefined,
+  );
   const handleCopy = useCallback((): void => {
     Clipboard.setStringAsync(message.content)
       .then(() => {
@@ -142,6 +149,12 @@ function AssistantMessageImpl({
   const handleSelectText = useCallback((): void => {
     openSelectText(message.content);
   }, [openSelectText, message.content]);
+  const handleLongPressExcerpt = useCallback(
+    (text: string, unitKey: string, top: number, bottom: number): void => {
+      openExcerptPill(text, unitKey, top, bottom);
+    },
+    [openExcerptPill],
+  );
   const isPending = message.status === "pending";
   const isError = message.status === "error";
   const isInterrupted = message.status === "interrupted";
@@ -173,7 +186,13 @@ function AssistantMessageImpl({
         ) : null}
         {hasContent || showCursor ? (
           <View className="flex-row items-end flex-wrap">
-            <Markdown source={message.content} className="flex-1" />
+            <Markdown
+              source={message.content}
+              className="flex-1"
+              onLongPressExcerpt={handleLongPressExcerpt}
+              highlightPrefix={String(message.id)}
+              activeHighlightKey={activeHighlightKey}
+            />
             {showCursor ? <StreamingCursor /> : null}
           </View>
         ) : null}

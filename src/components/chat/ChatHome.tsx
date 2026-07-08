@@ -28,6 +28,11 @@ import { MessageList, type MessageListHandle } from "@/components/chat/MessageLi
 import type { UiAttachment } from "@/modules/chat/types";
 import { UpgradePromptModal } from "@/components/chat/UpgradePromptModal";
 import { SelectTextSheet } from "@/components/chat/SelectTextSheet";
+import { ExcerptPill } from "@/components/chat/ExcerptPill";
+import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
+import { useChatModel } from "@/modules/models/hooks/useChatModel";
+import { useHasToolsCapability } from "@/modules/models/hooks/useModelCapabilities";
+import { deepDivePrompt, webSearchPrompt } from "@/modules/chat/lib/selectionPrompts";
 
 export interface ChatHomeProps {
   chatId: ChatId;
@@ -69,6 +74,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const selectTextOpen = useUIStore((s) => s.selectTextOpen);
   const selectTextContent = useUIStore((s) => s.selectTextContent);
   const closeSelectText = useUIStore((s) => s.closeSelectText);
+  const closeExcerptPill = useUIStore((s) => s.closeExcerptPill);
   // Attachment draft lives here because it is composer-scoped, not navigation state.
   const [attachments, setAttachments] = useState<UiAttachment[]>([]);
   // Scroll-to-latest button lives in the composer (rides its keyboard lift); the list reports visibility here and is driven via ref.
@@ -82,7 +88,10 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     if (chatGone) router.replace("/c");
   }, [chatGone, router]);
   const isStreaming = useIsStreaming(chatId);
-  const { regenerate, retry, editAndResend, abort } = useSendMessage(chatId);
+  const { regenerate, retry, editAndResend, abort, send } = useSendMessage(chatId);
+  const { model } = useChatModel(chatId);
+  const canWebSearch = useHasToolsCapability(model?.name);
+  const { setWebSearchEnabled } = useChatComposerModes(chatId);
   const toast = useToast();
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
@@ -129,6 +138,30 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       });
     },
     [abort, editAndResend, isStreaming, toast],
+  );
+  const handleDeepDive = useCallback(
+    (excerpt: string): void => {
+      closeExcerptPill();
+      void send({ text: deepDivePrompt(excerpt) }).catch((err: unknown) => {
+        console.warn("ChatHome: deep dive failed", err);
+        toast({ title: "Couldn't send", tone: "error" });
+      });
+    },
+    [closeExcerptPill, send, toast],
+  );
+  const handleWebSearch = useCallback(
+    (excerpt: string): void => {
+      // Turn web search on for the chat (sticky, like the composer globe), then send with the flag so this turn is grounded.
+      closeExcerptPill();
+      setWebSearchEnabled(true);
+      void send({ text: webSearchPrompt(excerpt), webSearch: true }).catch(
+        (err: unknown) => {
+          console.warn("ChatHome: web search failed", err);
+          toast({ title: "Couldn't send", tone: "error" });
+        },
+      );
+    },
+    [closeExcerptPill, send, setWebSearchEnabled, toast],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {
@@ -242,6 +275,11 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         visible={selectTextOpen}
         content={selectTextContent}
         onClose={closeSelectText}
+      />
+      <ExcerptPill
+        canWebSearch={canWebSearch}
+        onDeepDive={handleDeepDive}
+        onWebSearch={handleWebSearch}
       />
     </View>
   );

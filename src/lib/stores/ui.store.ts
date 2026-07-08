@@ -24,6 +24,14 @@ interface UIState {
   // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Owns the content to display.
   selectTextOpen: boolean;
   selectTextContent: string;
+  // Excerpt pill — long-pressing a reply block pops a floating pill (Deep dive / Web search) at the touch point. Owns the block text and where to anchor.
+  excerptPillOpen: boolean;
+  excerptPillText: string;
+  // Key of the highlighted unit (message-scoped) so the reply can tint exactly the acted-on section.
+  excerptPillKey: string;
+  // On-screen top/bottom of the highlighted unit so the pill anchors above or below it, never over the text.
+  excerptPillTop: number;
+  excerptPillBottom: number;
   // Sheet toggles
   openChatHistory: () => void;
   closeChatHistory: () => void;
@@ -35,6 +43,13 @@ interface UIState {
   closeAttach: () => void;
   openSelectText: (content: string) => void;
   closeSelectText: () => void;
+  openExcerptPill: (
+    text: string,
+    key: string,
+    top: number,
+    bottom: number,
+  ) => void;
+  closeExcerptPill: () => void;
   // Choreographed transitions: close the current sheet, then schedule the next after `timingsNamed.sheetCloseTail` so the two animations do not stack and stutter.
   switchToModelPickerFromAccount: () => void;
   // Upgrade modal
@@ -54,6 +69,11 @@ export const useUIStore = create<UIState>((set) => ({
   upgradeModalModelName: "",
   selectTextOpen: false,
   selectTextContent: "",
+  excerptPillOpen: false,
+  excerptPillText: "",
+  excerptPillKey: "",
+  excerptPillTop: 0,
+  excerptPillBottom: 0,
   openChatHistory: (): void => {
     set({ chatHistoryOpen: true });
   },
@@ -84,6 +104,18 @@ export const useUIStore = create<UIState>((set) => ({
   },
   closeSelectText: (): void => {
     set({ selectTextOpen: false });
+  },
+  openExcerptPill: (text, key, top, bottom): void => {
+    set({
+      excerptPillOpen: true,
+      excerptPillText: text,
+      excerptPillKey: key,
+      excerptPillTop: top,
+      excerptPillBottom: bottom,
+    });
+  },
+  closeExcerptPill: (): void => {
+    set({ excerptPillOpen: false });
   },
   pushSheet: (): void => {
     set((s) => ({ openSheetCount: s.openSheetCount + 1 }));
