@@ -55,6 +55,8 @@ export const ATTACH_SHEET_SNAP_WITH_TOOLS = "33%" as const;
 export const WEB_SEARCH_MAX_RESULTS = 5;
 export const WEB_SEARCH_MAX_TOOL_ROUNDS = 4;
 export const CHAT_HISTORY_SHEET_SNAP = "75%" as const;
+// Select-text sheet: tall so a long reply is comfortable to read and select.
+export const SELECT_TEXT_SHEET_SNAP = "85%" as const;
 
 // Streaming + cache throttles: coalesce React patches to ~60Hz and disk writes to 200ms.
 export const REACT_FLUSH_MS = 16;

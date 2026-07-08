@@ -21,6 +21,9 @@ interface UIState {
   // Upgrade modal — surfaced when Composer catches a `subscription_required` API error, owns the offending model name to render the CTA text.
   upgradeModalOpen: boolean;
   upgradeModalModelName: string;
+  // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Owns the content to display.
+  selectTextOpen: boolean;
+  selectTextContent: string;
   // Sheet toggles
   openChatHistory: () => void;
   closeChatHistory: () => void;
@@ -30,6 +33,8 @@ interface UIState {
   closeAccount: () => void;
   openAttach: () => void;
   closeAttach: () => void;
+  openSelectText: (content: string) => void;
+  closeSelectText: () => void;
   // Choreographed transitions: close the current sheet, then schedule the next after `timingsNamed.sheetCloseTail` so the two animations do not stack and stutter.
   switchToModelPickerFromAccount: () => void;
   // Upgrade modal
@@ -47,6 +52,8 @@ export const useUIStore = create<UIState>((set) => ({
   openSheetCount: 0,
   upgradeModalOpen: false,
   upgradeModalModelName: "",
+  selectTextOpen: false,
+  selectTextContent: "",
   openChatHistory: (): void => {
     set({ chatHistoryOpen: true });
   },
@@ -71,6 +78,12 @@ export const useUIStore = create<UIState>((set) => ({
   },
   closeAttach: (): void => {
     set({ attachOpen: false });
+  },
+  openSelectText: (content): void => {
+    set({ selectTextOpen: true, selectTextContent: content });
+  },
+  closeSelectText: (): void => {
+    set({ selectTextOpen: false });
   },
   pushSheet: (): void => {
     set((s) => ({ openSheetCount: s.openSheetCount + 1 }));
