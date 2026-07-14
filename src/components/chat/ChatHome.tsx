@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/chat/EmptyState";
 import { MessageList, type MessageListHandle } from "@/components/chat/MessageList";
 import type { UiAttachment } from "@/modules/chat/types";
 import { UpgradePromptModal } from "@/components/chat/UpgradePromptModal";
+import { SelectTextSheet } from "@/components/chat/SelectTextSheet";
 
 export interface ChatHomeProps {
   chatId: ChatId;
@@ -65,6 +66,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const closeUpgradeModal = useUIStore((s) => s.closeUpgradeModal);
   const pickAnotherFromUpgrade = useUIStore((s) => s.pickAnotherFromUpgrade);
+  const selectTextOpen = useUIStore((s) => s.selectTextOpen);
+  const selectTextMessageId = useUIStore((s) => s.selectTextMessageId);
+  const closeSelectText = useUIStore((s) => s.closeSelectText);
   // Attachment draft lives here because it is composer-scoped, not navigation state.
   const [attachments, setAttachments] = useState<UiAttachment[]>([]);
   // Scroll-to-latest button lives in the composer (rides its keyboard lift); the list reports visibility here and is driven via ref.
@@ -150,6 +154,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   }, []);
   const handleClearAttachments = useCallback(() => setAttachments([]), []);
   const messages = data?.messages ?? [];
+  // Resolve the select-text body from the loaded chat cache — never mirror server data into the UI store.
+  const selectTextContent =
+    messages.find((m) => m.id === selectTextMessageId)?.content ?? "";
   // A failed load that ISN'T a deletion (corrupt row, DB error) reads as an error, not a blank "new chat".
   const showError = isError && !chatGone && messages.length === 0;
   // Hold the spinner while redirecting away from a deleted chat so the error/empty states never flash.
@@ -233,6 +240,11 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         modelName={upgradeModelName}
         onClose={closeUpgradeModal}
         onPickAnotherModel={pickAnotherFromUpgrade}
+      />
+      <SelectTextSheet
+        visible={selectTextOpen}
+        content={selectTextContent}
+        onClose={closeSelectText}
       />
     </View>
   );

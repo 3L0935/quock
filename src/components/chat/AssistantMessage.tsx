@@ -4,7 +4,7 @@ import clsx from "clsx";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
-import { Copy, Globe, RotateCw, type LucideIcon } from "lucide-react-native";
+import { Copy, Globe, Highlighter, RotateCw, type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
@@ -20,6 +20,7 @@ import {
   useStreamingStore,
   type ToolActivity,
 } from "@/modules/chat/stores/streaming.store";
+import { useUIStore } from "@/lib/stores/ui.store";
 import type { MessageId } from "@/lib/types/ids";
 
 export interface AssistantMessageProps {
@@ -121,6 +122,7 @@ function AssistantMessageImpl({
   const toolActivity = useStreamingStore((s) =>
     s.toolActivity.get(message.chatId),
   );
+  const openSelectText = useUIStore((s) => s.openSelectText);
   const handleCopy = useCallback((): void => {
     Clipboard.setStringAsync(message.content)
       .then(() => {
@@ -137,6 +139,9 @@ function AssistantMessageImpl({
   const handleRetry = useCallback((): void => {
     onRetry?.(message.id);
   }, [onRetry, message.id]);
+  const handleSelectText = useCallback((): void => {
+    openSelectText(message.id);
+  }, [openSelectText, message.id]);
   const isPending = message.status === "pending";
   const isError = message.status === "error";
   const isInterrupted = message.status === "interrupted";
@@ -213,6 +218,12 @@ function AssistantMessageImpl({
             onPress={handleCopy}
             accessibilityLabel="Copy message"
             testID="assistant-action-copy"
+          />
+          <ActionButton
+            icon={Highlighter}
+            onPress={handleSelectText}
+            accessibilityLabel="Select text"
+            testID="assistant-action-select"
           />
           {onRegenerate !== undefined ? (
             <ActionButton
