@@ -201,7 +201,8 @@ function TableBlock({
     <View className="mb-3" onLayout={onLayout}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View className="rounded-xl border border-border overflow-hidden">
-          <View className="flex-row bg-muted">
+          {/* No header fill: a selection highlight then tints header and body uniformly — bold text + the row divider mark it. */}
+          <View className="flex-row">
             {headers.map((cell, ci) => (
               <View
                 key={ci}
@@ -257,7 +258,8 @@ export function Markdown({
   const colors = useThemeColors();
   const unitRefs = React.useRef(new Map<string, View>());
   const prefix = highlightPrefix ?? "";
-  const highlightColor = withAlpha(colors.mutedForeground, opacity.tint);
+  // Subtle translucent wash so the active unit reads as glass, not a solid grey block.
+  const highlightColor = withAlpha(colors.mutedForeground, opacity.ghostTint);
   const blocks = parseMarkdown(source);
   const units = groupIntoUnits(blocks);
   // Measure the unit's container in-window and hand its top/bottom to the pill so it anchors above/below, not over the text.
