@@ -147,8 +147,8 @@ function AssistantMessageImpl({
     onRetry?.(message.id);
   }, [onRetry, message.id]);
   const handleSelectText = useCallback((): void => {
-    openSelectText(message.content);
-  }, [openSelectText, message.content]);
+    openSelectText(message.id);
+  }, [openSelectText, message.id]);
   const handleLongPressExcerpt = useCallback(
     (text: string, unitKey: string, top: number, bottom: number): void => {
       openExcerptPill(text, unitKey, top, bottom);

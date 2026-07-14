@@ -29,10 +29,21 @@ export function blockToPlainText(node: BlockNode): string {
       return node.children.map(blockToPlainText).join("\n\n");
     case "rule":
       return "———";
-    case "table":
-      return [node.headers, ...node.rows]
-        .map((row) => row.map(inlineToPlainText).join("\t"))
-        .join("\n");
+    case "table": {
+      const headers = node.headers.map(inlineToPlainText);
+      const rows = node.rows.map((row) => row.map(inlineToPlainText));
+      // Tab-separated cells don't align in a proportional font, so flatten to labelled text instead.
+      // Two-column tables read as key/value pairs; the generic header row (e.g. "Parameter | Value") is dropped.
+      if (headers.length === 2) {
+        return rows.map(([key, value]) => `${key}: ${value}`).join("\n");
+      }
+      // Wider tables: one labelled block per row so cells never collapse into ragged columns.
+      return rows
+        .map((row) =>
+          row.map((cell, i) => `${headers[i] ?? ""}: ${cell}`).join("\n"),
+        )
+        .join("\n\n");
+    }
   }
 }
 

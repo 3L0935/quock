@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { timingsNamed } from "@/lib/design/tokens";
+import type { MessageId } from "@/lib/types/ids";
 
 // "default" → the picker writes to settings.store.selectedModelName (persisted user preference).
 // "current" → the picker pins the choice to the open chat (chats.model, via useChatModel).
@@ -21,10 +22,10 @@ interface UIState {
   // Upgrade modal — surfaced when Composer catches a `subscription_required` API error, owns the offending model name to render the CTA text.
   upgradeModalOpen: boolean;
   upgradeModalModelName: string;
-  // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Owns the content to display.
+  // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Holds the message id; content is resolved from the query cache, never mirrored here.
   selectTextOpen: boolean;
-  selectTextContent: string;
-  // Excerpt pill — long-pressing a reply block pops a floating pill (Deep dive / Web search) at the touch point. Owns the block text and where to anchor.
+  selectTextMessageId: MessageId | null;
+  // Excerpt pill — long-pressing a reply unit pops a floating pill (Deep dive / Web search) anchored to it. Owns the unit text and its on-screen bounds.
   excerptPillOpen: boolean;
   excerptPillText: string;
   // Key of the highlighted unit (message-scoped) so the reply can tint exactly the acted-on section.
@@ -41,7 +42,7 @@ interface UIState {
   closeAccount: () => void;
   openAttach: () => void;
   closeAttach: () => void;
-  openSelectText: (content: string) => void;
+  openSelectText: (messageId: MessageId) => void;
   closeSelectText: () => void;
   openExcerptPill: (
     text: string,
@@ -68,7 +69,7 @@ export const useUIStore = create<UIState>((set) => ({
   upgradeModalOpen: false,
   upgradeModalModelName: "",
   selectTextOpen: false,
-  selectTextContent: "",
+  selectTextMessageId: null,
   excerptPillOpen: false,
   excerptPillText: "",
   excerptPillKey: "",
@@ -99,8 +100,8 @@ export const useUIStore = create<UIState>((set) => ({
   closeAttach: (): void => {
     set({ attachOpen: false });
   },
-  openSelectText: (content): void => {
-    set({ selectTextOpen: true, selectTextContent: content });
+  openSelectText: (messageId): void => {
+    set({ selectTextOpen: true, selectTextMessageId: messageId });
   },
   closeSelectText: (): void => {
     set({ selectTextOpen: false });
