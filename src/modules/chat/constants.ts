@@ -48,8 +48,8 @@ export const COMPOSER_MAX_LINES = 8;
 
 // Sheet snap points owned by the chat feature.
 export const ATTACH_SHEET_SNAP = "25%" as const;
-// Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area.
-export const ATTACH_SHEET_SNAP_WITH_TOOLS = "33%" as const;
+// Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area — 37% covers the sheet card's internal home-indicator padding on 812-874pt devices (33% left the second tool row ~15pt inside the safe-area band).
+export const ATTACH_SHEET_SNAP_WITH_TOOLS = "37%" as const;
 // Web search: results per query (Ollama default 5, max 10) and a ceiling on agentic tool rounds so a misbehaving model can't loop forever.
 export const WEB_SEARCH_MAX_RESULTS = 5;
 export const WEB_SEARCH_MAX_TOOL_ROUNDS = 4;

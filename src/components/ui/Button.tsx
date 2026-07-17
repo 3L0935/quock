@@ -121,10 +121,12 @@ export function Button({
   const tintStyle = useAnimatedStyle(() => ({
     opacity: tintOpacity.value,
   }));
+  // Translucent fills must paint ONCE: Pressable duplicates className on two nested views, which would double-composite the wash (the trap AlertAction documents). Secondary locks scale, so hoisting its surface to a static wrapper costs nothing; opaque variants keep the fill on the Pressable so press-scale moves the pill.
+  const hasTranslucentSurface = variant === "secondary";
   // Pill (rounded-full) — shares the shape language of GlassOrb so CTAs and icon orbs read as one system.
   const containerClass = clsx(
     "items-center justify-center rounded-full flex-row overflow-hidden",
-    VARIANT_CLASSES[variant],
+    !hasTranslucentSurface && VARIANT_CLASSES[variant],
     fullWidth && "w-full",
     className,
   );
@@ -140,7 +142,7 @@ export function Button({
     VARIANT_TEXT_CLASSES[variant],
     SIZE_TEXT_CLASSES[size],
   );
-  return (
+  const button = (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
@@ -178,5 +180,17 @@ export function Button({
         )}
       </View>
     </Pressable>
+  );
+  if (!hasTranslucentSurface) return button;
+  return (
+    <View
+      className={clsx(
+        "rounded-full overflow-hidden",
+        VARIANT_CLASSES[variant],
+        fullWidth && "w-full",
+      )}
+    >
+      {button}
+    </View>
   );
 }

@@ -147,16 +147,19 @@ export function GlassOrb({
     );
   }
   return (
+    // Same two-view split as the interactive branch: the outset glass ring dies under overflow:hidden on Fabric, so the clip lives one level in.
     <View
-      style={[shadowStyle, wrapperStyle, dimStyle, style]}
+      style={[shadowStyle, dimStyle, style]}
       className={className}
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
       accessibilityState={{ disabled }}
     >
-      {stack}
-      {children}
+      <View style={wrapperStyle}>
+        {stack}
+        {children}
+      </View>
     </View>
   );
 }
