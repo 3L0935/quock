@@ -117,7 +117,7 @@ export function FloatingHeader({
         >
           <View className="h-11 flex-row items-center px-4">
             <Text
-              className="font-mono text-foreground text-sm font-medium"
+              className="font-mono text-footnote text-foreground font-medium"
               numberOfLines={1}
             >
               {modelName}

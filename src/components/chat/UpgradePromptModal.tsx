@@ -56,10 +56,10 @@ export function UpgradePromptModal({
           accessibilityLiveRegion="polite"
         >
           <View className="bg-card rounded-3xl p-5">
-            <Text className="text-foreground font-sans text-base font-semibold">
+            <Text className="font-sans font-semibold text-headline text-foreground">
               Subscription required
             </Text>
-            <Text className="text-muted-foreground font-sans text-sm mt-1.5">
+            <Text className="font-sans text-body text-muted-foreground mt-1.5">
               {modelName} is an Ollama Cloud model. Upgrade to use it, or pick a
               different model.
             </Text>

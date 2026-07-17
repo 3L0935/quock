@@ -351,14 +351,14 @@ export function Composer({
         ) : null}
         {invalidReasonText !== null ? (
           <Text
-            className="font-sans text-destructive text-xs px-3 pb-1.5"
+            className="font-sans text-caption-1 text-destructive px-3 pb-1.5"
             numberOfLines={1}
           >
             {invalidReasonText}
           </Text>
         ) : null}
         {isAttachmentTotalTooLarge ? (
-          <Text className="font-sans text-xs text-destructive px-3 pb-1">
+          <Text className="font-sans text-caption-1 text-destructive px-3 pb-1">
             Attachments too large —{" "}
             {Math.floor(ATTACHMENT_MAX_TOTAL_BYTES / BYTES_PER_MB)} MB max total
           </Text>

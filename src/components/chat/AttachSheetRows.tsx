@@ -42,7 +42,8 @@ function AttachTileImpl({
           />
         </View>
       </GlassOrb>
-      <Text className="font-mono uppercase text-muted-foreground text-xs tracking-widest">
+      {/* iOS share-sheet tile caption: small sans, sentence case. */}
+      <Text className="font-sans text-caption-1 text-muted-foreground">
         {label}
       </Text>
     </View>

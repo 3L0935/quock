@@ -204,7 +204,7 @@ export function ModelPickerSheet({
                 />
                 <Text
                   className={clsx(
-                    "font-sans text-xs",
+                    "font-sans text-caption-1",
                     isActive ? "text-background" : "text-muted-foreground",
                   )}
                 >
@@ -222,15 +222,15 @@ export function ModelPickerSheet({
         bounces
       >
         {modelsQuery.isLoading ? (
-          <Text className="font-sans text-muted-foreground text-sm py-8 text-center">
+          <Text className="font-sans text-footnote text-muted-foreground py-8 text-center">
             Loading models…
           </Text>
         ) : modelsQuery.isError ? (
-          <Text className="font-sans text-muted-foreground text-sm py-8 text-center">
+          <Text className="font-sans text-footnote text-muted-foreground py-8 text-center">
             Could not load models
           </Text>
         ) : filteredModels.length === 0 ? (
-          <Text className="font-sans text-muted-foreground text-sm py-8 text-center">
+          <Text className="font-sans text-footnote text-muted-foreground py-8 text-center">
             {activeFilter === null
               ? "No cloud models available"
               : `No ${activeFilter} models available`}

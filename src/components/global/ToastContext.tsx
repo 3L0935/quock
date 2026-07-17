@@ -1,6 +1,5 @@
 // Toast viewport — renders the top-most queued item from `useToastStore`. Mounted once in `_layout.tsx`. Apple-style floating pill: bg-card surface, soft shadow, tone-coloured Lucide icon + title.
 
-import clsx from "clsx";
 import {
   AlertTriangle,
   Check,
@@ -132,16 +131,14 @@ export function ToastViewport({
         />
         <View className="ml-2 max-w-65">
           <Text
-            className={clsx(
-              "text-sm font-sans font-medium text-foreground",
-            )}
+            className="font-sans font-medium text-subhead text-foreground"
             numberOfLines={1}
           >
             {shown.title}
           </Text>
           {shown.description !== undefined ? (
             <Text
-              className="mt-0.5 text-xs font-sans text-muted-foreground"
+              className="mt-0.5 font-sans text-footnote text-muted-foreground"
               numberOfLines={2}
             >
               {shown.description}

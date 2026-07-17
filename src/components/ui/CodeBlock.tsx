@@ -95,7 +95,7 @@ export function CodeBlock({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: CODE_BODY_PADDING_X, paddingVertical: CODE_BODY_PADDING_Y }}
       >
-        <Text className="font-mono text-foreground text-xs">
+        <Text className="font-mono text-footnote text-foreground">
           {segments.map((segment, index) => (
             <Text key={index} style={{ color: colors.syntax[segment.kind] }}>
               {segment.text}

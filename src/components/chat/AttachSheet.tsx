@@ -308,7 +308,7 @@ export function AttachSheet({
       </View>
       {hasTools ? (
         <View className="pt-1">
-          <Text className="font-mono uppercase text-muted-foreground text-xs tracking-widest mb-1 px-6">
+          <Text className="font-sans font-semibold text-body text-muted-foreground mb-1 px-6">
             Tools
           </Text>
           {hasWebSearch ? (
