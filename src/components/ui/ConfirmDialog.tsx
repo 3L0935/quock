@@ -1,5 +1,6 @@
 // Absolute-overlay dialog — render inside a Sheet `overlays` slot so `inset-0` resolves to the full display.
 
+import clsx from "clsx";
 import React, { useEffect } from "react";
 import { Pressable as RNPressable, Text, View } from "react-native";
 import Animated, {
@@ -12,8 +13,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs, surfaceSpring } from "@/lib/design/motion";
-import { Button } from "@/components/ui/Button";
-import { componentLayout, motion, shadow, size, zLayer } from "@/lib/design/tokens";
+import { Pressable } from "@/components/ui/Pressable";
+import { componentLayout, motion, shadow, zLayer } from "@/lib/design/tokens";
 import { TextField } from "@/components/ui/TextField";
 
 export interface ConfirmDialogProps {
@@ -32,6 +33,42 @@ export interface ConfirmDialogProps {
   confirmDisabled?: boolean;
   testID?: string;
 }
+
+interface AlertActionProps {
+  label: string;
+  onPress: () => void;
+  surfaceClass: string;
+  labelClass: string;
+  disabled?: boolean;
+}
+// iOS 27 alert action pill — the 48pt alert tier sits between Button md/lg, so the alert owns its
+// action recipe as the one sanctioned exception to the <Button>-for-CTAs rule (AGENTS.md §How to add things).
+function AlertAction({
+  label,
+  onPress,
+  surfaceClass,
+  labelClass,
+  disabled = false,
+}: AlertActionProps): React.ReactElement {
+  return (
+    // Surface lives on the wrapper: Pressable paints className on two nested views, which would double a translucent fill.
+    <View
+      className={clsx("flex-1 rounded-full overflow-hidden", surfaceClass)}
+      style={{ height: componentLayout.alertDialog.buttonHeight }}
+    >
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        className="flex-1 items-center justify-center"
+      >
+        <Text className={clsx("font-sans font-semibold text-body", labelClass)}>
+          {label}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export function ConfirmDialog({
   visible,
   title,
@@ -85,7 +122,7 @@ export function ConfirmDialog({
         style={[
           {
             width: "100%",
-            maxWidth: size.cardWidth,
+            maxWidth: componentLayout.alertDialog.width,
             shadowColor: colors.shadow,
             shadowOpacity: shadow.dialog.opacity,
             shadowRadius: shadow.dialog.radius,
@@ -98,20 +135,23 @@ export function ConfirmDialog({
         accessibilityViewIsModal
         accessibilityLiveRegion="polite"
       >
-        {/* Solid surface — Apple HIG alerts use an opaque card so the message + input + actions read sharply against any underlying content (sheets, screens, photos). Glass on glass made it hard to parse the text. */}
+        {/* Near-opaque card material — iOS 27 alerts stay readable over any underlying content (sheets, screens, photos); a frosted blur inside a Modal added weight without payoff. */}
         <View
           className="bg-card"
-          style={{ borderRadius: componentLayout.dialog.cornerRadius, overflow: "hidden" }}
+          style={{
+            borderRadius: componentLayout.alertDialog.cornerRadius,
+            overflow: "hidden",
+          }}
         >
-          <View className="p-5">
+          <View style={{ padding: componentLayout.alertDialog.padding }}>
             <Text
-              className="font-sans font-semibold text-foreground text-lg text-center"
+              className="pt-2 px-2 font-sans font-semibold text-headline text-label text-center"
               numberOfLines={1}
             >
               {title}
             </Text>
             {message !== undefined ? (
-              <Text className="mt-1.5 font-sans text-muted-foreground text-sm text-center">
+              <Text className="mt-1 px-2 font-sans text-body text-label-secondary text-center">
                 {message}
               </Text>
             ) : null}
@@ -126,25 +166,36 @@ export function ConfirmDialog({
                   multiline
                   maxLines={3}
                   testID="confirm-dialog-input"
+                  // iOS 27 alert field: system-fill capsule at the alert geometry; grows past minHeight up to maxLines.
+                  containerClassName="bg-fill-secondary justify-center"
+                  containerStyle={{
+                    borderRadius: componentLayout.alertDialog.textFieldRadius,
+                    minHeight: componentLayout.alertDialog.textFieldHeight,
+                  }}
+                  className="text-body px-4"
                 />
               </View>
             ) : null}
-            <View className="flex-row gap-2.5 mt-4.5">
-              <View className="flex-1">
-                <Button variant="secondary" fullWidth onPress={onCancel}>
-                  {cancelLabel}
-                </Button>
-              </View>
-              <View className="flex-1">
-                <Button
-                  variant={destructive ? "destructive" : "primary"}
-                  fullWidth
-                  disabled={confirmDisabled}
-                  onPress={onConfirm}
-                >
-                  {confirmLabel}
-                </Button>
-              </View>
+            <View
+              className="flex-row mt-4"
+              style={{ gap: componentLayout.alertDialog.buttonGap }}
+            >
+              <AlertAction
+                label={cancelLabel}
+                onPress={onCancel}
+                surfaceClass="bg-fill-secondary"
+                labelClass="text-label"
+              />
+              {/* Destructive role = red label on the neutral fill — iOS alerts never paint a solid red action. */}
+              <AlertAction
+                label={confirmLabel}
+                onPress={onConfirm}
+                disabled={confirmDisabled}
+                surfaceClass={destructive ? "bg-fill-secondary" : "bg-primary"}
+                labelClass={
+                  destructive ? "text-destructive" : "text-primary-foreground"
+                }
+              />
             </View>
           </View>
         </View>
