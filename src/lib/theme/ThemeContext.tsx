@@ -68,6 +68,7 @@ function palette(c: DesignColors): Record<string, string> {
     // iOS 27 system fills.
     "--color-fill-secondary": c.fillSecondary,
     "--color-fill-tertiary": c.fillTertiary,
+    "--color-fill-quaternary": c.fillQuaternary,
     // Segmented control selected-option pill.
     "--color-segmented-selected": c.segmentedSelected,
     // Apple HIG system colors.

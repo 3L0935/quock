@@ -43,6 +43,7 @@ module.exports = {
         // iOS 27 system fills.
         "fill-secondary": "var(--color-fill-secondary, " + colors.fillSecondary + ")",
         "fill-tertiary": "var(--color-fill-tertiary, " + colors.fillTertiary + ")",
+        "fill-quaternary": "var(--color-fill-quaternary, " + colors.fillQuaternary + ")",
         // Segmented control selected-option pill.
         "segmented-selected": "var(--color-segmented-selected, " + colors.segmentedSelected + ")",
         // Apple HIG system colors (status / charts).

@@ -2,20 +2,15 @@
 
 import clsx from "clsx";
 import React, { useEffect, useState } from "react";
-import {
-  LayoutChangeEvent,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { LayoutChangeEvent, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { useThemeColors } from "@/lib/theme/ThemeContext";
+import { Pressable } from "@/components/ui/Pressable";
 import { toggleSpring } from "@/lib/design/motion";
-import { componentLayout, shadow } from "@/lib/design/tokens";
+import { boxShadow, componentLayout } from "@/lib/design/tokens";
 
 export interface SegmentedOption {
   label: string;
@@ -51,7 +46,6 @@ export function SegmentedControl({
   testID,
   accessibilityLabel,
 }: SegmentedControlProps): React.ReactElement {
-  const colors = useThemeColors();
   // Indicator positions in absolute px; hidden until first layout measurement arrives.
   const [width, setWidth] = useState<number>(0);
   // Inner width = track minus the inset on each side and the inter-option gaps, so option cells and indicator share one grid.
@@ -100,16 +94,13 @@ export function SegmentedControl({
         <Animated.View
           pointerEvents="none"
           className="absolute bg-segmented-selected rounded-full"
+          // Fabric boxShadow renders the kit's CSS blur verbatim (legacy shadowRadius would halve the halo).
           style={[
             {
               top: SC.indicatorInset,
               bottom: SC.indicatorInset,
               left: SC.indicatorInset,
-              shadowColor: colors.shadow,
-              shadowOpacity: shadow.control.opacity,
-              shadowRadius: shadow.control.radius,
-              shadowOffset: { width: 0, height: shadow.control.offsetY },
-              elevation: shadow.control.elevation,
+              boxShadow: boxShadow.control,
             },
             indicatorStyle,
           ]}
@@ -118,14 +109,22 @@ export function SegmentedControl({
       {options.map((opt) => {
         const isSelected = opt.value === value;
         return (
-          // Static style on the Pressable (no callback) since Fabric drops styles from callbacks; the inner View centers the Text via its own layout.
+          // Design-system Pressable for haptics; no press-scale (a scaling cell inside the track reads wrong). The inner View owns its height explicitly — the Pressable's animated wrapper has no definite height for flex-1 to resolve against.
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
             disabled={disabled}
+            scale={1}
+            accessibilityState={{ selected: isSelected, disabled }}
             style={{ width: width > 0 ? segmentWidth : segmentPercent }}
           >
-            <View className="flex-1 items-center justify-center">
+            <View
+              className="items-center justify-center"
+              style={{
+                height: TRACK_HEIGHTS[size] - SC.indicatorInset * 2,
+                paddingHorizontal: SC.optionPaddingX,
+              }}
+            >
               <Text
                 className={clsx(
                   // Both states use the primary label tint — iOS marks selection with the pill + weight, not color.

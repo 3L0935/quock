@@ -43,6 +43,7 @@ declare module "*/design/colors.cjs" {
     // iOS 27 system fills.
     fillSecondary: string;
     fillTertiary: string;
+    fillQuaternary: string;
     // Apple HIG system colors.
     red: string;
     orange: string;

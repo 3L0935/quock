@@ -74,14 +74,16 @@ const separatorDark = {
   separator: "rgba(255,255,255,0.17)",
   separatorOpaque: "#38383A",
 };
-// iOS 27 system fills — translucent gray washes for control backgrounds INSIDE surfaces (glass stays on floating controls only).
+// iOS 27 system fills — translucent gray washes for control backgrounds INSIDE surfaces (glass stays on floating controls only). Quaternary is the faintest tier — GlassOrb rest-wash base (§19).
 const fillLight = {
   fillSecondary: "rgba(120,120,128,0.16)",
   fillTertiary: "rgba(118,118,128,0.12)",
+  fillQuaternary: "rgba(116,116,128,0.08)",
 };
 const fillDark = {
   fillSecondary: "rgba(120,120,128,0.32)",
   fillTertiary: "rgba(118,118,128,0.24)",
+  fillQuaternary: "rgba(118,118,128,0.18)",
 };
 // Apple HIG system grays — light + dark.
 const grayLight = {
@@ -181,8 +183,8 @@ const dark = {
   shadow: "#000000",
   // Same as light — Apple system convention.
   thumbFill: "#FFFFFF",
-  // HIG dark selected-segment fill sits at systemGray4 — white would glare on the dark track.
-  segmentedSelected: grayDark.gray4,
+  // iOS-real dark selected-segment fill is systemGray2 (§21) — the kit example renders a light pill; gray4 was too close to the dark track to read as selected.
+  segmentedSelected: grayDark.gray2,
   toggleOn: appleDark.green,
 };
 

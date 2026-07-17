@@ -41,9 +41,10 @@ export interface DesignColors {
   // iOS 27 separators — translucent hairline + opaque variant for layered content.
   separator: string;
   separatorOpaque: string;
-  // iOS 27 system fills — solid control washes inside surfaces (never glass).
+  // iOS 27 system fills — solid control washes inside surfaces (never glass). Quaternary = faintest tier, GlassOrb rest-wash base.
   fillSecondary: string;
   fillTertiary: string;
+  fillQuaternary: string;
   // Apple HIG system colors — status / charts only.
   red: string;
   orange: string;
@@ -70,7 +71,7 @@ export interface DesignColors {
   shadow: string;
   // Theme-stable neutrals — iOS UISwitch thumb stays white on both themes.
   thumbFill: string;
-  // SegmentedControl selected-option pill — white light / systemGray4 dark (HIG selected-segment fill).
+  // SegmentedControl selected-option pill — white light / systemGray2 dark (iOS-real selected-segment fill).
   segmentedSelected: string;
   // Switch ON track — iOS system toggle green as a semantic control key.
   toggleOn: string;
@@ -228,7 +229,7 @@ export interface DesignSize {
   iconHeroBack: number;  // 22 — back chevron — between iconSize.xl + 2xl
   iconRowBrand: number;  // 22 — brand SVG glyph in settings rows (Discord/X/Ollama)
   avatarHeader: number;  // 28 — avatar size in the chat top bar
-  hitTargetMin: number;  // 44 — Apple HIG minimum + avatar in profile row + switch track width + sheet header slot
+  hitTargetMin: number;  // 44 — Apple HIG minimum + avatar in profile row + sheet header slot
   segmentedSlot: number; // 188 — segmented control width inside settings row trailing slot
   avatarDefault: number; // 36 — Avatar primitive default diameter
   spinnerDefault: number; // 18 — Spinner primitive default diameter
@@ -251,14 +252,11 @@ export interface DesignShadowRecipe {
 }
 export interface DesignShadows {
   thumb: DesignShadowRecipe;     // iOS UISwitch thumb
-  control: DesignShadowRecipe;   // SegmentedControl indicator
   dialog: DesignShadowRecipe;    // ConfirmDialog elevated card
   orb: DesignShadowRecipe;       // GlassOrb Android solid-fallback lift (iOS lift lives in boxShadow.glass)
 }
 export const shadow: DesignShadows = {
   thumb: { opacity: 0.15, radius: 2, offsetY: 1, elevation: 2 },
-  // iOS 27 segmented selected-option shadow: 0 2px 10px at 6% — soft lift instead of a hard edge.
-  control: { opacity: 0.06, radius: 10, offsetY: 2, elevation: 2 },
   dialog: { opacity: 0.24, radius: 30, offsetY: 12, elevation: 12 },
   orb: { opacity: 0.10, radius: 8, offsetY: 3, elevation: 3 },
 };
@@ -271,16 +269,19 @@ export interface DesignBoxShadow {
   glass: Record<"light" | "dark", DesignBoxShadowGlass>;
   // Sheet card ring — iOS 27 kit values (hairline + deep ambient), heavier than the orb glass ring.
   sheet: Record<"light" | "dark", string>;
+  // SegmentedControl selected-pill lift — kit CSS blur rendered verbatim by Fabric (legacy shadowRadius would halve it).
+  control: string;
 }
 export const boxShadow: DesignBoxShadow = {
   glass: {
+    // Rest-wash hairline is an opaque near-white per theme (iOS 27 kit §19) — a translucent white rim washed out over busy content.
     light: {
-      ring: "0 0 0 0.5px rgba(255,255,255,0.5), 0 8px 24px rgba(0,0,0,0.12)",
+      ring: "0 0 0 0.5px #ebebeb, 0 8px 24px rgba(0,0,0,0.12)",
       highlight:
         "inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(255,255,255,0.2)",
     },
     dark: {
-      ring: "0 0 0 0.5px rgba(255,255,255,0.15), 0 8px 24px rgba(0,0,0,0.4)",
+      ring: "0 0 0 0.5px #e6e6e6, 0 8px 24px rgba(0,0,0,0.4)",
       highlight:
         "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(255,255,255,0.06)",
     },
@@ -289,6 +290,7 @@ export const boxShadow: DesignBoxShadow = {
     light: "0 0 0 0.5px #dbdbdb, 0 8px 48px rgba(0,0,0,0.25)",
     dark: "0 0 0 0.5px rgba(255,255,255,0.15), 0 8px 48px rgba(0,0,0,0.5)",
   },
+  control: "0 2px 10px rgba(0,0,0,0.06)",
 };
 // Per-component layout constants. Shape `{ component: { key: number } }` keeps the call sites unambiguous.
 export interface DesignComponentLayout {
@@ -320,16 +322,20 @@ export interface DesignComponentLayout {
     knobWidth: number;   // 38
     knobHeight: number;  // 24
     inset: number;       // 2 — knob padding inside the track
+    knobStretch: number; // 6 — press-state width growth, anchored to the active edge (kit Pressed variants)
   };
   segmentedControl: {
     indicatorInset: number;     // 2 — pad between track edge and the selected option (option height = track - 2*inset)
     trackHeightSmall: number;   // 32 — iOS 27 small track
     trackHeightLarge: number;   // 50 — iOS 27 large track
     optionGap: number;          // 4  — gap between options
+    optionPaddingX: number;     // 6  — label padding inside the option pill so long labels never touch the edge
   };
-  // iOS 27 inset-grouped list card rounding (same 26pt family as the alert text field).
+  // iOS 27 inset-grouped list geometry (§15) — card rounding shares the alert text-field 26pt family.
   listSection: {
-    cardRadius: number; // 26
+    cardRadius: number;       // 26
+    insetX: number;           // 16 — horizontal inset of the card from the screen edge
+    rowHeightRegular: number; // 52 — regular (single-line) row height inside the card
   };
   // Attachment chip image thumbnail (60-pt square).
   attachmentChipThumb: number;       // 60
@@ -398,15 +404,19 @@ export const componentLayout: DesignComponentLayout = {
     knobWidth: 38,
     knobHeight: 24,
     inset: 2,
+    knobStretch: 6,
   },
   segmentedControl: {
     indicatorInset: 2,
     trackHeightSmall: 32,
     trackHeightLarge: 50,
     optionGap: 4,
+    optionPaddingX: 6,
   },
   listSection: {
     cardRadius: 26,
+    insetX: 16,
+    rowHeightRegular: 52,
   },
   attachmentChipThumb: 60,
   attachmentChipMaxWidth: 200,

@@ -17,7 +17,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs, springEasing } from "@/lib/design/motion";
-import { iconSize, strokeWidth, timingsNamed } from "@/lib/design/tokens";
+import { componentLayout, iconSize, strokeWidth, timingsNamed } from "@/lib/design/tokens";
 
 export type ListRowChipTone = "neutral" | "accent";
 export interface ListRowChip {
@@ -45,7 +45,7 @@ export interface ListRowProps {
   subtitleTiny?: boolean;
   /** Center the leading slot vertically against the full content block. Useful when the row stacks title + chips + subtitle and a radio/checkbox would otherwise sit aligned to the title only. */
   centerLeading?: boolean;
-  /** Pin a minimum content height so multi-line rows render at a fixed height instead of varying with the chip/subtitle presence. */
+  /** Minimum content height override. Defaults to the iOS 27 regular row height (`listSection.rowHeightRegular`); pass a larger value to pin multi-line rows to a fixed height. */
   minRowHeight?: number;
   /** When true, the visual order becomes label → subtitle → chips (mirrors the ollama.com model card stack). Default is label → chips → subtitle, which is the long-standing settings-row order. */
   chipsBelowSubtitle?: boolean;
@@ -98,8 +98,11 @@ function ListRowImpl({
   const alignmentClass = centerLeading ? "items-center" : "items-start";
   // Render the divider as a `borderBottom` on the content itself — a sibling `<View>` with `height: hairlineWidth` rasterises irregularly above the Glass blur, while iOS's native border-hairline path stays stable.
   const contentStyle = React.useMemo(() => {
-    const base: ViewStyle = {};
-    if (minRowHeight !== undefined) base.minHeight = minRowHeight;
+    // 16pt inset + 52pt regular-row floor from the token — minHeight lets stacked rows (chips/subtitle) grow past it naturally.
+    const base: ViewStyle = {
+      paddingHorizontal: componentLayout.listSection.insetX,
+      minHeight: minRowHeight ?? componentLayout.listSection.rowHeightRegular,
+    };
     if (showDivider) {
       base.borderBottomWidth = StyleSheet.hairlineWidth;
       base.borderBottomColor = colors.border;
@@ -108,7 +111,7 @@ function ListRowImpl({
   }, [minRowHeight, showDivider, colors.border]);
   const content = (
     <View
-      className={`flex-row ${alignmentClass} gap-3.5 px-4.5 py-3.5`}
+      className={clsx("flex-row gap-3.5 py-3.5", alignmentClass)}
       style={contentStyle}
     >
       {leadingNode}

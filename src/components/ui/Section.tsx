@@ -1,4 +1,4 @@
-// Grouped list block with an optional uppercase eyebrow label.
+// Grouped list block with an optional sentence-case header label.
 
 import React, { type ReactNode } from "react";
 import { Text, View } from "react-native";
@@ -23,8 +23,11 @@ function SectionImpl({
   return (
     <View className={clsx("mb-6", className)} testID={testID}>
       {label ? (
-        // iOS grouped-list eyebrow: SF footnote uppercase in the secondary label tint.
-        <Text className="font-sans uppercase text-footnote text-muted-foreground mb-2 ml-4.5">
+        // iOS 27 grouped-list header: Body semibold sentence case in the secondary tint (the uppercase footnote eyebrow was the classic style). 16pt inset flows from the token — ml-4.5 renders 18.
+        <Text
+          className="font-sans font-semibold text-body text-muted-foreground mb-2"
+          style={{ marginLeft: componentLayout.listSection.insetX }}
+        >
           {label}
         </Text>
       ) : null}
