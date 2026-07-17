@@ -300,10 +300,10 @@ export interface DesignComponentLayout {
     slideDistance: number; // 12 — enter/exit slide distance (slide down from above for top-anchored toast)
   };
   composer: {
-    inputFontSize: number;    // 14 — matches text-sm
-    inputLineHeight: number;  // 22 — rendered line-height for the 14pt input
+    inputFontSize: number;    // 17 — iOS body (iMessage compose size)
+    inputLineHeight: number;  // 22 — iOS body leading (shared with maxLines calc)
     inputPaddingY: number;    // 8  — symmetric vertical padding (shared with maxLines calc)
-    inputAccentLetterSpacing: number; // -0.1
+    inputAccentLetterSpacing: number; // -0.43 — iOS body tracking
     minBottomPad: number;     // 8  — used when the safe-area bottom is 0 (no notch); also when the keyboard is open
     chipScrollPadX: number;   // 12 — attachment chip ScrollView horizontal padding
     chipScrollPadTop: number; // 10 — attachment chip ScrollView top padding
@@ -385,10 +385,10 @@ export interface DesignComponentLayout {
 export const componentLayout: DesignComponentLayout = {
   toast: { insetX: 12, topOffset: 16, slideDistance: 12 },
   composer: {
-    inputFontSize: 14,
+    inputFontSize: 17,
     inputLineHeight: 22,
     inputPaddingY: 8,
-    inputAccentLetterSpacing: -0.1,
+    inputAccentLetterSpacing: -0.43,
     minBottomPad: 8,
     chipScrollPadX: 12,
     chipScrollPadTop: 10,
