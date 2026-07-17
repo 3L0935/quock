@@ -1,4 +1,4 @@
-// Bottom sheet via Reanimated 4 + Gesture.Pan grabber. iOS 27 floating card: 6pt insets above the home-indicator area, 34/58 capsule corners, glass shadow ring, 0.2 dim scrim.
+// Bottom sheet via Reanimated 4 + Gesture.Pan grabber. iOS 27 floating card: 6pt insets off the bare display edge (the card extends under the home indicator; content pads for it internally), 34/58 capsule corners, glass shadow ring, 0.2 dim scrim.
 
 import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect } from "react";
@@ -223,6 +223,7 @@ export function Sheet({
                   // Grabber offset + pill size are exact pt values from tokens — the Tailwind scale has no 5/58/4 steps.
                   style={{ paddingTop: sheetPrimitive.grabberTopOffset }}
                 >
+                  {/* Kit grabber is fills/vibrant #CCCCCC; separator-opaque (#C6C6C8 light, #38383A dark — §20) is visually equivalent on both themes, so no extra color token. */}
                   <View
                     className="rounded-full bg-separator-opaque"
                     style={{
@@ -235,7 +236,7 @@ export function Sheet({
                   <View className="flex-row items-center justify-between py-1 px-4 border-b border-border">
                     {/* Slots mirror IconButton's exact 44pt box so the title stays centered. */}
                     <View style={{ width: size.hitTargetMin }} />
-                    <Text className="flex-1 text-center font-sans font-semibold text-foreground text-headline">
+                    <Text className="flex-1 text-center font-sans font-semibold text-label text-headline">
                       {title}
                     </Text>
                     <View className="items-end" style={{ width: size.hitTargetMin }}>

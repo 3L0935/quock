@@ -4,9 +4,9 @@ import clsx from "clsx";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import { PenLine } from "lucide-react-native";
 import { ChatRow } from "@/components/chat/ChatRow";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { PenLine } from "lucide-react-native";
 import { GlassOrb } from "@/components/ui/GlassOrb";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Sheet } from "@/components/ui/Sheet";
@@ -199,7 +199,11 @@ export function ChatHistorySheet({
       }
     >
       <SheetHeader title="Chats" />
-      <View className="flex-row items-center gap-2 px-4 pb-3 border-b border-border">
+      <View
+        className="flex-row items-center gap-2 pb-3 border-b border-border"
+        // Control row shares the 16pt list grid with the headers/rows below (px-4 renders 14 at the 14px rem).
+        style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+      >
         <View className="flex-1">
           <SearchInput
             value={query}
@@ -224,12 +228,12 @@ export function ChatHistorySheet({
       </View>
       {buckets.length === 0 ? (
         <View className="flex-1 px-4 py-10 items-center">
-          <Text className="font-sans text-muted-foreground text-sm text-center mb-1">
+          <Text className="font-sans font-semibold text-body text-foreground text-center mb-1">
             {query.trim().length > 0
               ? `No chats match "${query.trim()}"`
               : "No chats yet"}
           </Text>
-          <Text className="font-mono text-xs text-muted-foreground uppercase tracking-widest text-center">
+          <Text className="font-sans text-footnote text-muted-foreground text-center">
             {query.trim().length > 0
               ? "Try a different search term"
               : "Tap the compose button to start a conversation"}
@@ -249,7 +253,7 @@ export function ChatHistorySheet({
                   <Text
                     // iOS 27 grouped-list header — body semibold sentence case, 16pt inset shared with the rows.
                     className={clsx(
-                      "font-sans font-semibold text-body text-muted-foreground mb-1.5",
+                      "font-sans font-semibold text-body text-muted-foreground mb-2",
                       bucketIndex === 0 ? "mt-4.5" : "mt-6",
                     )}
                     style={{ paddingLeft: componentLayout.listSection.insetX }}

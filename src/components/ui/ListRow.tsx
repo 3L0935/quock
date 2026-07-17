@@ -36,7 +36,7 @@ export interface ListRowProps {
   /** Compact pill chips rendered below the label. Strings render with the neutral tone; pass descriptors to opt into the accent tone or attach a leading icon. */
   chips?: readonly (string | ListRowChip)[];
   trailing?: ReactNode;
-  /** Tiny mono caption rendered top-right of the row (e.g. relative timestamp). */
+  /** Small footnote caption rendered top-right of the row (e.g. relative timestamp). */
   trailingMeta?: string;
   onPress?: () => void;
   destructive?: boolean;
@@ -76,7 +76,7 @@ function ListRowImpl({
   testID,
 }: ListRowProps): React.ReactElement {
   const colors = useThemeColors();
-  const labelColor = destructive ? "text-destructive" : "text-foreground";
+  const labelColor = destructive ? "text-destructive" : "text-label";
   const iconColor = destructive ? colors.destructive : colors.foreground;
   // `leading` wins over `icon` so model-row radios sit in the same slot settings-row icons do.
   const leadingNode =
@@ -98,9 +98,10 @@ function ListRowImpl({
   const alignmentClass = centerLeading ? "items-center" : "items-start";
   // Render the divider as a `borderBottom` on the content itself — a sibling `<View>` with `height: hairlineWidth` rasterises irregularly above the Glass blur, while iOS's native border-hairline path stays stable.
   const contentStyle = React.useMemo(() => {
-    // 16pt inset + 52pt regular-row floor from the token — minHeight lets stacked rows (chips/subtitle) grow past it naturally.
+    // 16pt inset + 52pt regular-row floor from the token — minHeight lets stacked rows (chips/subtitle) grow past it naturally. §15 leading/content/trailing gap is the same 16pt as the inset (gap-* tiers miss it at the 14px rem).
     const base: ViewStyle = {
       paddingHorizontal: componentLayout.listSection.insetX,
+      columnGap: componentLayout.listSection.insetX,
       minHeight: minRowHeight ?? componentLayout.listSection.rowHeightRegular,
     };
     if (showDivider) {
@@ -111,13 +112,14 @@ function ListRowImpl({
   }, [minRowHeight, showDivider, colors.border]);
   const content = (
     <View
-      className={clsx("flex-row gap-3.5 py-3.5", alignmentClass)}
+      className={clsx("flex-row py-3.5", alignmentClass)}
       style={contentStyle}
     >
       {leadingNode}
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
           <Text
+            // §15 row title = labels/primary (#000 light), one tier above `foreground`.
             className={clsx("flex-1 font-sans text-body", labelColor)}
             numberOfLines={1}
           >
@@ -126,7 +128,7 @@ function ListRowImpl({
           {trailingMeta ? (
             <Animated.View style={trailingMetaAnimStyle}>
               <Text
-                className="font-mono text-muted-foreground text-xs"
+                className="font-sans text-footnote text-muted-foreground"
                 numberOfLines={1}
               >
                 {trailingMeta}

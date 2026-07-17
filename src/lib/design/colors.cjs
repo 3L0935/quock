@@ -74,7 +74,7 @@ const separatorDark = {
   separator: "rgba(255,255,255,0.17)",
   separatorOpaque: "#38383A",
 };
-// iOS 27 system fills — translucent gray washes for control backgrounds INSIDE surfaces (glass stays on floating controls only). Quaternary is the faintest tier — GlassOrb rest-wash base (§19).
+// iOS 27 system fills — translucent gray washes for control backgrounds INSIDE surfaces (glass stays on floating controls only). Quaternary is the faintest tier — large-area structural washes (Markdown table header band).
 const fillLight = {
   fillSecondary: "rgba(120,120,128,0.16)",
   fillTertiary: "rgba(118,118,128,0.12)",

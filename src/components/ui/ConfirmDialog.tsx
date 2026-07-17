@@ -11,10 +11,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { useThemeColors } from "@/lib/theme/ThemeContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs, surfaceSpring } from "@/lib/design/motion";
 import { Pressable } from "@/components/ui/Pressable";
-import { componentLayout, motion, shadow, zLayer } from "@/lib/design/tokens";
+import { boxShadow, componentLayout, motion, zLayer } from "@/lib/design/tokens";
 import { TextField } from "@/components/ui/TextField";
 
 export interface ConfirmDialogProps {
@@ -84,7 +84,7 @@ export function ConfirmDialog({
   confirmDisabled = false,
   testID,
 }: ConfirmDialogProps): React.ReactElement | null {
-  const colors = useThemeColors();
+  const { resolved } = useTheme();
   // Card scales from motion.scaleDialogFrom to 1 on a spring, giving the modal a confident pop on entrance.
   const scale = useSharedValue(visible ? 1 : motion.scaleDialogFrom);
   const cardOpacity = useSharedValue(visible ? 1 : 0);
@@ -118,16 +118,13 @@ export function ConfirmDialog({
         className="absolute inset-0 bg-scrim"
       />
       <Animated.View
-        // Shadow on the wrapper so the inner `overflow: hidden` card doesn't clip it.
+        // §11 alert carries the Sheet's shadow ring; it sits on this unclipped wrapper (radius matched so the hairline hugs the card curve) because the inner `overflow: hidden` card would clip it.
         style={[
           {
             width: "100%",
             maxWidth: componentLayout.alertDialog.width,
-            shadowColor: colors.shadow,
-            shadowOpacity: shadow.dialog.opacity,
-            shadowRadius: shadow.dialog.radius,
-            shadowOffset: { width: 0, height: shadow.dialog.offsetY },
-            elevation: shadow.dialog.elevation,
+            borderRadius: componentLayout.alertDialog.cornerRadius,
+            boxShadow: boxShadow.sheet[resolved],
           },
           cardAnimatedStyle,
         ]}
@@ -144,40 +141,50 @@ export function ConfirmDialog({
           }}
         >
           <View style={{ padding: componentLayout.alertDialog.padding }}>
-            <Text
-              className="pt-2 px-2 font-sans font-semibold text-headline text-label text-center"
-              numberOfLines={1}
-            >
-              {title}
-            </Text>
-            {message !== undefined ? (
-              <Text className="mt-1 px-2 font-sans text-body text-label-secondary text-center">
-                {message}
-              </Text>
-            ) : null}
-            {onChangeInput !== undefined ? (
-              <View className="mt-3.5 w-full">
-                {/* Multiline (maxLines=3) instead of single-line: a long pre-filled value on iOS Fabric renders as a static UILabel (which wraps) until the input is focused, then snaps back to single-line — we couldn't stop it across three rewrites. Multiline lets the box grow with the content so the title is fully visible without that flicker. */}
-                <TextField
-                  value={inputValue ?? ""}
-                  onChangeText={onChangeInput}
-                  placeholder={inputPlaceholder}
-                  autoCapitalize="sentences"
-                  multiline
-                  maxLines={3}
-                  testID="confirm-dialog-input"
-                  // iOS 27 alert field: system-fill capsule at the alert geometry; grows past minHeight up to maxLines.
-                  containerClassName="bg-fill-secondary justify-center"
-                  containerStyle={{
-                    borderRadius: componentLayout.alertDialog.textFieldRadius,
-                    minHeight: componentLayout.alertDialog.textFieldHeight,
-                  }}
-                  className="text-body px-4"
-                />
-              </View>
-            ) : null}
+            {/* §11 text block spacing is exact pt from tokens — stock pt-2/mt-1/mt-4 silently miss the extracted values at the 14px rem. */}
             <View
-              className="flex-row mt-4"
+              style={{
+                paddingTop: componentLayout.alertDialog.blockPaddingTop,
+                paddingHorizontal: componentLayout.alertDialog.blockPaddingX,
+                paddingBottom: componentLayout.alertDialog.blockPaddingBottom,
+                gap: componentLayout.alertDialog.blockGap,
+              }}
+            >
+              <Text
+                className="font-sans font-semibold text-headline text-label text-center"
+                numberOfLines={1}
+              >
+                {title}
+              </Text>
+              {message !== undefined ? (
+                <Text className="font-sans text-body text-label-secondary text-center">
+                  {message}
+                </Text>
+              ) : null}
+              {onChangeInput !== undefined ? (
+                <View className="w-full">
+                  {/* Multiline (maxLines=3) instead of single-line: a long pre-filled value on iOS Fabric renders as a static UILabel (which wraps) until the input is focused, then snaps back to single-line — we couldn't stop it across three rewrites. Multiline lets the box grow with the content so the title is fully visible without that flicker. */}
+                  <TextField
+                    value={inputValue ?? ""}
+                    onChangeText={onChangeInput}
+                    placeholder={inputPlaceholder}
+                    autoCapitalize="sentences"
+                    multiline
+                    maxLines={3}
+                    testID="confirm-dialog-input"
+                    // iOS 27 alert field: system-fill capsule at the alert geometry; grows past minHeight up to maxLines.
+                    containerClassName="bg-fill-secondary justify-center"
+                    containerStyle={{
+                      borderRadius: componentLayout.alertDialog.textFieldRadius,
+                      minHeight: componentLayout.alertDialog.textFieldHeight,
+                    }}
+                    className="text-body font-medium px-4"
+                  />
+                </View>
+              ) : null}
+            </View>
+            <View
+              className="flex-row"
               style={{ gap: componentLayout.alertDialog.buttonGap }}
             >
               <AlertAction

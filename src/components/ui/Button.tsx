@@ -50,7 +50,7 @@ const VARIANT_TEXT_CLASSES: Record<ButtonVariant, string> = {
   // Primary label on the translucent system fill — iOS Bordered pairs the wash with full-strength text.
   secondary: "text-label",
   ghost: "text-muted-foreground",
-  destructive: "text-white",
+  destructive: "text-destructive-foreground",
   destructiveSoft: "text-destructive",
 };
 
@@ -82,7 +82,7 @@ function resolveSpinnerColor(
   if (variant === "secondary") return colors.label;
   if (variant === "ghost") return colors.mutedForeground;
   if (variant === "destructiveSoft") return colors.destructive;
-  return colors.primaryForeground;
+  return colors.destructiveForeground;
 }
 
 export function Button({

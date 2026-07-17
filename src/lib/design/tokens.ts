@@ -41,7 +41,7 @@ export interface DesignColors {
   // iOS 27 separators — translucent hairline + opaque variant for layered content.
   separator: string;
   separatorOpaque: string;
-  // iOS 27 system fills — solid control washes inside surfaces (never glass). Quaternary = faintest tier, GlassOrb rest-wash base.
+  // iOS 27 system fills — solid control washes inside surfaces (never glass). Quaternary = faintest tier, for large-area structural washes (Markdown table header band).
   fillSecondary: string;
   fillTertiary: string;
   fillQuaternary: string;
@@ -160,11 +160,7 @@ export const strokeWidth: DesignStrokeWidth = {
 // Opacity tiers — Lucide and Reanimated don't accept Tailwind utilities, so values flow through here.
 export interface DesignOpacity {
   pressBrightnessBoost: number; // 0.08 — GlassOrb press-in white wash
-  ringSubtle: number;     // 0.08 — avatar ring hairline tint
   pressTintMax: number;   // 0.10 — Button press-tint overlay clamp
-  ghostTint: number;      // 0.12 — Listrow press highlight midpoint
-  shadowSoft: number;     // 0.15 — Switch thumb shadow
-  shadowHeavy: number;    // 0.24 — ConfirmDialog elevated shadow
   midpoint: number;       // 0.4  — chip reveal curve midpoint, opacity ramp
   disabled: number;       // 0.4  — disabled state dim across interactive primitives
   pressDisabled: number;  // 0.45 — Pressable disabled dim (slightly less dim than GlassOrb so chevron icons stay legible)
@@ -173,11 +169,7 @@ export interface DesignOpacity {
 }
 export const opacity: DesignOpacity = {
   pressBrightnessBoost: 0.08,
-  ringSubtle: 0.08,
   pressTintMax: 0.1,
-  ghostTint: 0.12,
-  shadowSoft: 0.15,
-  shadowHeavy: 0.24,
   midpoint: 0.4,
   disabled: 0.4,
   pressDisabled: 0.45,
@@ -252,7 +244,7 @@ export interface DesignShadowRecipe {
 }
 export interface DesignShadows {
   thumb: DesignShadowRecipe;     // iOS UISwitch thumb
-  dialog: DesignShadowRecipe;    // ConfirmDialog elevated card
+  dialog: DesignShadowRecipe;    // ClearChatsChooser cards + Toast pill lift
   orb: DesignShadowRecipe;       // GlassOrb Android solid-fallback lift (iOS lift lives in boxShadow.glass)
 }
 export const shadow: DesignShadows = {
@@ -267,7 +259,7 @@ export interface DesignBoxShadowGlass {
 }
 export interface DesignBoxShadow {
   glass: Record<"light" | "dark", DesignBoxShadowGlass>;
-  // Sheet card ring — iOS 27 kit values (hairline + deep ambient), heavier than the orb glass ring.
+  // Sheet card ring — iOS 27 kit values (hairline + deep ambient), heavier than the orb glass ring. The kit's 1.25px side speculars are deliberately omitted: sub-pixel ticks read as noise at card scale and the kit extracts no dark values for them.
   sheet: Record<"light" | "dark", string>;
   // SegmentedControl selected-pill lift — kit CSS blur rendered verbatim by Fabric (legacy shadowRadius would halve it).
   control: string;
@@ -309,7 +301,7 @@ export interface DesignComponentLayout {
     chipScrollPadTop: number; // 10 — attachment chip ScrollView top padding
     chipScrollGap: number;    // 8  — attachment chip ScrollView gap
     orbSize: number;          // 38 — composer orb diameter (matches w-9.5/h-9.5 tailwind class)
-    orbRowPaddingY: number;   // 10 — vertical padding on the orb flex-row (matches py-2.5)
+    orbRowPaddingY: number;   // 10 — vertical padding on the orb flex-row (applied numerically — py-2.5 renders 8.75 under the 14px rem)
     blurBaseIntensity: number; // 60 — peak blur intensity at the bottom edge; gradient fades to 0 at the top of the orbs. Height = insets.bottom + orbRowPaddingY + orbSize.
   };
   modelPicker: {
@@ -348,7 +340,7 @@ export interface DesignComponentLayout {
     topGap: number;   // 8  — space above the orb row, beyond safe-area top
     sidePad: number;  // 12 — horizontal padding of the orb row
     height: number;   // 60 — header + topGap + orb height + breathing gap (used as MessageList topInset)
-    orbHeight: number; // 44 — header orb diameter (matches h-11 tailwind class)
+    orbHeight: number; // 44 — header orb diameter (HIG tap-target minimum; applied numerically — w-11/h-11 render 38.5 under the 14px rem)
     blurBaseIntensity: number; // 60 — peak blur intensity at the top edge; gradient fades to 0 at the bottom of the orbs. Height = insets.top + topGap + orbHeight.
   };
   iconButton: {
@@ -359,6 +351,10 @@ export interface DesignComponentLayout {
     width: number;           // 300
     cornerRadius: number;    // 34
     padding: number;         // 14
+    blockPaddingTop: number;    // 8  — title/message block top pad (§11)
+    blockPaddingX: number;      // 8  — title/message block side pad (§11)
+    blockPaddingBottom: number; // 24 — space between the text block and the actions row (§11)
+    blockGap: number;           // 10 — title→message gap (§11); stock mt-* tiers miss it at the 14px rem
     buttonHeight: number;    // 48
     buttonGap: number;       // 8 — gap between the action pills (gap-2 renders 7px at the 14px rem, so exact pt lives here)
     textFieldHeight: number; // 52
@@ -435,6 +431,10 @@ export const componentLayout: DesignComponentLayout = {
     width: 300,
     cornerRadius: 34,
     padding: 14,
+    blockPaddingTop: 8,
+    blockPaddingX: 8,
+    blockPaddingBottom: 24,
+    blockGap: 10,
     buttonHeight: 48,
     buttonGap: 8,
     textFieldHeight: 52,

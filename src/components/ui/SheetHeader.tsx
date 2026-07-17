@@ -33,7 +33,7 @@ export function SheetHeader({
         {left}
       </View>
       <Text
-        className="flex-1 text-center font-sans font-semibold text-foreground text-headline"
+        className="flex-1 text-center font-sans font-semibold text-label text-headline"
         numberOfLines={1}
       >
         {title}

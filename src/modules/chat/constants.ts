@@ -42,9 +42,8 @@ export const THINKING_DOT_DURATION_MS = 900;
 export const THINKING_DOT_STAGGER_MS = 140;
 export const THINKING_DOT_MIN_OPACITY = 0.3;
 
-// Composer: send/stop icon cross-fade window, line height, and visible-rows cap (8 = Telegram-style sweet spot) before the TextField starts scrolling internally.
+// Composer: send/stop icon cross-fade window and visible-rows cap (8 = Telegram-style sweet spot) before the TextField starts scrolling internally. Line height lives in componentLayout.composer.inputLineHeight — one home.
 export const COMPOSER_SEND_MORPH_DURATION_MS = 200;
-export const COMPOSER_LINE_HEIGHT = 21;
 export const COMPOSER_MAX_LINES = 8;
 
 // Sheet snap points owned by the chat feature.

@@ -6,6 +6,8 @@ import { Modal, Pressable as RNPressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LEGAL_URLS } from "@/lib/api/config";
 import { Button } from "@/components/ui/Button";
+import { useTheme } from "@/lib/theme/ThemeContext";
+import { boxShadow, componentLayout } from "@/lib/design/tokens";
 
 export interface UpgradePromptModalProps {
   visible: boolean;
@@ -21,6 +23,7 @@ export function UpgradePromptModal({
   onPickAnotherModel,
 }: UpgradePromptModalProps): React.ReactElement {
   const insets = useSafeAreaInsets();
+  const { resolved } = useTheme();
   const handleUpgrade = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.upgrade).catch((err: unknown) => {
       console.error("UpgradePromptModal: failed to open upgrade URL", err);
@@ -50,23 +53,42 @@ export function UpgradePromptModal({
           className="absolute inset-0 bg-scrim"
         />
         <View
-          className="w-full max-w-card"
+          className="w-full"
+          style={{ maxWidth: componentLayout.alertDialog.width }}
           pointerEvents="box-none"
           accessibilityViewIsModal
           accessibilityLiveRegion="polite"
         >
-          <View className="bg-card rounded-3xl p-5">
-            <Text className="font-sans font-semibold text-headline text-foreground">
-              Subscription required
-            </Text>
-            <Text className="font-sans text-body text-muted-foreground mt-1.5">
-              {modelName} is an Ollama Cloud model. Upgrade to use it, or pick a
-              different model.
-            </Text>
-            {/* Stack vertically so the longer "Pick another model" label always fits without truncation. */}
-            <View className="gap-2.5 mt-4">
+          {/* §11 alert geometry shared with ConfirmDialog: 300pt card, 34pt radius, 14pt outer padding, sheet shadow ring. */}
+          <View
+            className="bg-card"
+            style={{
+              borderRadius: componentLayout.alertDialog.cornerRadius,
+              boxShadow: boxShadow.sheet[resolved],
+              padding: componentLayout.alertDialog.padding,
+            }}
+          >
+            <View
+              style={{
+                paddingTop: componentLayout.alertDialog.blockPaddingTop,
+                paddingHorizontal: componentLayout.alertDialog.blockPaddingX,
+                paddingBottom: componentLayout.alertDialog.blockPaddingBottom,
+                gap: componentLayout.alertDialog.blockGap,
+              }}
+            >
+              <Text className="font-sans font-semibold text-headline text-label text-center">
+                Subscription required
+              </Text>
+              <Text className="font-sans text-body text-label-secondary text-center">
+                {modelName} is an Ollama Cloud model. Upgrade to use it, or pick
+                a different model.
+              </Text>
+            </View>
+            {/* Stacked (not the §11 two-across row) so the longer "Pick another model" label never truncates; 50pt Button lg stands in for the 48pt alert tier — AlertAction stays ConfirmDialog-internal per AGENTS.md. */}
+            <View style={{ gap: componentLayout.alertDialog.buttonGap }}>
               <Button
                 variant="primary"
+                size="lg"
                 fullWidth
                 onPress={handleUpgrade}
                 testID="upgrade-modal-upgrade"
@@ -75,6 +97,7 @@ export function UpgradePromptModal({
               </Button>
               <Button
                 variant="secondary"
+                size="lg"
                 fullWidth
                 onPress={handlePickAnother}
                 testID="upgrade-modal-pick-another"

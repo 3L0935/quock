@@ -99,7 +99,14 @@ export function FloatingHeader({
           accessibilityLabel="Open chat history"
           testID="header-menu"
         >
-          <View className="w-11 h-11 items-center justify-center">
+          {/* Exact 44pt orb boxes from the token — w-11/h-11 render 38.5px under the 14px rem, under-shooting the HIG tap target and the blur-seam math. */}
+          <View
+            className="items-center justify-center"
+            style={{
+              width: componentLayout.floatingHeader.orbHeight,
+              height: componentLayout.floatingHeader.orbHeight,
+            }}
+          >
             <Menu
               size={iconSize.xl}
               color={colors.foreground}
@@ -115,7 +122,10 @@ export function FloatingHeader({
           accessibilityLabel="Choose a model"
           testID="header-model"
         >
-          <View className="h-11 flex-row items-center px-4">
+          <View
+            className="flex-row items-center px-4"
+            style={{ height: componentLayout.floatingHeader.orbHeight }}
+          >
             <Text
               className="font-mono text-footnote text-foreground font-medium"
               numberOfLines={1}
@@ -139,7 +149,13 @@ export function FloatingHeader({
           accessibilityLabel="Open account"
           testID="header-account"
         >
-          <View className="w-11 h-11 items-center justify-center">
+          <View
+            className="items-center justify-center"
+            style={{
+              width: componentLayout.floatingHeader.orbHeight,
+              height: componentLayout.floatingHeader.orbHeight,
+            }}
+          >
             <Avatar
               size={size.avatarHeader}
               uri={user?.avatarurl}

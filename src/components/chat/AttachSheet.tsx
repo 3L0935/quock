@@ -4,10 +4,6 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
-import type {
-  UiAttachment,
-  UiAttachmentInvalidReason,
-} from "@/modules/chat/types";
 import {
   Brain,
   FileText,
@@ -15,9 +11,14 @@ import {
   Image as ImageIcon,
   X,
 } from "lucide-react-native";
+import type {
+  UiAttachment,
+  UiAttachmentInvalidReason,
+} from "@/modules/chat/types";
 import { isImageMime, isTextDocument } from "@/modules/chat/lib/documentText";
 import { readUriAsBytes } from "@/modules/chat/lib/imageUpload";
 import { useToast } from "@/lib/hooks/useToast";
+import { componentLayout } from "@/lib/design/tokens";
 import { IconButton } from "@/components/ui/IconButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { SheetHeader } from "@/components/ui/SheetHeader";
@@ -308,7 +309,11 @@ export function AttachSheet({
       </View>
       {hasTools ? (
         <View className="pt-1">
-          <Text className="font-sans font-semibold text-body text-muted-foreground mb-1 px-6">
+          <Text
+            className="font-sans font-semibold text-body text-muted-foreground mb-2"
+            // Header shares the 16pt list grid + Section's header spacing (px-6 rendered 21 at the 14px rem).
+            style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+          >
             Tools
           </Text>
           {hasWebSearch ? (

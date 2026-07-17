@@ -341,7 +341,7 @@ Apple HIG iOS 27 uses pill shape (`rounded-full`) across the system. Quock follo
 
 - **Header dissolved.** Three independent `<GlassOrb>` floating on a `pointerEvents="box-none"` container — no monolithic bar. A `MaskedView` + `LinearGradient` mask paints a soft blur over the safe-area-top, fading to 0% exactly at the orb seam (iOS 27 calls this the Scroll Edge Effect). See `src/components/layout/FloatingHeader.tsx`.
 - **Composer floats.** Attach / think / send buttons are `<GlassOrb>` floating over the bare background; the `TextField` is a solid `bg-card` pill in the middle. Same MaskedView gradient blur paints the safe-area-bottom, fading to 0% at the top of the orbs.
-- **Sheets are floating cards (iOS 27).** Inset 6pt from the display sides and bottom (above the home indicator), corners 34pt top / 58pt bottom, glass shadow ring, 0.2 black scrim, 58×4 grabber — all from `sheetPrimitive` in tokens. Body is opaque `bg-card`.
+- **Sheets are floating cards (iOS 27).** Inset 6pt from the display sides and bottom (the card extends under the home indicator; content pads for it internally), corners 34pt top / 58pt bottom, glass shadow ring, 0.2 black scrim, 58×4 grabber — all from `sheetPrimitive` in tokens. Body is opaque `bg-card`.
 - **Solid CTAs stay solid.** `<Button>` for labeled actions — never compose raw `<Pressable bg-X rounded-full>` (sole exception: `ConfirmDialog`'s internal `AlertAction`, see §How to add things).
 
 ---

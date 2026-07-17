@@ -159,9 +159,9 @@ export function TextField({
   const wrapperClass = hasCustomContainer
     ? containerClassName
     : "bg-card rounded-lg justify-center";
-  // A caller-supplied className owns the type tier; text-base only backfills when none is given.
+  // A caller-supplied className owns the type tier; the iOS Body tier backfills when none is given.
   const innerClass = hasCustomContainer
-    ? clsx("text-foreground font-sans", className ?? "text-base")
+    ? clsx("text-foreground font-sans", className ?? "text-body")
     : clsx(baseClass, className);
   return (
     <Animated.View

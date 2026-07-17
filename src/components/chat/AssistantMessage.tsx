@@ -117,6 +117,7 @@ function AssistantMessageImpl({
   onRegenerate,
   onRetry,
 }: AssistantMessageProps): React.ReactElement {
+  const colors = useThemeColors();
   const toast = useToast();
   // Mid-stream web-tool status for this chat (cleared between rounds); shown only on the streaming row.
   const toolActivity = useStreamingStore((s) =>
@@ -191,8 +192,9 @@ function AssistantMessageImpl({
             </Text>
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
-                <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-footnote text-label">Retry</Text>
+                {/* Explicit color: lucide defaults to currentColor, which react-native-svg resolves to black in both themes. */}
+                <RotateCw size={iconSize.xs} color={colors.label} />
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">Retry</Text>
               </Button>
             ) : null}
           </View>
@@ -204,8 +206,8 @@ function AssistantMessageImpl({
             </Text>
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
-                <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-footnote text-label">Retry</Text>
+                <RotateCw size={iconSize.xs} color={colors.label} />
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">Retry</Text>
               </Button>
             ) : null}
           </View>

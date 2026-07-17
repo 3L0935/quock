@@ -20,6 +20,7 @@ import OllamaSvg from "@/assets/icons/Ollama.svg";
 import { LEGAL_URLS } from "@/lib/api/config";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
 import { ListRow } from "@/components/ui/ListRow";
+import { Section } from "@/components/ui/Section";
 import {
   SegmentedControl,
   type SegmentedOption,
@@ -30,7 +31,7 @@ import {
   useThemeColors,
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
-import { componentLayout, iconSize, size } from "@/lib/design/tokens";
+import { iconSize, size } from "@/lib/design/tokens";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -47,28 +48,6 @@ const THEME_OPTIONS: readonly SegmentedOption[] = [
 // Visual rhythm for the settings ScrollView: a little breathing space after the sheet header, generous bottom inset so the last row never sits flush against the safe-area edge.
 const SCROLL_PAD_TOP = 14;
 const SCROLL_PAD_BOTTOM = 40;
-
-interface SettingsGroupProps {
-  label: string;
-  children: React.ReactNode;
-}
-// Cardless header + rows wrapper; mirrors Section's iOS 27 grouped-list header for consistency.
-function SettingsGroup({
-  label,
-  children,
-}: SettingsGroupProps): React.ReactElement {
-  return (
-    <View className="mb-6">
-      <Text
-        className="font-sans font-semibold text-body text-muted-foreground mb-2"
-        style={{ marginLeft: componentLayout.listSection.insetX }}
-      >
-        {label}
-      </Text>
-      {children}
-    </View>
-  );
-}
 
 export interface SettingsViewProps {
   onChangeModel?: () => void;
@@ -177,7 +156,7 @@ export function SettingsView({
         decelerationRate="normal"
         keyboardShouldPersistTaps="handled"
       >
-        <SettingsGroup label="APPEARANCE">
+        <Section label="Appearance">
           <ListRow
             icon={Palette}
             label="Theme"
@@ -200,15 +179,16 @@ export function SettingsView({
             }
             showDivider={false}
           />
-        </SettingsGroup>
-        <SettingsGroup label="CHAT">
+        </Section>
+        <Section label="Chat">
           <ListRow
             icon={Sparkles}
             label="Default model"
             subtitle={modelLabel}
             onPress={handleChangeModel}
             trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+              // §15 drill-in chevrons carry the tertiary label tint (external-link rows stay secondary).
+              <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
             }
           />
           <ListRow
@@ -221,14 +201,14 @@ export function SettingsView({
             onPress={openChooser}
             showDivider={false}
           />
-        </SettingsGroup>
-        <SettingsGroup label="ABOUT">
+        </Section>
+        <Section label="About">
           <ListRow
             icon={ShieldCheck}
             label="AI data sharing"
             onPress={onOpenAiData}
             trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+              <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
             }
             testID="settings-ai-consent"
           />
@@ -260,17 +240,17 @@ export function SettingsView({
             icon={Info}
             label="Version"
             trailing={
-              <Text className="font-mono text-muted-foreground text-sm">
+              <Text className="font-sans text-footnote text-muted-foreground">
                 {versionLabel}
               </Text>
             }
             showDivider={false}
           />
-        </SettingsGroup>
-        {/* `OLLAMA` eyebrow names the brand once; the row label is the
+        </Section>
+        {/* The `Ollama` header names the brand once; the row label is the
             descriptive content. No repetition. The drill panel re-states
             the full disclaimer at the top for legal prominence. */}
-        <SettingsGroup label="OLLAMA">
+        <Section label="Ollama">
           <ListRow
             leading={
               <OllamaSvg
@@ -282,12 +262,12 @@ export function SettingsView({
             label="Official channels — not affiliated"
             onPress={onOpenOllama}
             trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+              <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
             }
             showDivider={false}
             testID="settings-open-ollama"
           />
-        </SettingsGroup>
+        </Section>
       </ScrollView>
     </>
   );

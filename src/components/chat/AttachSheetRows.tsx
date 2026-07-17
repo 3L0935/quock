@@ -71,13 +71,17 @@ function ToolRowImpl({
       scale={1}
       accessibilityLabel={`${selected ? "Disable" : "Enable"} ${label.toLowerCase()}`}
     >
-      <View className="flex-row items-center px-6 py-2">
+      <View
+        className="flex-row items-center py-2"
+        // Rows share the 16pt list grid (px-6 rendered 21 at the 14px rem).
+        style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+      >
         <IconComponent
           size={iconSize.md}
           color={colors.foreground}
           strokeWidth={strokeWidth.regular}
         />
-        <Text className="flex-1 ml-3 font-sans text-base text-foreground">
+        <Text className="flex-1 ml-3 font-sans text-body text-foreground">
           {label}
         </Text>
         <RadioIndicator selected={selected} />

@@ -72,7 +72,7 @@ export function CodeBlock({
       )}
     >
       <View className="flex-row items-center justify-between px-3 py-2 border-b border-border">
-        <Text className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
+        <Text className="font-mono text-caption-2 text-muted-foreground uppercase tracking-wider">
           {lang ?? "text"}
         </Text>
         <Pressable
