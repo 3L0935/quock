@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import React, { useState } from "react";
-import { Text, View } from "react-native";
+import { Text, View, type ViewStyle } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -12,7 +12,7 @@ import { Pressable } from "@/components/ui/Pressable";
 import { Spinner } from "@/components/ui/Spinner";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs, springEasing } from "@/lib/design/motion";
-import { motion, opacity, timingsNamed } from "@/lib/design/tokens";
+import { componentLayout, motion, opacity, timingsNamed } from "@/lib/design/tokens";
 import type { DesignColors } from "@/lib/design/tokens";
 
 export type ButtonVariant =
@@ -35,9 +35,10 @@ export interface ButtonProps {
 }
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
+  // iOS Bordered-Prominent: tint fill + white label.
   primary: "bg-primary",
-  // Secondary uses bg-secondary (gray4) so it reads against the white card surface.
-  secondary: "bg-secondary",
+  // iOS Bordered: solid system fill inside surfaces — the translucent wash reads on card and background alike.
+  secondary: "bg-fill-secondary",
   ghost: "bg-transparent",
   destructive: "bg-destructive",
   // Destructive-soft = Apple HIG Sign-Out pattern: soft red surface + full destructive label.
@@ -46,28 +47,31 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 
 const VARIANT_TEXT_CLASSES: Record<ButtonVariant, string> = {
   primary: "text-primary-foreground",
-  secondary: "text-secondary-foreground",
+  // Primary label on the translucent system fill — iOS Bordered pairs the wash with full-strength text.
+  secondary: "text-label",
   ghost: "text-muted-foreground",
   destructive: "text-white",
   destructiveSoft: "text-destructive",
 };
 
-const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "h-9",
-  md: "h-11",
-  lg: "h-13",
+// iOS 27 control heights (50/34/28) are exact pt from tokens — consumed as numeric style on the content row so the press-tint overlay keeps covering the whole pill.
+const SIZE_HEIGHTS: Record<ButtonSize, number> = {
+  sm: componentLayout.button.heightSmall,
+  md: componentLayout.button.heightMedium,
+  lg: componentLayout.button.heightLarge,
 };
-// Horizontal padding lives on an inner content row, not the Pressable: the press tint fills the Pressable, so padding there would leave the padded edges un-tinted (an inner-rectangle bug on the pill).
-const SIZE_PAD_CLASSES: Record<ButtonSize, string> = {
+// Horizontal padding lives on an inner content row, not the Pressable: the press tint fills the Pressable, so padding there would leave the padded edges un-tinted (an inner-rectangle bug on the pill). lg padX comes from tokens (exact 20pt).
+const SIZE_PAD_CLASSES: Record<ButtonSize, string | undefined> = {
   sm: "px-3",
   md: "px-4",
-  lg: "px-5",
+  lg: undefined,
 };
 
+// iOS UIButtonConfiguration ramp: small=footnote, medium=subhead, large=body 17 medium weight.
 const SIZE_TEXT_CLASSES: Record<ButtonSize, string> = {
-  sm: "text-sm",
-  md: "text-base",
-  lg: "text-base",
+  sm: "text-footnote",
+  md: "text-subhead",
+  lg: "text-body",
 };
 
 function resolveSpinnerColor(
@@ -75,7 +79,7 @@ function resolveSpinnerColor(
   colors: DesignColors,
 ): string {
   if (variant === "primary") return colors.primaryForeground;
-  if (variant === "secondary") return colors.foreground;
+  if (variant === "secondary") return colors.label;
   if (variant === "ghost") return colors.mutedForeground;
   if (variant === "destructiveSoft") return colors.destructive;
   return colors.primaryForeground;
@@ -121,10 +125,16 @@ export function Button({
   const containerClass = clsx(
     "items-center justify-center rounded-full flex-row overflow-hidden",
     VARIANT_CLASSES[variant],
-    SIZE_CLASSES[size],
     fullWidth && "w-full",
     className,
   );
+  // Height on the content row (not the Pressable style) so the Pressable's inner animated wrapper keeps deriving the same box.
+  const sizeStyle: ViewStyle = {
+    height: SIZE_HEIGHTS[size],
+    ...(size === "lg"
+      ? { paddingHorizontal: componentLayout.button.largePaddingX }
+      : {}),
+  };
   const textClass = clsx(
     "font-sans font-medium",
     VARIANT_TEXT_CLASSES[variant],
@@ -154,6 +164,7 @@ export function Button({
           "flex-row items-center justify-center",
           SIZE_PAD_CLASSES[size],
         )}
+        style={sizeStyle}
       >
         {loading ? (
           <Spinner

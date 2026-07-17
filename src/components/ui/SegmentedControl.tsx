@@ -1,4 +1,4 @@
-// N-option selector with a Reanimated sliding indicator.
+// N-option iOS 27 segmented control — fill-tertiary pill track with a sliding selected-option pill.
 
 import clsx from "clsx";
 import React, { useEffect, useState } from "react";
@@ -35,13 +35,10 @@ export interface SegmentedControlProps {
 }
 
 const SC = componentLayout.segmentedControl;
-// Default = 28pt iOS UISegmentedControl height; compact fits inside a ListRow trailing slot.
-const SIZE_RECIPES: Record<
-  SegmentedControlSize,
-  { padVertical: number; fontSize: number }
-> = {
-  default: { padVertical: SC.defaultPadVertical, fontSize: SC.defaultFontSize },
-  compact: { padVertical: SC.compactPadVertical, fontSize: SC.compactFontSize },
+// iOS 27 track tiers: default = 50pt standalone control, compact = 32pt tier that fits a ListRow trailing slot.
+const TRACK_HEIGHTS: Record<SegmentedControlSize, number> = {
+  default: SC.trackHeightLarge,
+  compact: SC.trackHeightSmall,
 };
 
 export function SegmentedControl({
@@ -57,8 +54,11 @@ export function SegmentedControl({
   const colors = useThemeColors();
   // Indicator positions in absolute px; hidden until first layout measurement arrives.
   const [width, setWidth] = useState<number>(0);
-  // Measure against the track's inner width (full width minus the 2px inset on each side) so segments align with their Pressables and the rightmost indicator stays inside the track.
-  const innerWidth = Math.max(0, width - SC.indicatorInset * 2);
+  // Inner width = track minus the inset on each side and the inter-option gaps, so option cells and indicator share one grid.
+  const innerWidth = Math.max(
+    0,
+    width - SC.indicatorInset * 2 - SC.optionGap * Math.max(0, options.length - 1),
+  );
   const segmentWidth = options.length > 0 ? innerWidth / options.length : 0;
   const selectedIndex = Math.max(
     0,
@@ -70,15 +70,13 @@ export function SegmentedControl({
     progress.value = withSpring(selectedIndex, toggleSpring);
   }, [selectedIndex, progress]);
   const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: progress.value * segmentWidth }],
+    transform: [{ translateX: progress.value * (segmentWidth + SC.optionGap) }],
     width: segmentWidth,
   }));
   const handleLayout = (e: LayoutChangeEvent): void => {
     setWidth(e.nativeEvent.layout.width);
   };
-
-  const recipe = SIZE_RECIPES[size];
-  // Fabric+Pressable edge case: `flex: 1` from a StyleSheet doesn't propagate into the style callback — percentage width works.
+  // Percentage fallback paints an approximate first frame until onLayout delivers exact px widths — Fabric+Pressable drops `flex: 1` here, so widths stay explicit.
   const segmentPercent: `${number}%` =
     options.length > 0 ? `${100 / options.length}%` : "100%";
   return (
@@ -87,18 +85,26 @@ export function SegmentedControl({
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       className={clsx(
-        "bg-muted rounded-lg p-0.5 flex-row relative",
+        "bg-fill-tertiary rounded-full flex-row relative",
         disabled && "opacity-50",
         className,
       )}
+      style={{
+        height: TRACK_HEIGHTS[size],
+        padding: SC.indicatorInset,
+        columnGap: SC.optionGap,
+      }}
     >
       {/* Hidden until width is measured so the first paint is not misaligned. */}
       {width > 0 ? (
         <Animated.View
           pointerEvents="none"
-          className="absolute top-0.5 bottom-0.5 left-0.5 bg-card rounded-md"
+          className="absolute bg-segmented-selected rounded-full"
           style={[
             {
+              top: SC.indicatorInset,
+              bottom: SC.indicatorInset,
+              left: SC.indicatorInset,
               shadowColor: colors.shadow,
               shadowOpacity: shadow.control.opacity,
               shadowRadius: shadow.control.radius,
@@ -117,18 +123,15 @@ export function SegmentedControl({
             key={opt.value}
             onPress={() => onChange(opt.value)}
             disabled={disabled}
-            style={{ width: segmentPercent }}
+            style={{ width: width > 0 ? segmentWidth : segmentPercent }}
           >
-            <View
-              className="items-center justify-center"
-              style={{ paddingVertical: recipe.padVertical }}
-            >
+            <View className="flex-1 items-center justify-center">
               <Text
                 className={clsx(
-                  "font-medium",
-                  isSelected ? "text-foreground" : "text-muted-foreground",
+                  // Both states use the primary label tint — iOS marks selection with the pill + weight, not color.
+                  "text-footnote text-label",
+                  isSelected ? "font-semibold" : "font-medium",
                 )}
-                style={{ fontSize: recipe.fontSize }}
               >
                 {opt.label}
               </Text>
