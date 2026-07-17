@@ -134,7 +134,7 @@ Features today: `chat`, `auth`, `models`, `settings`.
 | New repository method | Extend the relevant file in `src/lib/db/`. SQLite repos are native-module surfaces covered by Maestro E2E on device (see §Testing), not a Jest test; add a unit test only for any pure helper extracted alongside. |
 | New sheet | Compose `<Sheet>` + `<SheetHeader>`. Mount unconditionally as a sibling of chat home; visibility is a prop, not a conditional render. |
 | Dialog centered against the display, not the sheet | Pass it via the `overlays` slot of `<Sheet>` — otherwise an `absolute inset-0` dialog centers against the sheet body. |
-| Labeled CTA (Cancel, Confirm, Sign Out, Upgrade, …) | `<Button>` with the matching variant. Never compose raw `<Pressable bg-X rounded-full>`. |
+| Labeled CTA (Cancel, Confirm, Sign Out, Upgrade, …) | `<Button>` with the matching variant. Never compose raw `<Pressable bg-X rounded-full>`. Single sanctioned exception: `ConfirmDialog`'s internal `AlertAction` (the iOS 27 48pt alert tier sits between Button md/lg). |
 | Icon-only floating button | `<GlassOrb interactive>` with `borderRadius={999}`. |
 | New magic number | Module-local → `src/modules/<feature>/constants.ts`. Shared by 2+ modules → `src/lib/constants/magic-numbers.ts`. Never inline. |
 | New design value (color, spacing, motion) | Extend one of the three design files (`colors.cjs`, `tailwind.config.js`, `tokens.ts`). Never inline at the use-site. |
@@ -318,31 +318,31 @@ The parser at `src/components/ui/markdown/parseMarkdown.ts` is intentionally per
 
 ## Design system
 
-The design source lives in three files. Components consume from them — never invent at the use-site.
+The design source lives in three files. Components consume from them — never invent at the use-site. The target look is **iOS 27** (values extracted from the Apple iOS/iPadOS 27 Figma kit).
 
-- `src/lib/design/colors.cjs` — Apple HIG palette + shadcn semantic layer (background, foreground, card, primary, secondary, muted, destructive, destructive-soft, border, ring).
-- `tailwind.config.js` — HIG type ramp, named spacing, radii, tracking presets.
-- `src/lib/design/tokens.ts` — numeric tokens (icon size, stroke width, motion timings, component layout, opacity tiers, shadow profiles, sheet primitive thresholds).
+- `src/lib/design/colors.cjs` — Apple HIG palette + shadcn semantic layer (background, foreground, card, primary, secondary, muted, destructive, destructive-soft, border, ring) + iOS 27 semantics: translucent label ramp (`label`, `label-secondary/tertiary/quaternary`), translucent separators (`separator`, `separator-opaque`), system fills (`fill-secondary`, `fill-tertiary`), elevated tiers (`background-elevated`, `card-elevated`), `segmented-selected`.
+- `tailwind.config.js` — named spacing, tracking presets, and the iOS 27 type ramp (`text-large-title` … `text-caption-2`) — px-defined so each style renders at its exact pt (NativeWind rem is 14px; stock `text-*` tiers cannot express the ramp). `text-headline` pairs with `font-semibold` at use-sites.
+- `src/lib/design/tokens.ts` — numeric tokens (icon size, stroke width, motion timings, component layout, opacity tiers, shadow profiles, `boxShadow.glass` recipes, sheet primitive geometry).
 
-**Layering**: body = gray6, cards = white, separators = gray4 (iOS Settings pattern, mandatory).
+**Layering**: body = gray6, cards = white; secondary text = translucent `label-secondary` (via `muted-foreground`); hairlines = translucent `separator` (via `border`) — iOS grouped-list pattern, mandatory.
 
 ### Surface primitives
 
-One surface primitive (`<GlassOrb>`) plus the labeled `<Button>`. A 5-layer real-glass recipe (BlurView + specular + edge highlights) was prototyped and abandoned — it only read as glass over scrolling content; over opaque sheet bodies it degraded into fake 3D embossing that broke uniformity. The orb is now solid.
+One surface primitive (`<GlassOrb>`) plus the labeled `<Button>`. **Liquid Glass is scoped, not global**: the glass recipe (BlurView + `boxShadow.glass` ring/inset speculars from tokens) lives ONLY on floating controls over scrollable content — orbs, floating toolbars. Controls inside opaque surfaces (sheet bodies, cards, alerts) use the solid system fills (`fill-secondary` / `fill-tertiary`). An earlier all-surfaces glass prototype was abandoned because glass over opaque sheet bodies degrades into fake 3D embossing — that constraint still stands; iOS 27 itself follows the same split. Android falls back to the solid orb recipe (dimezis blur + inset box-shadows misrender there).
 
-- `<GlassOrb>` — pill-shape solid orb with theme-aware tint, soft shadow, press feedback. Used for icon-only floating controls, filter chips, swipe actions, tile cards. Props: `variant: 'clear' | 'regular' | 'thick'`, `interactive`, `disabled`, `tintColor`, `borderRadius`.
-- `<Button>` — labeled CTAs. Variants: `primary`, `secondary`, `ghost`, `destructive`, `destructiveSoft` (Apple HIG iOS Settings Sign-Out pattern). Sizes: `sm` / `md` / `lg`.
+- `<GlassOrb>` — pill-shape glass orb (iOS) / solid orb (Android) with theme-aware tint, glass ring + speculars, press feedback. Used for icon-only floating controls, filter chips, swipe actions, tile cards. Props: `variant: 'clear' | 'regular' | 'thick'`, `interactive`, `disabled`, `tintColor`, `borderRadius`.
+- `<Button>` — labeled CTAs. Variants: `primary` (iOS Bordered-Prominent), `secondary` (iOS Bordered — `fill-secondary` surface), `ghost` (Borderless), `destructive`, `destructiveSoft` (Apple HIG iOS Settings Sign-Out pattern). Sizes: `sm`/`md`/`lg` = iOS control heights 28/34/50 from `componentLayout.button`.
 
 ### Shape language
 
-Apple HIG iOS 26 uses pill shape (`rounded-full`) across the system. Quock follows the same rule everywhere — labeled CTAs and icon orbs share one corner. The single exception is AttachSheet's tile cards (18pt custom radius for the share-sheet aesthetic).
+Apple HIG iOS 27 uses pill shape (`rounded-full`) across the system. Quock follows the same rule everywhere — labeled CTAs and icon orbs share one corner. The single exception is AttachSheet's tile cards (18pt custom radius for the share-sheet aesthetic).
 
-### Layout paradigm (Apple HIG iOS 26)
+### Layout paradigm (Apple HIG iOS 27)
 
-- **Header dissolved.** Three independent `<GlassOrb>` floating on a `pointerEvents="box-none"` container — no monolithic bar. A `MaskedView` + `LinearGradient` mask paints a soft blur over the safe-area-top, fading to 0% exactly at the orb seam. See `src/components/layout/FloatingHeader.tsx`.
+- **Header dissolved.** Three independent `<GlassOrb>` floating on a `pointerEvents="box-none"` container — no monolithic bar. A `MaskedView` + `LinearGradient` mask paints a soft blur over the safe-area-top, fading to 0% exactly at the orb seam (iOS 27 calls this the Scroll Edge Effect). See `src/components/layout/FloatingHeader.tsx`.
 - **Composer floats.** Attach / think / send buttons are `<GlassOrb>` floating over the bare background; the `TextField` is a solid `bg-card` pill in the middle. Same MaskedView gradient blur paints the safe-area-bottom, fading to 0% at the top of the orbs.
-- **Sheets are full-width slabs.** Span the display, only top corners rounded (28pt). Body is opaque `bg-card`.
-- **Solid CTAs stay solid.** `<Button>` for labeled actions — never compose raw `<Pressable bg-X rounded-full>`.
+- **Sheets are floating cards (iOS 27).** Inset 6pt from the display sides and bottom (above the home indicator), corners 34pt top / 58pt bottom, glass shadow ring, 0.2 black scrim, 58×4 grabber — all from `sheetPrimitive` in tokens. Body is opaque `bg-card`.
+- **Solid CTAs stay solid.** `<Button>` for labeled actions — never compose raw `<Pressable bg-X rounded-full>` (sole exception: `ConfirmDialog`'s internal `AlertAction`, see §How to add things).
 
 ---
 
