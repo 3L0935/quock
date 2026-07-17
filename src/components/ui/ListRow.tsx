@@ -41,7 +41,7 @@ export interface ListRowProps {
   onPress?: () => void;
   destructive?: boolean;
   showDivider?: boolean;
-  /** Render subtitle at the tiny `text-xs` scale instead of the default `sm`. Used where the subtitle is supporting metadata (e.g. a byte-size string), not real content. */
+  /** Render subtitle at the tiny caption-1 scale instead of the default footnote. Used where the subtitle is supporting metadata (e.g. a byte-size string), not real content. */
   subtitleTiny?: boolean;
   /** Center the leading slot vertically against the full content block. Useful when the row stacks title + chips + subtitle and a radio/checkbox would otherwise sit aligned to the title only. */
   centerLeading?: boolean;
@@ -174,7 +174,7 @@ function ListRowImpl({
                   ) : null}
                   <Text
                     className={clsx(
-                      "font-mono text-xs",
+                      "font-mono text-caption-2",
                       isAccent ? "text-primary-foreground" : "text-muted-foreground",
                     )}
                   >

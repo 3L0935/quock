@@ -175,7 +175,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
             className="flex-1 items-center justify-center px-8"
             style={{ paddingTop: listTopInset }}
           >
-            <Text className="font-sans text-base text-muted-foreground text-center">
+            <Text className="font-sans text-body text-muted-foreground text-center">
               Couldn&apos;t load this chat.
             </Text>
           </View>
