@@ -143,7 +143,8 @@ export function ClearChatsChooser({
     shadowOffset: { width: 0, height: shadow.dialog.offsetY },
     elevation: shadow.dialog.elevation,
   };
-  const cardRadius = componentLayout.dialog.cornerRadius;
+  // Chooser shares the iOS 27 alert rounding so every centered dialog carries one radius.
+  const cardRadius = componentLayout.alertDialog.cornerRadius;
 
   return (
     <Animated.View

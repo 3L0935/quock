@@ -192,7 +192,7 @@ function AssistantMessageImpl({
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
                 <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-xs text-secondary-foreground">Retry</Text>
+                <Text className="ml-1 font-sans text-xs text-label">Retry</Text>
               </Button>
             ) : null}
           </View>
@@ -205,7 +205,7 @@ function AssistantMessageImpl({
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
                 <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-xs text-secondary-foreground">Retry</Text>
+                <Text className="ml-1 font-sans text-xs text-label">Retry</Text>
               </Button>
             ) : null}
           </View>

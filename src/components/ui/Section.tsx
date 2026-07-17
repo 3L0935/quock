@@ -3,6 +3,7 @@
 import React, { type ReactNode } from "react";
 import { Text, View } from "react-native";
 import clsx from "clsx";
+import { componentLayout } from "@/lib/design/tokens";
 
 export interface SectionProps {
   label?: string;
@@ -22,12 +23,17 @@ function SectionImpl({
   return (
     <View className={clsx("mb-6", className)} testID={testID}>
       {label ? (
-        <Text className="font-mono uppercase text-muted-foreground font-medium text-xs mb-2 ml-4.5 tracking-widest">
+        // iOS grouped-list eyebrow: SF footnote uppercase in the secondary label tint.
+        <Text className="font-sans uppercase text-footnote text-muted-foreground mb-2 ml-4.5">
           {label}
         </Text>
       ) : null}
       {card ? (
-        <View className="bg-card rounded-xl overflow-hidden">
+        // 26pt iOS 27 inset-grouped rounding — exact pt lives in tokens (rounded-* tiers are rem-derived).
+        <View
+          className="bg-card overflow-hidden"
+          style={{ borderRadius: componentLayout.listSection.cardRadius }}
+        >
           {children}
         </View>
       ) : (

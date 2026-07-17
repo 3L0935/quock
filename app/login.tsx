@@ -196,7 +196,7 @@ export default function Login(): React.ReactElement {
             />
           </Animated.View>
           <Animated.Text
-            className="mb-8 text-center font-sans text-foreground font-semibold text-xl max-w-title"
+            className="mb-8 text-center font-sans text-foreground font-semibold text-title-2 max-w-title"
             style={titleAnimatedStyle}
           >
             Sign in to your Ollama account

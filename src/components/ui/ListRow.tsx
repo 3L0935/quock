@@ -115,7 +115,7 @@ function ListRowImpl({
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
           <Text
-            className={clsx("flex-1 font-sans text-base", labelColor)}
+            className={clsx("flex-1 font-sans text-body", labelColor)}
             numberOfLines={1}
           >
             {label}
@@ -136,7 +136,7 @@ function ListRowImpl({
           <Text
             className={clsx(
               "font-sans text-muted-foreground mt-1",
-              subtitleTiny ? "text-xs" : "text-sm",
+              subtitleTiny ? "text-caption-1" : "text-footnote",
             )}
             numberOfLines={subtitleNumberOfLines}
           >
@@ -184,7 +184,7 @@ function ListRowImpl({
           <Text
             className={clsx(
               "font-sans text-muted-foreground mt-1",
-              subtitleTiny ? "text-xs" : "text-sm",
+              subtitleTiny ? "text-caption-1" : "text-footnote",
             )}
             numberOfLines={subtitleNumberOfLines}
           >
