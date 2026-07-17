@@ -222,7 +222,7 @@ export interface DesignSize {
   iconRowBrand: number;  // 22 — brand SVG glyph in settings rows (Discord/X/Ollama)
   avatarHeader: number;  // 28 — avatar size in the chat top bar
   hitTargetMin: number;  // 44 — Apple HIG minimum + avatar in profile row + sheet header slot
-  segmentedSlot: number; // 188 — segmented control width inside settings row trailing slot
+  segmentedSlot: number; // 208 — segmented control width inside settings row trailing slot ("System" at footnote semibold needs ~53pt of label room per cell)
   avatarDefault: number; // 36 — Avatar primitive default diameter
   spinnerDefault: number; // 18 — Spinner primitive default diameter
 }
@@ -231,7 +231,7 @@ export const size: DesignSize = {
   iconRowBrand: 22,
   avatarHeader: 28,
   hitTargetMin: 44,
-  segmentedSlot: 188,
+  segmentedSlot: 208,
   avatarDefault: 36,
   spinnerDefault: 18,
 };

@@ -126,6 +126,7 @@ export function SegmentedControl({
               }}
             >
               <Text
+                numberOfLines={1}
                 className={clsx(
                   // Both states use the primary label tint — iOS marks selection with the pill + weight, not color.
                   "text-footnote text-label",
