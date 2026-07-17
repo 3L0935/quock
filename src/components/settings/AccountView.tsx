@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { ListRow } from "@/components/ui/ListRow";
 import { Section } from "@/components/ui/Section";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { iconSize, size } from "@/lib/design/tokens";
+import { componentLayout, iconSize, size } from "@/lib/design/tokens";
 
 export interface AccountViewProps {
   userName: string;
@@ -38,8 +38,9 @@ export function AccountView({
   return (
     <View className="flex-1">
       <View
-        className="flex-row items-center gap-3.5 px-4.5 py-3.5"
+        className="flex-row items-center gap-3.5 py-3.5"
         style={{
+          paddingHorizontal: componentLayout.listSection.insetX,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: colors.border,
         }}
@@ -94,7 +95,10 @@ export function AccountView({
           />
         </Section>
         <View className="flex-1" />
-        <View className="px-4.5 pt-3 pb-6">
+        <View
+          className="pt-3 pb-6"
+          style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+        >
           <Button
             variant="destructiveSoft"
             size="lg"

@@ -14,7 +14,7 @@ import { SheetHeader } from "@/components/ui/SheetHeader";
 import { useDb } from "@/lib/contexts/DbContext";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { withAlpha } from "@/lib/design/color";
-import { iconSize, opacity } from "@/lib/design/tokens";
+import { componentLayout, iconSize, opacity } from "@/lib/design/tokens";
 import { useChats } from "@/modules/chat/hooks/useChats";
 import { useDeleteChat } from "@/modules/chat/hooks/useDeleteChat";
 import { useRenameChat } from "@/modules/chat/hooks/useRenameChat";
@@ -247,10 +247,12 @@ export function ChatHistorySheet({
               return (
                 <View key={bucket.label}>
                   <Text
+                    // iOS 27 grouped-list header — body semibold sentence case, 16pt inset shared with the rows.
                     className={clsx(
-                      "font-mono text-sm text-muted-foreground uppercase tracking-widest mb-1.5 pl-4.5",
+                      "font-sans font-semibold text-body text-muted-foreground mb-1.5",
                       bucketIndex === 0 ? "mt-4.5" : "mt-6",
                     )}
+                    style={{ paddingLeft: componentLayout.listSection.insetX }}
                   >
                     {bucket.label}
                   </Text>

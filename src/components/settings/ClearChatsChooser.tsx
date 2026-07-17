@@ -81,7 +81,14 @@ function ChoiceRow({
         accessibilityLabel={`${label}, ${sizeLabel(bytes)}. ${hint}`}
         testID={testID}
       >
-        <View className="flex-row items-center gap-3.5 px-4.5 py-3.5">
+        <View
+          className="flex-row items-center gap-3.5 py-3.5"
+          // Shares the ListRow grid: 16pt inset + 52pt regular-row floor.
+          style={{
+            paddingHorizontal: componentLayout.listSection.insetX,
+            minHeight: componentLayout.listSection.rowHeightRegular,
+          }}
+        >
           <Icon
             size={iconSize.xl}
             color={colors.destructive}
@@ -90,7 +97,7 @@ function ChoiceRow({
           <View className="flex-1">
             <View className="flex-row items-center gap-2">
               <Text
-                className="flex-1 font-sans font-medium text-base text-destructive"
+                className="flex-1 font-sans text-body text-destructive"
                 numberOfLines={1}
               >
                 {label}

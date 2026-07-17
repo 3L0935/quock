@@ -30,7 +30,7 @@ import {
   useThemeColors,
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
-import { iconSize, size } from "@/lib/design/tokens";
+import { componentLayout, iconSize, size } from "@/lib/design/tokens";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -52,14 +52,17 @@ interface SettingsGroupProps {
   label: string;
   children: React.ReactNode;
 }
-// Cardless eyebrow + rows wrapper; mirrors Section's label typography for consistency.
+// Cardless header + rows wrapper; mirrors Section's iOS 27 grouped-list header for consistency.
 function SettingsGroup({
   label,
   children,
 }: SettingsGroupProps): React.ReactElement {
   return (
     <View className="mb-6">
-      <Text className="font-mono text-muted-foreground text-xs uppercase tracking-widest mb-2 ml-4.5">
+      <Text
+        className="font-sans font-semibold text-body text-muted-foreground mb-2"
+        style={{ marginLeft: componentLayout.listSection.insetX }}
+      >
         {label}
       </Text>
       {children}

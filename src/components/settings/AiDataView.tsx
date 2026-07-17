@@ -10,6 +10,7 @@ import { useSettingsStore } from "@/lib/stores/settings.store";
 import { useUIStore } from "@/lib/stores/ui.store";
 import { useDeleteDeviceData } from "@/modules/chat/hooks/useDeviceStorage";
 import { useSignOut } from "@/modules/auth/hooks/useAuth";
+import { componentLayout } from "@/lib/design/tokens";
 
 const SCROLL_PAD_TOP = 8;
 const SCROLL_PAD_BOTTOM = 40;
@@ -60,8 +61,8 @@ export function AiDataView(): React.ReactElement {
       bounces
       decelerationRate="normal"
     >
-      <View className="px-4.5">
-        <Text className="font-sans text-muted-foreground text-base leading-6 mb-4">
+      <View style={{ paddingHorizontal: componentLayout.listSection.insetX }}>
+        <Text className="font-sans text-subhead text-muted-foreground mb-4">
           When you send a message, your text and any attachments are sent to{" "}
           <Text
             accessibilityRole="link"
@@ -72,7 +73,7 @@ export function AiDataView(): React.ReactElement {
           </Text>{" "}
           — a third-party service — to generate the AI reply.
         </Text>
-        <Text className="font-sans text-muted-foreground text-base leading-6 mb-4">
+        <Text className="font-sans text-subhead text-muted-foreground mb-4">
           Your chats are stored only on this device. Quock runs no servers of its
           own and collects no analytics or tracking.
         </Text>
