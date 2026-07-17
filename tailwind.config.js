@@ -33,6 +33,18 @@ module.exports = {
         border: "var(--color-border, " + colors.border + ")",
         input: "var(--color-input, " + colors.input + ")",
         ring: "var(--color-ring, " + colors.ring + ")",
+        // iOS 27 label ramp.
+        label: "var(--color-label, " + colors.label + ")",
+        "label-secondary": "var(--color-label-secondary, " + colors.labelSecondary + ")",
+        "label-tertiary": "var(--color-label-tertiary, " + colors.labelTertiary + ")",
+        // iOS 27 separators.
+        separator: "var(--color-separator, " + colors.separator + ")",
+        "separator-opaque": "var(--color-separator-opaque, " + colors.separatorOpaque + ")",
+        // iOS 27 system fills.
+        "fill-secondary": "var(--color-fill-secondary, " + colors.fillSecondary + ")",
+        "fill-tertiary": "var(--color-fill-tertiary, " + colors.fillTertiary + ")",
+        // Segmented control selected-option pill.
+        "segmented-selected": "var(--color-segmented-selected, " + colors.segmentedSelected + ")",
         // Apple HIG system colors (status / charts).
         red: "var(--color-red, " + colors.red + ")",
         orange: "var(--color-orange, " + colors.orange + ")",
@@ -73,6 +85,21 @@ module.exports = {
         card: "360px",
         // Login hero title cap (was the stock-colliding spacing key `80`).
         title: "320px",
+      },
+      fontSize: {
+        // iOS 27 type ramp — px-defined so each style renders at its exact pt (NativeWind rem is 14px, so stock text-* tiers can't express these). Tracking per Apple's SF Pro table.
+        "large-title": ["34px", { lineHeight: "41px", letterSpacing: "0.4px" }],
+        "title-1": ["28px", { lineHeight: "34px", letterSpacing: "0.38px" }],
+        "title-2": ["22px", { lineHeight: "28px", letterSpacing: "-0.26px" }],
+        "title-3": ["20px", { lineHeight: "25px", letterSpacing: "-0.45px" }],
+        // Headline is body-sized but ships semibold — pair text-headline with font-semibold at use-sites.
+        headline: ["17px", { lineHeight: "22px", letterSpacing: "-0.43px" }],
+        body: ["17px", { lineHeight: "22px", letterSpacing: "-0.43px" }],
+        callout: ["16px", { lineHeight: "21px", letterSpacing: "-0.31px" }],
+        subhead: ["15px", { lineHeight: "20px", letterSpacing: "-0.23px" }],
+        footnote: ["13px", { lineHeight: "18px", letterSpacing: "-0.08px" }],
+        "caption-1": ["12px", { lineHeight: "16px", letterSpacing: "0px" }],
+        "caption-2": ["11px", { lineHeight: "13px", letterSpacing: "0.06px" }],
       },
       fontFamily: {
         // System = SF Pro on iOS, Roboto on Android — Apple HIG defaults. No custom font is loaded.

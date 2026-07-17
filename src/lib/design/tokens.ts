@@ -34,6 +34,16 @@ export interface DesignColors {
   border: string;
   input: string;
   ring: string;
+  // iOS 27 label ramp — translucent below `label` so text blends with any surface.
+  label: string;
+  labelSecondary: string;
+  labelTertiary: string;
+  // iOS 27 separators — translucent hairline + opaque variant for layered content.
+  separator: string;
+  separatorOpaque: string;
+  // iOS 27 system fills — solid control washes inside surfaces (never glass).
+  fillSecondary: string;
+  fillTertiary: string;
   // Apple HIG system colors — status / charts only.
   red: string;
   orange: string;
@@ -56,9 +66,14 @@ export interface DesignColors {
   gray6: string;
   // Utility.
   scrim: string;
+  scrimSheet: string;
   shadow: string;
   // Theme-stable neutrals — iOS UISwitch thumb stays white on both themes.
   thumbFill: string;
+  // SegmentedControl selected-option pill — white light / systemGray4 dark (HIG selected-segment fill).
+  segmentedSelected: string;
+  // Switch ON track — iOS system toggle green as a semantic control key.
+  toggleOn: string;
   // Code syntax, per-theme; read via `useThemeColors().syntax`, never a static import (the static light palette is invisible on the dark code surface).
   syntax: SyntaxColors;
 }
@@ -215,7 +230,6 @@ export interface DesignSize {
   avatarHeader: number;  // 28 — avatar size in the chat top bar
   hitTargetMin: number;  // 44 — Apple HIG minimum + avatar in profile row + switch track width + sheet header slot
   segmentedSlot: number; // 188 — segmented control width inside settings row trailing slot
-  cardWidth: number;     // 320 — confirm dialog max-width
   avatarDefault: number; // 36 — Avatar primitive default diameter
   spinnerDefault: number; // 18 — Spinner primitive default diameter
 }
@@ -225,7 +239,6 @@ export const size: DesignSize = {
   avatarHeader: 28,
   hitTargetMin: 44,
   segmentedSlot: 188,
-  cardWidth: 320,
   avatarDefault: 36,
   spinnerDefault: 18,
 };
@@ -240,13 +253,42 @@ export interface DesignShadows {
   thumb: DesignShadowRecipe;     // iOS UISwitch thumb
   control: DesignShadowRecipe;   // SegmentedControl indicator
   dialog: DesignShadowRecipe;    // ConfirmDialog elevated card
-  orb: DesignShadowRecipe;       // GlassOrb soft lift — barely-there to "float" the orb above content
+  orb: DesignShadowRecipe;       // GlassOrb Android solid-fallback lift (iOS lift lives in boxShadow.glass)
 }
 export const shadow: DesignShadows = {
   thumb: { opacity: 0.15, radius: 2, offsetY: 1, elevation: 2 },
-  control: { opacity: 0.08, radius: 2, offsetY: 1, elevation: 1 },
+  // iOS 27 segmented selected-option shadow: 0 2px 10px at 6% — soft lift instead of a hard edge.
+  control: { opacity: 0.06, radius: 10, offsetY: 2, elevation: 2 },
   dialog: { opacity: 0.24, radius: 30, offsetY: 12, elevation: 12 },
   orb: { opacity: 0.10, radius: 8, offsetY: 3, elevation: 3 },
+};
+// iOS 27 glass recipe for floating controls over content — never inside opaque surfaces. Consumed via the RN 0.83 Fabric `boxShadow` style prop, split in two homes because Fabric paints inset shadows under children: `ring` (hairline + ambient lift) sits on the unclipped wrapper, `highlight` (inset top/bottom speculars) sits on an absolute overlay inside the clipped stack. Per theme because glass floats over unknown content.
+export interface DesignBoxShadowGlass {
+  ring: string;
+  highlight: string;
+}
+export interface DesignBoxShadow {
+  glass: Record<"light" | "dark", DesignBoxShadowGlass>;
+  // Sheet card ring — iOS 27 kit values (hairline + deep ambient), heavier than the orb glass ring.
+  sheet: Record<"light" | "dark", string>;
+}
+export const boxShadow: DesignBoxShadow = {
+  glass: {
+    light: {
+      ring: "0 0 0 0.5px rgba(255,255,255,0.5), 0 8px 24px rgba(0,0,0,0.12)",
+      highlight:
+        "inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(255,255,255,0.2)",
+    },
+    dark: {
+      ring: "0 0 0 0.5px rgba(255,255,255,0.15), 0 8px 24px rgba(0,0,0,0.4)",
+      highlight:
+        "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(255,255,255,0.06)",
+    },
+  },
+  sheet: {
+    light: "0 0 0 0.5px #dbdbdb, 0 8px 48px rgba(0,0,0,0.25)",
+    dark: "0 0 0 0.5px rgba(255,255,255,0.15), 0 8px 48px rgba(0,0,0,0.5)",
+  },
 };
 // Per-component layout constants. Shape `{ component: { key: number } }` keeps the call sites unambiguous.
 export interface DesignComponentLayout {
@@ -271,19 +313,23 @@ export interface DesignComponentLayout {
   modelPicker: {
     descriptionMaxLines: number; // 2 — Ollama-site mirror
   };
-  switchControl: {
-    trackWidth: number;   // 44
-    trackHeight: number;  // 26
-    thumbSize: number;    // 22
-    thumbPadding: number; // 2  — (track - thumb) / 2
-    thumbTravel: number;  // 18 — thumb max translateX (= trackWidth 44 - thumb 22 - 2*padding 2)
+  // iOS 27 UISwitch geometry — wide track, white pill knob.
+  toggleSwitch: {
+    trackWidth: number;  // 64
+    trackHeight: number; // 28
+    knobWidth: number;   // 38
+    knobHeight: number;  // 24
+    inset: number;       // 2 — knob padding inside the track
   };
   segmentedControl: {
-    defaultPadVertical: number; // 6
-    defaultFontSize: number;    // 13
-    compactPadVertical: number; // 4
-    compactFontSize: number;    // 12
-    indicatorInset: number;     // 2
+    indicatorInset: number;     // 2 — pad between track edge and the selected option (option height = track - 2*inset)
+    trackHeightSmall: number;   // 32 — iOS 27 small track
+    trackHeightLarge: number;   // 50 — iOS 27 large track
+    optionGap: number;          // 4  — gap between options
+  };
+  // iOS 27 inset-grouped list card rounding (same 26pt family as the alert text field).
+  listSection: {
+    cardRadius: number; // 26
   };
   // Attachment chip image thumbnail (60-pt square).
   attachmentChipThumb: number;       // 60
@@ -302,9 +348,22 @@ export interface DesignComponentLayout {
   iconButton: {
     defaultIconSize: number; // 22 — between iconSize.xl (20) and 2xl (24); tuned for 44pt tap targets
   };
-  // ConfirmDialog card corner radius (Apple HIG system-alert rounding, smaller than a sheet's 28pt).
-  dialog: {
-    cornerRadius: number; // 22
+  // iOS 27 alert geometry — capsule-continuous 34pt card with full-width stacked buttons.
+  alertDialog: {
+    width: number;           // 300
+    cornerRadius: number;    // 34
+    padding: number;         // 14
+    buttonHeight: number;    // 48
+    buttonGap: number;       // 8 — gap between the action pills (gap-2 renders 7px at the 14px rem, so exact pt lives here)
+    textFieldHeight: number; // 52
+    textFieldRadius: number; // 26
+  };
+  // iOS 27 button control heights — consumed as numeric style values (Tailwind h-* tiers stay rem-derived).
+  button: {
+    heightLarge: number;   // 50
+    heightMedium: number;  // 34
+    heightSmall: number;   // 28
+    largePaddingX: number; // 20
   };
   // AttachSheet round tile (Apple share-sheet style: circular orb + label below).
   attachTile: {
@@ -333,19 +392,21 @@ export const componentLayout: DesignComponentLayout = {
     blurBaseIntensity: 60,
   },
   modelPicker: { descriptionMaxLines: 2 },
-  switchControl: {
-    trackWidth: 44,
-    trackHeight: 26,
-    thumbSize: 22,
-    thumbPadding: 2,
-    thumbTravel: 18,
+  toggleSwitch: {
+    trackWidth: 64,
+    trackHeight: 28,
+    knobWidth: 38,
+    knobHeight: 24,
+    inset: 2,
   },
   segmentedControl: {
-    defaultPadVertical: 6,
-    defaultFontSize: 13,
-    compactPadVertical: 4,
-    compactFontSize: 12,
     indicatorInset: 2,
+    trackHeightSmall: 32,
+    trackHeightLarge: 50,
+    optionGap: 4,
+  },
+  listSection: {
+    cardRadius: 26,
   },
   attachmentChipThumb: 60,
   attachmentChipMaxWidth: 200,
@@ -360,7 +421,21 @@ export const componentLayout: DesignComponentLayout = {
     blurBaseIntensity: 60,
   },
   iconButton: { defaultIconSize: 22 },
-  dialog: { cornerRadius: 22 },
+  alertDialog: {
+    width: 300,
+    cornerRadius: 34,
+    padding: 14,
+    buttonHeight: 48,
+    buttonGap: 8,
+    textFieldHeight: 52,
+    textFieldRadius: 26,
+  },
+  button: {
+    heightLarge: 50,
+    heightMedium: 34,
+    heightSmall: 28,
+    largePaddingX: 20,
+  },
   attachTile: { orbDiameter: 64 },
   glassOrb: {
     tint: {
@@ -378,14 +453,17 @@ export const componentLayout: DesignComponentLayout = {
     blurIntensity: { clear: 40, regular: 70, thick: 95 },
   },
 };
-// Sheet geometry — full-width slab, top corners rounded. Dismiss when drag > distance OR velocity > threshold.
+// Sheet geometry — iOS 27 floating card: inset from the display edge, capsule-continuous corners (looser at the bottom to hug the display curve), pill grabber, dimmed scrim. Dismiss when drag > distance OR velocity > threshold.
 export const sheetPrimitive = {
   offscreenTranslateY: 800,
   scrimBlurIntensity: 14,
-  insetX: 0,
-  insetBottom: 0,
-  cornerRadius: 28,
   dismissDistanceThreshold: 120,
   dismissVelocityThreshold: 1000,
   upwardRubberBandFactor: 0.3,
+  insetMargin: 6,
+  cornerRadiusTop: 34,
+  cornerRadiusBottom: 58,
+  grabberWidth: 58,
+  grabberHeight: 4,
+  grabberTopOffset: 5,
 } as const;
