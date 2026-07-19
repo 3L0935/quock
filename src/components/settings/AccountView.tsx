@@ -4,8 +4,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import {
   ChevronRight,
-  CreditCard,
-  ExternalLink,
+  Info,
   Settings as SettingsIcon,
 } from "lucide-react-native";
 import { Avatar } from "@/components/ui/Avatar";
@@ -21,7 +20,7 @@ export interface AccountViewProps {
   userPlan: string | null;
   avatarUri: string | undefined;
   onOpenSettings: () => void;
-  onManageSubscription: () => void;
+  onOpenAbout: () => void;
   onSignOut: () => void;
 }
 
@@ -31,7 +30,7 @@ export function AccountView({
   userPlan,
   avatarUri,
   onOpenSettings,
-  onManageSubscription,
+  onOpenAbout,
   onSignOut,
 }: AccountViewProps): React.ReactElement {
   const colors = useThemeColors();
@@ -87,11 +86,12 @@ export function AccountView({
             }
           />
           <ListRow
-            icon={CreditCard}
-            label="Manage subscription"
-            onPress={onManageSubscription}
+            icon={Info}
+            label="About"
+            onPress={onOpenAbout}
+            testID="account-about"
             trailing={
-              <ExternalLink size={iconSize.md} color={colors.mutedForeground} />
+              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
             }
             showDivider={false}
           />
