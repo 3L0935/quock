@@ -265,10 +265,10 @@ export function Markdown({
   const colors = useThemeColors();
   const unitRefs = React.useRef(new Map<string, View>());
   const prefix = highlightPrefix ?? "";
-  // iOS secondarySystemFill — a tier above the picked-row wash because the excerpt menu dims everything behind it, and
-  // a fainter tint would sink under that dim. A fill tier, not an alpha over a label colour: the iOS 27 label ramp is
-  // itself translucent, so it cannot take a second alpha.
-  const highlightColor = colors.fillSecondary;
+  // Faintest fill tier: the menu's dim spares this unit, so the spotlight already marks it and a heavier wash would
+  // only grey out the text it is meant to feature. A fill tier, not an alpha over a label colour — the iOS 27 label
+  // ramp is itself translucent, so it cannot take a second alpha.
+  const highlightColor = colors.fillQuaternary;
   // Reparsing on every render would run the whole reply through the parser twice per menu open/close.
   const blocks = React.useMemo(() => parseMarkdown(source), [source]);
   const units = React.useMemo(() => groupIntoUnits(blocks), [blocks]);
@@ -278,9 +278,16 @@ export function Markdown({
     const full = `${prefix}:${unitKey}`;
     const node = unitRefs.current.get(full);
     if (node) {
-      node.measureInWindow((x, y, _w, h) =>
-        onLongPressExcerpt(text, full, { top: y, bottom: y + h, left: x }),
-      );
+      node.measureInWindow((x, y, w, h) => {
+        // A recycled or detached FlashList node measures as zeros; anchoring to that would park the menu at the top edge.
+        if (w === 0 && h === 0) return;
+        onLongPressExcerpt(text, full, {
+          top: y,
+          bottom: y + h,
+          left: x,
+          width: w,
+        });
+      });
     }
   };
   const setRef =

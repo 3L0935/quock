@@ -58,7 +58,7 @@ export const useUIStore = create<UIState>((set) => ({
   excerptMenuOpen: false,
   excerptMenuText: "",
   excerptMenuKey: "",
-  excerptMenuAnchor: { top: 0, bottom: 0, left: 0 },
+  excerptMenuAnchor: { top: 0, bottom: 0, left: 0, width: 0 },
   openChatHistory: (): void => {
     set({ chatHistoryOpen: true });
   },

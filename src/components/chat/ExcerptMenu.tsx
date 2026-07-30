@@ -8,6 +8,7 @@ import {
   Pressable as RNPressable,
   useWindowDimensions,
   View,
+  type ViewStyle,
 } from "react-native";
 import Animated, {
   runOnJS,
@@ -111,6 +112,26 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
     ],
     [canWebSearch, onDeepDive, onWebSearch, text],
   );
+  // The dim, minus the excerpt: bands above, below and to either side of it.
+  const dimBands = useMemo<ViewStyle[]>(
+    () => [
+      { top: 0, left: 0, right: 0, height: Math.max(0, anchor.top) },
+      { top: anchor.bottom, left: 0, right: 0, bottom: 0 },
+      {
+        top: anchor.top,
+        height: Math.max(0, anchor.bottom - anchor.top),
+        left: 0,
+        width: Math.max(0, anchor.left),
+      },
+      {
+        top: anchor.top,
+        height: Math.max(0, anchor.bottom - anchor.top),
+        left: anchor.left + anchor.width,
+        right: 0,
+      },
+    ],
+    [anchor],
+  );
   // Both placements clamp into the same band, so neither the header orbs nor the composer can end up covered.
   const position = useMemo(() => {
     const lowest = Math.max(
@@ -125,12 +146,10 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
             Math.max(topInset, anchor.bottom + TOOLBAR.anchorGap),
             lowest,
           );
-    // Leading-aligned to the pressed block, like the kit — never centred on the display.
-    const left = Math.min(
-      Math.max(SIDE_GUTTER, anchor.left),
-      screenWidth - TOOLBAR.containerWidth - SIDE_GUTTER,
-    );
-    return { top, left };
+    // Leading-aligned to the pressed block, like the kit — never centred on the display. The bar is content-sized, so
+    // the gutter is enforced with a max width instead of an upper bound on `left`.
+    const left = Math.max(SIDE_GUTTER, anchor.left);
+    return { top, left, maxWidth: screenWidth - left - SIDE_GUTTER };
   }, [anchor, bottomInset, screenHeight, screenWidth, topInset]);
   if (!mounted) return null;
   return (
@@ -140,21 +159,34 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
       pointerEvents="box-none"
       accessibilityViewIsModal
     >
-      {/* Kit ships a "Context Menu - Dimming Overlay": content behind a menu dims, and the dim is the dismiss target. */}
+      {/* Kit ships a "Context Menu - Dimming Overlay". Four bands around the excerpt instead of one full-screen wash:
+          iOS lifts the pressed content above the dim, so dimming it too would darken the very text the menu acts on. */}
       <RNPressable
         className="absolute inset-0"
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
         onPress={close}
       >
-        <Animated.View
-          className="absolute inset-0"
-          style={[{ backgroundColor: colors.scrim }, scrimStyle]}
-        />
+        {dimBands.map((band, index) => (
+          <Animated.View
+            key={index}
+            pointerEvents="none"
+            style={[
+              { position: "absolute", backgroundColor: colors.scrim },
+              band,
+              scrimStyle,
+            ]}
+          />
+        ))}
       </RNPressable>
       <Animated.View
         style={[
-          { position: "absolute", top: position.top, left: position.left },
+          {
+            position: "absolute",
+            top: position.top,
+            left: position.left,
+            maxWidth: position.maxWidth,
+          },
           toolbarStyle,
         ]}
       >

@@ -1,5 +1,5 @@
-// iOS 27 contextual-menu control group: one glass container whose actions divide it evenly, each icon over a caption.
-// Geometry is componentLayout.glassToolbar; the kit's mix-blend fill pair is inexpressible in RN, so the tint token approximates it.
+// Floating action bar in the shape of the iOS text-selection menu: one glass capsule, actions inline, hairline between.
+// Geometry is componentLayout.glassToolbar; the kit's mix-blend fill pair is inexpressible in RN, so the tint approximates it.
 
 import { type LucideIcon } from "lucide-react-native";
 import React from "react";
@@ -21,9 +21,9 @@ import {
 } from "@/lib/design/tokens";
 
 const TOOLBAR = componentLayout.glassToolbar;
-
-// One home for the platter height: consumers anchor against this instead of re-deriving it from the internals.
-export const glassToolbarHeight = TOOLBAR.itemHeight + TOOLBAR.padY * 2;
+// One home for the bar height: consumers anchor against this instead of re-deriving it from the internals.
+export const glassToolbarHeight = TOOLBAR.height;
+const ACTION_HEIGHT = TOOLBAR.height - TOOLBAR.padY * 2;
 
 export interface GlassToolbarAction {
   icon: LucideIcon;
@@ -36,7 +36,7 @@ export interface GlassToolbarProps {
   actions: GlassToolbarAction[];
 }
 
-// Kit shows the picked action filled with the vibrant tertiary fill; ours fades the same tier in on press.
+// iOS fills the action under the finger; ours fades the same fill tier in for the press.
 const ToolbarAction = React.memo(function ToolbarAction({
   icon: Icon,
   label,
@@ -68,15 +68,13 @@ const ToolbarAction = React.memo(function ToolbarAction({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityLabel={accessibilityLabel ?? label}
-      className="flex-1"
     >
       <View
-        className="items-center justify-center"
+        className="flex-row items-center justify-center"
         style={{
-          minHeight: TOOLBAR.itemHeight,
-          paddingHorizontal: TOOLBAR.itemPadX,
-          paddingVertical: TOOLBAR.itemPadY,
-          rowGap: TOOLBAR.iconLabelGap,
+          height: ACTION_HEIGHT,
+          paddingHorizontal: TOOLBAR.actionPadX,
+          columnGap: TOOLBAR.iconLabelGap,
         }}
       >
         <Animated.View
@@ -85,25 +83,19 @@ const ToolbarAction = React.memo(function ToolbarAction({
             StyleSheet.absoluteFill,
             {
               backgroundColor: colors.fillTertiary,
-              borderRadius: TOOLBAR.itemRadius,
+              borderRadius: TOOLBAR.actionRadius,
             },
             tintStyle,
           ]}
         />
-        <View
-          className="justify-center"
-          style={{ height: TOOLBAR.iconRowHeight }}
-        >
-          <Icon
-            size={iconSize.md}
-            color={colors.foreground}
-            strokeWidth={strokeWidth.medium}
-          />
-        </View>
+        <Icon
+          size={iconSize.sm}
+          color={colors.foreground}
+          strokeWidth={strokeWidth.medium}
+        />
         <Text
           numberOfLines={1}
-          ellipsizeMode="tail"
-          className="font-sans text-caption-1 font-medium text-center text-foreground"
+          className="font-sans text-subhead font-medium text-foreground"
         >
           {label}
         </Text>
@@ -116,23 +108,35 @@ export const GlassToolbar = React.memo(function GlassToolbar({
   actions,
 }: GlassToolbarProps): React.ReactElement {
   const { resolved } = useTheme();
+  const colors = useThemeColors();
   return (
     <GlassOrb
       variant="regular"
       borderRadius={TOOLBAR.radius}
       tintColor={TOOLBAR.tint[resolved]}
-      style={{ width: TOOLBAR.containerWidth }}
     >
       <View
         className="flex-row items-center"
         style={{
+          height: TOOLBAR.height,
           paddingHorizontal: TOOLBAR.padX,
           paddingVertical: TOOLBAR.padY,
-          columnGap: TOOLBAR.itemGap,
         }}
       >
-        {actions.map((action) => (
-          <ToolbarAction key={action.label} {...action} />
+        {actions.map((action, index) => (
+          <React.Fragment key={action.label}>
+            {index > 0 ? (
+              <View
+                style={{
+                  width: StyleSheet.hairlineWidth,
+                  alignSelf: "stretch",
+                  marginVertical: TOOLBAR.dividerInsetY,
+                  backgroundColor: colors.border,
+                }}
+              />
+            ) : null}
+            <ToolbarAction {...action} />
+          </React.Fragment>
         ))}
       </View>
     </GlassOrb>
