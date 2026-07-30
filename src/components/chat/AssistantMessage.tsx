@@ -158,8 +158,8 @@ function AssistantMessageImpl({
     openSelectText(message.id);
   }, [openSelectText, message.id]);
   const handleLongPressExcerpt = useCallback(
-    (text: string, unitKey: string, anchor: AnchorRect): void => {
-      openExcerptMenu(text, unitKey, anchor);
+    (unitKey: string, anchor: AnchorRect): void => {
+      openExcerptMenu(unitKey, anchor);
     },
     [openExcerptMenu],
   );

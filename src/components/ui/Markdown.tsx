@@ -1,6 +1,5 @@
-// Renders parsed markdown nodes — inline nodes nest in Text for wrapping, block nodes are Views.
-// Each excerpt UNIT (a heading's whole section, a standalone block, or a top-level list item — see groupIntoUnits) is
-// wrapped in one container so its highlight is continuous and measurable; long-press fires the menu anchored to it.
+// Renders parsed markdown nodes — inline nodes nest in Text for wrapping, block nodes are Views. Each excerpt unit
+// (see groupIntoUnits) gets one container, so its highlight is continuous and measurable for the long-press menu.
 
 import clsx from "clsx";
 import React from "react";
@@ -13,7 +12,6 @@ import {
 } from "react-native";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import type { AnchorRect } from "@/lib/types/geometry";
-import { useThemeColors } from "@/lib/theme/ThemeContext";
 import {
   type BlockNode,
   type InlineNode,
@@ -21,19 +19,15 @@ import {
 } from "@/components/ui/markdown/parseMarkdown";
 import { groupIntoUnits } from "@/components/ui/markdown/groupIntoUnits";
 
-// Hands the unit's plain text, its message-scoped key, and the unit's on-screen bounds (for the menu anchor).
-type OnLongPressExcerpt = (
-  text: string,
-  key: string,
-  anchor: AnchorRect,
-) => void;
+// Hands the unit's message-scoped key and its on-screen bounds; the text is resolved from the reply when acted on.
+type OnLongPressExcerpt = (key: string, anchor: AnchorRect) => void;
 
 export interface MarkdownProps {
   source: string;
   className?: string;
   testID?: string;
   onLongPressExcerpt?: OnLongPressExcerpt;
-  // Message id, prepended to unit keys so highlights never collide across messages.
+  // Namespace prepended to unit keys so highlights never collide across messages.
   highlightPrefix?: string;
   // Full key (prefix:unitKey) of the unit to tint while its menu is open.
   activeHighlightKey?: string;
@@ -99,9 +93,8 @@ const HEADING_CLASS = {
 // A wide table gives each column a readable min width and scrolls sideways; one that already fits fills the width instead.
 const TABLE_MIN_COLUMN_WIDTH = 112;
 
-// A unit's measured box contains its children's vertical margins, so a section that ends on a `mb-3` block reads
-// bottom-heavy when highlighted. These mirror the mb-*/mt-* classes the blocks above carry (NativeWind renders rem at
-// 14px, hence the halves) so the box can be balanced from the real values instead of a guess.
+// A unit's measured box swallows its children's vertical margins, so it reads bottom-heavy when highlighted. These
+// mirror the mb-*/mt-* classes below (NativeWind renders rem at 14px, hence the halves) so the box can be balanced.
 const BLOCK_MARGIN_TOP: Partial<Record<BlockNode["type"], number>> = {
   heading: 7,
   rule: 14,
@@ -280,18 +273,13 @@ export function Markdown({
   highlightPrefix,
   activeHighlightKey,
 }: MarkdownProps): React.ReactElement {
-  const colors = useThemeColors();
   const unitRefs = React.useRef(new Map<string, View>());
   const prefix = highlightPrefix ?? "";
-  // Faintest fill tier: the menu's dim spares this unit, so the spotlight already marks it and a heavier wash would
-  // only grey out the text it is meant to feature. A fill tier, not an alpha over a label colour — the iOS 27 label
-  // ramp is itself translucent, so it cannot take a second alpha.
-  const highlightColor = colors.fillQuaternary;
   // Reparsing on every render would run the whole reply through the parser twice per menu open/close.
   const blocks = React.useMemo(() => parseMarkdown(source), [source]);
   const units = React.useMemo(() => groupIntoUnits(blocks), [blocks]);
   // Measure the unit's container in-window and hand its top/bottom to the pill so it anchors above/below, not over the text.
-  const open = (text: string, unitKey: string): void => {
+  const open = (unitKey: string): void => {
     if (!onLongPressExcerpt) return;
     const full = `${prefix}:${unitKey}`;
     const node = unitRefs.current.get(full);
@@ -299,7 +287,7 @@ export function Markdown({
       node.measureInWindow((x, y, w, h) => {
         // A recycled or detached FlashList node measures as zeros; anchoring to that would park the menu at the top edge.
         if (w === 0 && h === 0) return;
-        onLongPressExcerpt(text, full, {
+        onLongPressExcerpt(full, {
           top: y,
           bottom: y + h,
           left: x,
@@ -315,12 +303,10 @@ export function Markdown({
       if (v) unitRefs.current.set(full, v);
       else unitRefs.current.delete(full);
     };
-  const unitStyle = (
-    unitKey: string,
-  ): { backgroundColor: string } | undefined =>
-    activeHighlightKey === `${prefix}:${unitKey}`
-      ? { backgroundColor: highlightColor }
-      : undefined;
+  // Faintest fill tier: the menu's dim already spares this unit, so a heavier wash would only grey the text it
+  // features. A class, not an inline style — it is a static conditional background, neither animated nor measured.
+  const highlightClass = (unitKey: string): string | false =>
+    activeHighlightKey === `${prefix}:${unitKey}` && "bg-fill-quaternary";
   // One container per unit: consecutive same-key blocks (a section) share it; a standalone list gets one per item.
   const out: React.ReactElement[] = [];
   let i = 0;
@@ -336,7 +322,6 @@ export function Markdown({
         <View key={i} className="mb-3">
           {items.map((item, idx) => {
             const iKey = unit.itemKeys[idx];
-            const iText = unit.itemTexts[idx];
             const marker =
               block.type === "orderedList" && block.start !== undefined
                 ? `${block.start + idx}.`
@@ -345,15 +330,17 @@ export function Markdown({
               <View
                 key={idx}
                 ref={setRef(iKey)}
-                style={unitStyle(iKey)}
-                className="flex-row mb-1 -mx-2 px-2 rounded-xl"
+                className={clsx(
+                  "flex-row mb-1 -mx-2 px-2 rounded-xl",
+                  highlightClass(iKey),
+                )}
               >
                 <Text className="font-sans text-body text-muted-foreground mr-2">
                   {marker}
                 </Text>
                 <Text
                   suppressHighlighting
-                  onLongPress={(): void => open(iText, iKey)}
+                  onLongPress={(): void => open(iKey)}
                   className="font-sans text-body text-foreground flex-1"
                 >
                   {item.map(renderInline)}
@@ -366,13 +353,13 @@ export function Markdown({
       i += 1;
       continue;
     }
-    const { key, text } = unit;
+    const { key } = unit;
     const start = i;
     const grouped: React.ReactElement[] = [];
     while (i < blocks.length) {
       const u = units[i];
       if ("itemKeys" in u || u.key !== key) break;
-      grouped.push(renderBlock(blocks[i], i, (): void => open(text, key)));
+      grouped.push(renderBlock(blocks[i], i, (): void => open(key)));
       i += 1;
     }
     // Pad the top by whatever the last block's bottom margin exceeds the first block's top margin, then pull the same
@@ -386,8 +373,8 @@ export function Markdown({
       <View
         key={`u${start}`}
         ref={setRef(key)}
-        style={[unitStyle(key), { paddingTop: balance, marginTop: -balance }]}
-        className="-mx-2 px-2 rounded-xl"
+        style={{ paddingTop: balance, marginTop: -balance }}
+        className={clsx("-mx-2 px-2 rounded-xl", highlightClass(key))}
       >
         {grouped}
       </View>,

@@ -5,7 +5,7 @@ import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDb } from "@/lib/contexts/DbContext";
 import { queryKeys } from "@/lib/hooks/queryKeys";
-import { WEB_SEARCH_DEFAULT_ON } from "@/modules/chat/constants";
+import { WEB_SEARCH_DEFAULT_ON } from "@/lib/constants/magic-numbers";
 import type { ChatId } from "@/lib/types/ids";
 
 interface ComposerModes {
@@ -50,7 +50,9 @@ export function useChatComposerModes(
       const key = queryKeys.chatComposerModes(chatId);
       // staleTime stops refetches, not the first fetch: a read issued at mount can resolve after this write and put
       // the old value back, which with the new default lands on the permissive side.
-      void queryClient.cancelQueries({ queryKey: key });
+      queryClient.cancelQueries({ queryKey: key }).catch((err: unknown) => {
+        console.warn("useChatComposerModes: failed to cancel in-flight read", err);
+      });
       const before =
         queryClient.getQueryData<ComposerModes>(key) ?? MODES_DEFAULT;
       const revert: Partial<ComposerModes> = {};

@@ -1,7 +1,5 @@
-// Groups parsed blocks into long-press "excerpt units" — the chunk a reply block acts on for Deep dive / Web search.
-// Model: a heading glues its following body into one section; outside any heading each block is atomic and a
-// top-level list atomizes to its items. Anchored on markdown structure, so it scales across any reply shape.
-// Each entry carries a stable `key` (or per-item keys) so the UI can highlight exactly the acted-on unit.
+// Groups parsed blocks into long-press "excerpt units": a heading glues its body into one section, outside a heading
+// each block is atomic, and a top-level list atomizes to items. Keys are stable so the UI can highlight one unit.
 
 import { type BlockNode } from "@/components/ui/markdown/parseMarkdown";
 import {

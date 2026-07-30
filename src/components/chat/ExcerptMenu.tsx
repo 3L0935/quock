@@ -23,7 +23,7 @@ import Animated, {
 } from "react-native-reanimated";
 import {
   GlassToolbar,
-  glassToolbarHeight,
+  GLASS_TOOLBAR_HEIGHT,
   type GlassToolbarAction,
 } from "@/components/ui/GlassToolbar";
 import { SpotlightGlow } from "@/components/chat/SpotlightGlow";
@@ -31,8 +31,13 @@ import type { SpotlightRect } from "@/lib/types/geometry";
 import { useHaptics } from "@/lib/hooks/useHaptics";
 import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { springEasing, surfaceSpring } from "@/lib/design/motion";
-import { componentLayout, motion, timings, zLayer } from "@/lib/design/tokens";
-import { MASK_OPAQUE } from "@/lib/design/mask";
+import {
+  componentLayout,
+  maskPaint,
+  motion,
+  timings,
+  zLayer,
+} from "@/lib/design/tokens";
 import { useUIStore } from "@/lib/stores/ui.store";
 import { excerptMenuTop } from "@/modules/chat/lib/excerptMenuPlacement";
 
@@ -66,10 +71,11 @@ export interface ExcerptMenuProps {
   canWebSearch: boolean;
   /** Safe-area top + floating header, so the menu never rises into the header orbs. */
   topInset: number;
-  /** Composer as measured by ChatHome (plus the keyboard when open), so the menu never drops into it. */
+  /** Composer as measured by ChatHome (plus the keyboard when isOpen), so the menu never drops into it. */
   bottomInset: number;
-  onDeepDive: (text: string) => void;
-  onWebSearch: (text: string) => void;
+  /** Receive the unit key; the caller resolves its text from the loaded chat. */
+  onDeepDive: (unitKey: string) => void;
+  onWebSearch: (unitKey: string) => void;
 }
 
 export const ExcerptMenu = React.memo(function ExcerptMenu({
@@ -85,12 +91,12 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
   const hapticsRef = React.useRef(haptics);
   hapticsRef.current = haptics;
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
-  const open = useUIStore((s) => s.excerptMenuOpen);
-  const text = useUIStore((s) => s.excerptMenuText);
+  const isOpen = useUIStore((s) => s.excerptMenuOpen);
+  const unitKey = useUIStore((s) => s.excerptMenuKey);
   const anchor = useUIStore((s) => s.excerptMenuAnchor);
   const close = useUIStore((s) => s.closeExcerptMenu);
   // Kept mounted through the exit animation, as <Sheet> does — unmounting on the flag alone would cut it off mid-fade.
-  const [mounted, setMounted] = React.useState(open);
+  const [mounted, setMounted] = React.useState(isOpen);
   const progress = useSharedValue(0);
   const clearHighlight = useUIStore((s) => s.clearExcerptHighlight);
   // Held until the exit finishes: clearing on the flag left the rim and the undimmed hole over untinted text.
@@ -99,7 +105,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
     clearHighlight();
   }, [clearHighlight]);
   React.useEffect(() => {
-    if (open) {
+    if (isOpen) {
       setMounted(true);
       // No Keyboard.dismiss() here: the anchor was measured a frame earlier, and dropping the keyboard shrinks the
       // list's bottom inset, which scrolls the content out from under the cutout by up to the keyboard's height.
@@ -118,7 +124,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
     return () => {
       cancelAnimation(progress);
     };
-  }, [open, progress, releaseMount]);
+  }, [isOpen, progress, releaseMount]);
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const toolbarStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
@@ -135,7 +141,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
       {
         icon: Sparkles,
         label: "Deep dive",
-        onPress: (): void => onDeepDive(text),
+        onPress: (): void => onDeepDive(unitKey),
         accessibilityLabel: "Deep dive on this",
       },
       ...(canWebSearch
@@ -143,13 +149,13 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
             {
               icon: Globe,
               label: "Web search",
-              onPress: (): void => onWebSearch(text),
+              onPress: (): void => onWebSearch(unitKey),
               accessibilityLabel: "Web search on this",
             },
           ]
         : []),
     ],
-    [canWebSearch, onDeepDive, onWebSearch, text],
+    [canWebSearch, onDeepDive, onWebSearch, unitKey],
   );
   const spotlightRect = useMemo<SpotlightRect>(
     () => ({
@@ -178,7 +184,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
         topInset,
         bottomInset,
         screenHeight,
-        barHeight: glassToolbarHeight,
+        barHeight: GLASS_TOOLBAR_HEIGHT,
         gap: TOOLBAR.anchorGap,
       }),
       // Centred on the display rather than leading-aligned to the block: the kit anchors to the content, but a centred
@@ -209,7 +215,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
           style={StyleSheet.absoluteFill}
           maskElement={
             <Svg width={screenWidth} height={screenHeight}>
-              <Path d={dimMask} fill={MASK_OPAQUE} fillRule="evenodd" />
+              <Path d={dimMask} fill={maskPaint.opaque} fillRule="evenodd" />
             </Svg>
           }
         >

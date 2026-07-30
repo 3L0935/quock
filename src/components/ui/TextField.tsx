@@ -167,8 +167,8 @@ export function TextField({
   // When the caller owns the container surface the inner TextInput drops its own padding/border to avoid doubling.
   const hasCustomContainer = containerClassName !== undefined;
   const wrapperClass = hasCustomContainer
-    ? containerClassName
-    : "bg-card rounded-lg justify-center";
+    ? clsx(containerClassName, "overflow-hidden")
+    : "bg-card rounded-lg justify-center overflow-hidden";
   // A caller-supplied className owns the type tier; the iOS Body tier backfills when none is given.
   const innerClass = hasCustomContainer
     ? clsx("text-foreground font-sans", className ?? "text-body")
@@ -176,11 +176,11 @@ export function TextField({
   return (
     <Animated.View
       className={wrapperClass}
-      // `overflow: hidden` is not cosmetic here: without it the rounded container does not clip the TextInput, so the
-      // native scroll indicator and the first/last glyphs of a wrapped line paint outside the corner curve.
+      // `overflow-hidden` is not cosmetic here: without it the rounded container does not clip the TextInput, so the
+      // native scroll indicator and the end glyphs of a wrapped line paint outside the corner curve.
       style={
         hasCustomContainer
-          ? [{ overflow: "hidden" }, containerStyle]
+          ? containerStyle
           : [
               { borderWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
               animatedBorderStyle,

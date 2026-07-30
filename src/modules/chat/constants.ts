@@ -76,11 +76,3 @@ export const CHAT_AUTO_TITLE_MAX_CHARS = 60;
 // Excerpt spotlight rim: one lap of the edge light. Slow enough to read as drift, and long enough that a menu open for
 // two or three seconds never shows the light repeat.
 export const EXCERPT_GLOW_LAP_MS = 3200;
-
-// A reworded excerpt instruction is prepended to every excerpt action and persisted, so it gets the same treatment as
-// pasted document text: long enough for a paragraph of guidance, short enough not to dominate the turn.
-export const EXCERPT_INSTRUCTION_MAX_CHARS = 400;
-
-// Web search is on for every new chat: the globe reads as active from the first frame, and it is capability-gated
-// downstream so a model without tools ignores it. Existing chats keep whatever they already had.
-export const WEB_SEARCH_DEFAULT_ON = true;

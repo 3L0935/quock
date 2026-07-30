@@ -124,6 +124,7 @@ export function ConfirmDialog({
       pointerEvents="auto"
       // On the card this only hid the scrim; the sheet behind stayed in the VoiceOver tree.
       accessibilityViewIsModal
+      accessibilityLiveRegion="polite"
       testID={testID}
     >
       <RNPressable

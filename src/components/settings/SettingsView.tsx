@@ -33,7 +33,7 @@ import {
   DEFAULT_DEEP_DIVE_INSTRUCTION,
   DEFAULT_WEB_SEARCH_INSTRUCTION,
 } from "@/modules/chat/lib/selectionPrompts";
-import { EXCERPT_INSTRUCTION_MAX_CHARS } from "@/modules/chat/constants";
+import { EXCERPT_INSTRUCTION_MAX_CHARS } from "@/lib/constants/magic-numbers";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
 // The two excerpt-menu actions whose wording is editable.

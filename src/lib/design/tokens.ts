@@ -179,6 +179,8 @@ export const opacity: DesignOpacity = {
   half: 0.5,
   tint: 0.8,
 };
+// Mask paint, not palette: MaskedView and SVG masks read alpha, so these mean "show" and "hide".
+export const maskPaint = { opaque: "#000000", clear: "rgba(0,0,0,0)" } as const;
 // Z-index layers. NativeWind has no z-index utility past z-50, so layers flow as tokens via `style={{ zIndex }}`.
 export interface DesignZLayer {
   composer: number; // 20 — sticky bottom input bar

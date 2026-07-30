@@ -23,8 +23,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { boxShadow, componentLayout } from "@/lib/design/tokens";
-import { MASK_CLEAR, MASK_OPAQUE } from "@/lib/design/mask";
+import { boxShadow, componentLayout, maskPaint } from "@/lib/design/tokens";
 import { EXCERPT_GLOW_LAP_MS } from "@/modules/chat/constants";
 import type { SpotlightRect } from "@/lib/types/geometry";
 
@@ -138,7 +137,7 @@ export function SpotlightGlow({
         maskElement={
           <Animated.View style={[squareStyle, spinStyle]}>
             <LinearGradient
-              colors={[MASK_OPAQUE, MASK_CLEAR]}
+              colors={[maskPaint.opaque, maskPaint.clear]}
               locations={[0, 0.52]}
               style={StyleSheet.absoluteFill}
             />
@@ -200,7 +199,7 @@ export function SpotlightGlow({
                 <Path
                   key={`cone-${cone.spreadDeg}`}
                   d={wedgePath(centre, centre, cone.spreadDeg)}
-                  fill={MASK_OPAQUE}
+                  fill={maskPaint.opaque}
                   fillOpacity={cone.alpha}
                 />
               ))}

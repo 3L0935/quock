@@ -23,10 +23,10 @@ interface UIState {
   // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Holds the message id; content is resolved from the query cache, never mirrored here.
   selectTextOpen: boolean;
   selectTextMessageId: MessageId | null;
-  // Excerpt menu — long-pressing a reply unit pops a floating toolbar (Deep dive / Web search) anchored to it. Owns the unit text and its on-screen bounds.
+  // Excerpt menu — long-pressing a reply unit pops a floating toolbar (Deep dive / Web search) anchored to it.
   excerptMenuOpen: boolean;
-  excerptMenuText: string;
-  // Key of the highlighted unit (message-scoped) so the reply can tint exactly the acted-on section.
+  // Key of the highlighted unit (`messageId:unitKey`): the reply tints exactly the acted-on section, and the text is
+  // resolved from the chat cache when an action fires — never mirrored here, as the select-text sheet above.
   excerptMenuKey: string;
   excerptMenuAnchor: AnchorRect;
   // Sheet toggles
@@ -40,7 +40,7 @@ interface UIState {
   closeAttach: () => void;
   openSelectText: (messageId: MessageId) => void;
   closeSelectText: () => void;
-  openExcerptMenu: (text: string, key: string, anchor: AnchorRect) => void;
+  openExcerptMenu: (key: string, anchor: AnchorRect) => void;
   closeExcerptMenu: () => void;
   /** Drops the highlight once the menu's exit animation has finished, not when it starts. */
   clearExcerptHighlight: () => void;
@@ -58,7 +58,6 @@ export const useUIStore = create<UIState>((set) => ({
   selectTextOpen: false,
   selectTextMessageId: null,
   excerptMenuOpen: false,
-  excerptMenuText: "",
   excerptMenuKey: "",
   excerptMenuAnchor: { top: 0, bottom: 0, left: 0, width: 0 },
   openChatHistory: (): void => {
@@ -92,13 +91,8 @@ export const useUIStore = create<UIState>((set) => ({
   closeSelectText: (): void => {
     set({ selectTextOpen: false });
   },
-  openExcerptMenu: (text, key, anchor): void => {
-    set({
-      excerptMenuOpen: true,
-      excerptMenuText: text,
-      excerptMenuKey: key,
-      excerptMenuAnchor: anchor,
-    });
+  openExcerptMenu: (key, anchor): void => {
+    set({ excerptMenuOpen: true, excerptMenuKey: key, excerptMenuAnchor: anchor });
   },
   closeExcerptMenu: (): void => {
     set({ excerptMenuOpen: false });

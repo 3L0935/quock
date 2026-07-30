@@ -2,8 +2,10 @@
 
 import type { SQLiteDatabase } from "expo-sqlite";
 import { asChatId, type ChatId, newChatId } from "@/lib/types/ids";
-import { EXCERPT_LENGTH } from "@/lib/constants/magic-numbers";
-import { WEB_SEARCH_DEFAULT_ON } from "@/modules/chat/constants";
+import {
+  EXCERPT_LENGTH,
+  WEB_SEARCH_DEFAULT_ON,
+} from "@/lib/constants/magic-numbers";
 import type { ChatSummary, DbChat } from "@/lib/db/types";
 
 interface ChatRow {

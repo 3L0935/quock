@@ -22,7 +22,7 @@ import {
 
 const TOOLBAR = componentLayout.glassToolbar;
 // One home for the bar height: consumers anchor against this instead of re-deriving it from the internals.
-export const glassToolbarHeight = TOOLBAR.height;
+export const GLASS_TOOLBAR_HEIGHT = TOOLBAR.height;
 const ACTION_HEIGHT = TOOLBAR.height - TOOLBAR.padY * 2;
 
 export interface GlassToolbarAction {
