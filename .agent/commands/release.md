@@ -1,113 +1,80 @@
-# Release lifecycle
+# Release flow
 
-App Store review is slow (weeks). The release model lets work on the next version continue on `develop` while a submitted version stays frozen on its own `release/X.Y.Z` branch. Tags land on `main` only after Apple has approved and the version is live.
+**Core principle: a released version is a git TAG, not a branch.** Tags never need syncing — that is what keeps this flow linear: no branch is kept "in sync" with another, and there is no double-merge.
 
-## Branch map
+App Store / Play review is slow and asynchronous (days to weeks, sometimes months). This flow lets development never stop while a submitted version sits in review.
 
-```
-main                          protected, reflects the version PUBLISHED on the App Store.
-  ↑ PR (release approved by Apple) → tag vX.Y.Z
-develop                       protected, "next" — integration branch for all feature work.
-  ↑ PR (feat/fix/chore/docs/refactor)
-release/X.Y.Z                 release candidate frozen for App Store submission.
-                              Bug fixes during Apple review land here, then cherry-picked to develop.
-hotfix/X.Y.Z                  emergency fix on the live App Store version. Branched from main.
-                              PR back to main, then cherry-pick to develop.
-```
+## Branches
+
+| Branch | What it is | Work here? |
+| --- | --- | --- |
+| `develop` | The trunk. ALL ongoing work and ALL external PRs land here (via `feat/*` / `fix/*`). Never frozen. | Yes, via short branches |
+| `release/X.Y.Z` | A release line, cut from `develop` to ship one version. It absorbs the review (even months) while `develop` keeps moving. | Only fixes for that release |
+| `main` | A marker of what is currently live on the stores. Advanced to the release commit only on approval. | Never — it is only a pointer |
+| tag `vX.Y.Z` | The released version. Immutable. | — |
+
+Everything flows one direction: **`feat/*` → `develop` → `release/X.Y.Z` → tag `vX.Y.Z`** (and `main` advances to it).
+
+## Everyday work
+
+One feature/fix → one short branch (`feat/*`, `fix/*`) → PR → `develop`. That is the only place ongoing work goes. `develop` is never frozen, regardless of what is in review. Keep `develop` releasable: large/unfinished features live on their own long branch (e.g. `feat/0.2`) until they are ready to merge.
 
 ## Version numbers
 
-SemVer (`MAJOR.MINOR.PATCH`). Pre-1.0: MINOR is feature, PATCH is fix.
+SemVer (`MAJOR.MINOR.PATCH`). Pre-1.0: MINOR = feature, PATCH = fix.
 
-| File | Field | When to bump |
-| --- | --- | --- |
-| `package.json` | `version` | Bumped on the `release/X.Y.Z` branch only — never on `develop`. |
-| `app.json` | `expo.version` | Same as above, kept in sync with `package.json`. |
-| `app.json` | `ios.buildNumber` | **Every** App Store submission, including resubmissions of the same `version` (Apple requires monotonic build numbers). |
-| `app.json` | `android.versionCode` | Same as `buildNumber`, integer that strictly increases. |
+The **version bump is the first step of a release**, done on `develop`. Between releases `develop` keeps the last released version as a placeholder — it is not meaningful until you decide to cut the next release. You decide when `develop` becomes the next version; nothing bumps automatically or on a schedule.
 
-Tags use the `vX.Y.Z` form (e.g. `v0.1.0`). One tag per published release, on the `main` commit.
+`app.json` `expo.version` and `package.json` `version` are bumped together. `ios.buildNumber` / `android.versionCode` are managed remotely by EAS (`appVersionSource: remote`, `production.autoIncrement`) — do NOT bump them by hand.
 
----
+## Cutting a release (`X.Y.Z`)
 
-## `/release-start X.Y.Z`
+1. On `develop`: bump `expo.version` + `package.json` version to `X.Y.Z` (PR `chore(release): X.Y.Z`).
+2. Cut `release/X.Y.Z` from `develop`.
+3. `eas build --platform ios --profile production` (and `android`) → `eas submit`. One build ships to both App Store and Google Play.
+4. `develop` keeps moving the whole time — new features and other work continue.
 
-**Triggers**: `/release-start`, `@release-start`, "start release X.Y.Z", "freeze for App Store".
+## During review
 
-**Pre-conditions**:
+- Review fixes land on `release/X.Y.Z`, then rebuild (EAS assigns a new build number, same marketing version) and resubmit.
+- **Every fix on a release branch is cherry-picked back to `develop`** so it is never lost:
+  ```
+  git checkout develop && git cherry-pick <fix-sha>
+  ```
+  Cherry-pick, not merge: it copies only the fix, not the frozen release state or an old version number. `develop` being ahead is irrelevant — that is exactly why the release branch is separate.
+- Google Play runs its own review, usually faster and independent of Apple. A version is "released" once the SLOWER store has it.
 
-1. On `develop`, working tree clean, in sync with `origin/develop`.
-2. No other `release/*` branch currently open (one release in flight at a time).
-3. `/review` has just passed clean.
+## When approved (the only time `main` moves)
 
-### Procedure
+1. Merge `release/X.Y.Z` → `main`; `.github/workflows/release.yml` auto-creates the `vX.Y.Z` tag and a GitHub Release on that merge.
+2. Delete `release/X.Y.Z` — the tag preserves it.
 
-1. **Read** [`AGENTS.md`](../../AGENTS.md) end-to-end (loop discipline applies here too).
-2. **Validate the version argument** matches SemVer and bumps strictly above the last published tag.
-3. **Branch**: `git checkout -b release/X.Y.Z`.
-4. **Bump versions**:
-   - `package.json` → `"version": "X.Y.Z"`.
-   - `app.json` → `expo.version` = `"X.Y.Z"`; `expo.ios.buildNumber` and `expo.android.versionCode` to next monotonic value (read the previous and increment by 1).
-5. **Single commit**: `chore(release): bump version to X.Y.Z (build N)`.
-6. **Build gate**: `pnpm typecheck && pnpm lint && pnpm test` — STOP on red.
-7. **Push**: `git push -u origin release/X.Y.Z`.
-8. **Open draft PR** to `main`:
-   ```bash
-   gh pr create --base main --head release/X.Y.Z --draft \
-     --title "Release X.Y.Z" --body "Frozen for App Store submission. Mark ready when Apple approves."
-   ```
-9. **Announce** the PR URL and STOP. The human takes over from here: `eas build --profile production` + `eas submit`.
+No sync-back to `develop` is needed: every fix already went there via cherry-pick, and the version bump originated there.
 
-### Both stores (iOS + Android)
+## A patch to a live version while `develop` is on a bigger one
 
-`eas submit` ships to the App Store and Google Play from one `eas build --profile production`. Keep `ios.buildNumber` and `android.versionCode` bumped together (step 4) so the stores stay in lockstep. Google Play runs its OWN review — independent of, and usually faster than, Apple's — so the app can be live on Play while still in App Store review. Treat the SLOWER of the two as the gate for tagging `main`: a version is "published" once both stores have it.
+Scenario: `develop` is heading to `0.2.0` (or a big feature lives on `feat/0.2`) and you need to ship `0.1.2` to the live `0.1.x` line.
 
-### During Apple review
+- Cut `release/0.1.2` from **`main`** (the live line — NOT from `develop`, so you do not drag in unreleased work), bump to `0.1.2`, fix, build, submit.
+- Cherry-pick the fix to `develop` so the next big version also carries it.
 
-- Fixes requested by App Review go to `release/X.Y.Z` as normal commits, then `eas build` + resubmit (bump only `buildNumber` / `versionCode`, not `version`).
-- Every fix that lands on `release/X.Y.Z` MUST be cherry-picked to `develop` in the same session — otherwise the next release will re-introduce the bug.
-- `develop` keeps moving forward in parallel: feature branches branch from `develop`, PR to `develop` as usual.
+This is how you ship `0.1.x` patches while building `0.2`: the big version lives on `develop` / `feat/0.2`; patches are release branches cut from the live line.
 
-### When Apple approves
+## The cases, at a glance
 
-1. Mark the draft PR ready: `gh pr ready <number>`.
-2. Human merges `release/X.Y.Z` → `main`.
-3. The **Release workflow** (`.github/workflows/release.yml`) fires on that merge: it auto-creates the `vX.Y.Z` tag and a GitHub Release with notes generated from the merged PRs — no manual tag, no hand-written changelog.
-4. Sync `develop` from `main` (PR `main → develop` if any release fixes were never cherry-picked).
-5. Delete the local + remote `release/X.Y.Z` branch.
-
-### If a review fails or the release is abandoned
-
-If a store rejects the build late (incompatible binary, bad provisioning) and the release can't be salvaged: first cherry-pick any fixes that landed on `release/X.Y.Z` back to `develop`, then delete the branch (`git branch -D release/X.Y.Z && git push origin --delete release/X.Y.Z`), and start the next attempt fresh with `/release-start` at a bumped version. Never leave a dead `release/*` branch open — one release in flight at a time.
-
----
-
-## `/hotfix X.Y.Z`
-
-**Triggers**: `/hotfix`, "emergency fix on App Store version", "hotfix live".
-
-Use when a critical bug is discovered in the version currently live on the App Store and it cannot wait for the next planned release.
-
-### Procedure
-
-1. **Branch from `main`**: `git checkout main && git pull && git checkout -b hotfix/X.Y.Z`.
-2. **Fix** the bug. Keep the scope tight — one bug per hotfix.
-3. **Bump**: PATCH only (`0.1.0` → `0.1.1`) in `package.json` and `app.json`; bump `buildNumber` / `versionCode`.
-4. **Build gate**: `pnpm typecheck && pnpm lint && pnpm test`.
-5. **PR**: `gh pr create --base main --head hotfix/X.Y.Z --title "hotfix: <description>" --body "..."`.
-6. **Cherry-pick** the same commits to `develop` in the same session: `git checkout develop && git cherry-pick <sha>...`.
-7. **Submit** via `eas build` + `eas submit` once the PR is merged and tagged.
-
-A hotfix is the only path that touches `main` outside of a planned release.
-
----
+| Situation | What you do |
+| --- | --- |
+| Ongoing work / external contributor | PR → `develop`. Always. One answer. |
+| Review takes 3 months | `develop` never freezes — only `release/X.Y.Z` is frozen. Keep merging to `develop`. |
+| Store asks for a change on a release | Fix on `release/X.Y.Z` → rebuild → resubmit → cherry-pick the fix to `develop`. |
+| Big feature (0.2) while patching 0.1.x | `feat/0.2` off `develop`; patches are `release/0.1.x` cut from the live line (`main`). |
+| When does the version bump happen | First step of a release, on `develop`. You decide when. |
 
 ## NEVER
 
-- Bump `version` on `develop` — only on `release/X.Y.Z` or `hotfix/X.Y.Z`.
-- Forget to cherry-pick a release/hotfix commit to `develop` — the bug will resurface next release.
-- Skip the `buildNumber` increment on resubmission — Apple rejects builds with a non-monotonic build number.
-- Open more than one `release/*` branch at a time.
-- Tag a commit on `main` before the version is published — gated on the slower of App Store / Google Play approval.
-- Push to `main` directly. Hotfix and release land via PR.
-- Merge own PR (sub-task, release, or hotfix).
+- Merge to `main` before the store has approved the build. `main` = what is live.
+- Bump the marketing version automatically or on a schedule — it is a deliberate release decision.
+- Merge a whole `release/*` branch into `develop` to carry a fix — cherry-pick the fix commit instead (avoids dragging the old version/state).
+- Bump `buildNumber` / `versionCode` by hand — EAS owns them.
+- Freeze `develop`. If a version is stuck in review, `develop` still moves.
+- Commit directly on `main` or `develop` — always a short branch + PR.

@@ -1,7 +1,8 @@
-// Cross-component UI navigation state: sheet visibility, upgrade modal, model-picker mode. Avoids prop-drilling through ChatHome.
+// Cross-component UI navigation state: sheet visibility, select-text sheet, model-picker mode. Avoids prop-drilling through ChatHome.
 
 import { create } from "zustand";
 import { timingsNamed } from "@/lib/design/tokens";
+import type { MessageId } from "@/lib/types/ids";
 
 // "default" → the picker writes to settings.store.selectedModelName (persisted user preference).
 // "current" → the picker pins the choice to the open chat (chats.model, via useChatModel).
@@ -18,9 +19,9 @@ interface UIState {
   openSheetCount: number;
   pushSheet: () => void;
   popSheet: () => void;
-  // Upgrade modal — surfaced when Composer catches a `subscription_required` API error, owns the offending model name to render the CTA text.
-  upgradeModalOpen: boolean;
-  upgradeModalModelName: string;
+  // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Holds the message id; content is resolved from the query cache, never mirrored here.
+  selectTextOpen: boolean;
+  selectTextMessageId: MessageId | null;
   // Sheet toggles
   openChatHistory: () => void;
   closeChatHistory: () => void;
@@ -30,12 +31,10 @@ interface UIState {
   closeAccount: () => void;
   openAttach: () => void;
   closeAttach: () => void;
+  openSelectText: (messageId: MessageId) => void;
+  closeSelectText: () => void;
   // Choreographed transitions: close the current sheet, then schedule the next after `timingsNamed.sheetCloseTail` so the two animations do not stack and stutter.
   switchToModelPickerFromAccount: () => void;
-  // Upgrade modal
-  openUpgradeModal: (modelName: string) => void;
-  closeUpgradeModal: () => void;
-  pickAnotherFromUpgrade: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -45,8 +44,8 @@ export const useUIStore = create<UIState>((set) => ({
   accountOpen: false,
   attachOpen: false,
   openSheetCount: 0,
-  upgradeModalOpen: false,
-  upgradeModalModelName: "",
+  selectTextOpen: false,
+  selectTextMessageId: null,
   openChatHistory: (): void => {
     set({ chatHistoryOpen: true });
   },
@@ -72,6 +71,12 @@ export const useUIStore = create<UIState>((set) => ({
   closeAttach: (): void => {
     set({ attachOpen: false });
   },
+  openSelectText: (messageId): void => {
+    set({ selectTextOpen: true, selectTextMessageId: messageId });
+  },
+  closeSelectText: (): void => {
+    set({ selectTextOpen: false });
+  },
   pushSheet: (): void => {
     set((s) => ({ openSheetCount: s.openSheetCount + 1 }));
   },
@@ -83,19 +88,6 @@ export const useUIStore = create<UIState>((set) => ({
     set({ accountOpen: false });
     setTimeout(() => {
       set({ modelPickerOpen: true, modelPickerMode: "default" });
-    }, timingsNamed.sheetCloseTail);
-  },
-  openUpgradeModal: (modelName): void => {
-    set({ upgradeModalOpen: true, upgradeModalModelName: modelName });
-  },
-  closeUpgradeModal: (): void => {
-    set({ upgradeModalOpen: false });
-  },
-  // Upgrade gate fires per-message; opening the picker here scopes the new pick to the current chat, not the persisted default.
-  pickAnotherFromUpgrade: (): void => {
-    set({ upgradeModalOpen: false });
-    setTimeout(() => {
-      set({ modelPickerOpen: true, modelPickerMode: "current" });
     }, timingsNamed.sheetCloseTail);
   },
 }));

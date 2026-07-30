@@ -171,6 +171,13 @@ export async function runStream(
   const controller = new AbortController();
   controllerRef.current = controller;
   startStream(chatId, controller);
+  // Only clear shared stream state (streaming set + controller ref) while still the owner: an auto-abort-then-restart
+  // (edit during a stream) hands ownership to a fresh controller, and a superseded pipeline must not tear it down.
+  const releaseIfCurrent = (): void => {
+    if (controllerRef.current !== controller) return;
+    controllerRef.current = null;
+    endStream(chatId);
+  };
   const buffers: StreamBuffers = {
     content: "",
     rawContent: "",
@@ -389,8 +396,7 @@ export async function runStream(
             // The UI shows a friendly code-keyed message; keep the server's raw text in the log so a report can say what Ollama actually returned (e.g. a model that rejects images).
             console.warn("[chat] Ollama returned a stream error:", errMsg);
             await writeStatus("error", deriveMessageErrorCode(errMsg));
-            endStream(chatId);
-            controllerRef.current = null;
+            releaseIfCurrent();
             // Status + cleanup already written with the server-derived code; return so the outer catch doesn't re-derive a generic code over it.
             return;
           }
@@ -446,8 +452,7 @@ export async function runStream(
     cancelPending();
     setToolActivity(chatId, null);
     await writeStatus("complete", null);
-    endStream(chatId);
-    controllerRef.current = null;
+    releaseIfCurrent();
     haptics.light();
   } catch (err) {
     cancelPending();
@@ -455,14 +460,12 @@ export async function runStream(
     if (isAbortError(err) || controller.signal.aborted) {
       // User stop: bubble shows the interrupted label + Retry.
       await writeStatus("interrupted", null);
-      endStream(chatId);
-      controllerRef.current = null;
+      releaseIfCurrent();
       return;
     }
     // Anything else: typed terminal state so the bubble renders the inline error chip + Retry.
     await writeStatus("error", deriveMessageErrorCode(err));
-    endStream(chatId);
-    controllerRef.current = null;
+    releaseIfCurrent();
     throw err;
   }
 }

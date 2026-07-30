@@ -230,4 +230,20 @@ describe("runStream tool-round loop", () => {
     expect(mockExecuteTool).toHaveBeenCalledTimes(2);
     expect(tailMessage(queryClient).webSearchFailed).toBe(false);
   });
+
+  it("does not tear down the stream that superseded it (edit-during-stream restart)", async () => {
+    // Simulates auto-abort-then-restart: a fresh stream takes ownership of controllerRef mid-flight, so this
+    // pipeline's teardown must leave the replacement's shared state (streaming set + ref) untouched. Guards race #8.
+    const { ctx, endStream } = makeCtx();
+    const replacement = new AbortController();
+    mockSendChat.mockImplementation(async function* () {
+      ctx.controllerRef.current = replacement;
+      yield chatEvent("stale");
+    });
+
+    await run(ctx);
+
+    expect(endStream).not.toHaveBeenCalled();
+    expect(ctx.controllerRef.current).toBe(replacement);
+  });
 });

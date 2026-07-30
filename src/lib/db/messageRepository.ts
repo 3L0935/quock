@@ -201,4 +201,13 @@ export class MessageRepository {
       [chatId, afterId],
     );
   }
+  // Boot reconciliation: the in-memory streaming store resets on launch, so any row still 'pending'/'streaming' is
+  // orphaned by a mid-stream process death. Flip to 'interrupted' so the bubble shows Retry, not eternal dots.
+  async interruptOrphanedStreams(): Promise<number> {
+    const result = await this.db.runAsync(
+      "UPDATE messages SET status = 'interrupted', updated_at = ? WHERE status IN ('pending', 'streaming')",
+      [Date.now()],
+    );
+    return result.changes;
+  }
 }

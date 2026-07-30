@@ -26,7 +26,7 @@ import { Composer } from "@/components/chat/Composer";
 import { EmptyState } from "@/components/chat/EmptyState";
 import { MessageList, type MessageListHandle } from "@/components/chat/MessageList";
 import type { UiAttachment } from "@/modules/chat/types";
-import { UpgradePromptModal } from "@/components/chat/UpgradePromptModal";
+import { SelectTextSheet } from "@/components/chat/SelectTextSheet";
 
 export interface ChatHomeProps {
   chatId: ChatId;
@@ -53,8 +53,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const modelPickerOpen = useUIStore((s) => s.modelPickerOpen);
   const accountOpen = useUIStore((s) => s.accountOpen);
   const attachOpen = useUIStore((s) => s.attachOpen);
-  const upgradeModalOpen = useUIStore((s) => s.upgradeModalOpen);
-  const upgradeModelName = useUIStore((s) => s.upgradeModalModelName);
   const closeChatHistory = useUIStore((s) => s.closeChatHistory);
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
   const closeAccount = useUIStore((s) => s.closeAccount);
@@ -63,8 +61,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const switchToModelPickerFromAccount = useUIStore(
     (s) => s.switchToModelPickerFromAccount,
   );
-  const closeUpgradeModal = useUIStore((s) => s.closeUpgradeModal);
-  const pickAnotherFromUpgrade = useUIStore((s) => s.pickAnotherFromUpgrade);
+  const selectTextOpen = useUIStore((s) => s.selectTextOpen);
+  const selectTextMessageId = useUIStore((s) => s.selectTextMessageId);
+  const closeSelectText = useUIStore((s) => s.closeSelectText);
   // Attachment draft lives here because it is composer-scoped, not navigation state.
   const [attachments, setAttachments] = useState<UiAttachment[]>([]);
   // Scroll-to-latest button lives in the composer (rides its keyboard lift); the list reports visibility here and is driven via ref.
@@ -78,7 +77,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     if (chatGone) router.replace("/c");
   }, [chatGone, router]);
   const isStreaming = useIsStreaming(chatId);
-  const { regenerate, retry, editAndResend } = useSendMessage(chatId);
+  const { regenerate, retry, editAndResend, abort } = useSendMessage(chatId);
   const toast = useToast();
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
@@ -114,19 +113,17 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
+      // Editing mid-stream means "abandon this answer and re-ask": abort the in-flight stream, then resend. The
+      // pipeline's teardown is ownership-gated, so the aborted stream can't tear down the fresh one that replaces it.
       if (isStreaming) {
-        toast({
-          title: "Already streaming",
-          description: "Stop the current response before editing.",
-        });
-        return;
+        abort();
       }
       void editAndResend(userMessageId, newContent).catch((err: unknown) => {
         console.warn("ChatHome: editAndResend failed", err);
         toast({ title: "Edit failed", tone: "error" });
       });
     },
-    [editAndResend, isStreaming, toast],
+    [abort, editAndResend, isStreaming, toast],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {
@@ -152,6 +149,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   }, []);
   const handleClearAttachments = useCallback(() => setAttachments([]), []);
   const messages = data?.messages ?? [];
+  // Resolve the select-text body from the loaded chat cache — never mirror server data into the UI store.
+  const selectTextContent =
+    messages.find((m) => m.id === selectTextMessageId)?.content ?? "";
   // A failed load that ISN'T a deletion (corrupt row, DB error) reads as an error, not a blank "new chat".
   const showError = isError && !chatGone && messages.length === 0;
   // Hold the spinner while redirecting away from a deleted chat so the error/empty states never flash.
@@ -230,11 +230,10 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         currentCount={attachments.length}
         chatId={chatId}
       />
-      <UpgradePromptModal
-        visible={upgradeModalOpen}
-        modelName={upgradeModelName}
-        onClose={closeUpgradeModal}
-        onPickAnotherModel={pickAnotherFromUpgrade}
+      <SelectTextSheet
+        visible={selectTextOpen}
+        content={selectTextContent}
+        onClose={closeSelectText}
       />
     </View>
   );
