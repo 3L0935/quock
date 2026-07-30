@@ -53,7 +53,7 @@ export function SelectTextSheet({
           textAlignVertical="top"
           selectionColor={colors.primary}
           style={{ flex: 1 }}
-          className="font-sans text-base leading-6 text-foreground"
+          className="font-sans text-body text-foreground"
         />
       </View>
     </Sheet>

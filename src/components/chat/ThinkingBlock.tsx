@@ -57,7 +57,7 @@ function ThinkingBlockImpl({
           color={colors.mutedForeground}
           strokeWidth={strokeWidth.bold}
         />
-        <Text className="flex-1 font-sans text-xs text-muted-foreground">Thinking</Text>
+        <Text className="flex-1 font-sans text-footnote text-muted-foreground">Thinking</Text>
         {open ? (
           <ChevronDown
             size={iconSize.sm}
@@ -75,7 +75,7 @@ function ThinkingBlockImpl({
       {open ? (
         <Animated.View className="py-1" style={bodyAnimStyle}>
           <Text
-            className="font-sans text-sm text-muted-foreground italic"
+            className="font-sans text-footnote text-muted-foreground italic"
             selectable
             testID="thinking-block-body"
           >

@@ -85,7 +85,7 @@ function SearchingIndicator({
         strokeWidth={strokeWidth.regular}
       />
       <Text
-        className="flex-1 font-sans text-sm text-muted-foreground"
+        className="flex-1 font-sans text-footnote text-muted-foreground"
         numberOfLines={1}
       >
         {verb} {activity.query}…
@@ -104,7 +104,7 @@ function WebSearchFailedNote(): React.ReactElement {
         color={colors.destructive}
         strokeWidth={strokeWidth.regular}
       />
-      <Text className="ml-1.5 font-sans text-xs text-destructive">
+      <Text className="ml-1.5 font-sans text-caption-1 text-destructive">
         Web search unavailable
       </Text>
     </View>
@@ -117,6 +117,7 @@ function AssistantMessageImpl({
   onRegenerate,
   onRetry,
 }: AssistantMessageProps): React.ReactElement {
+  const colors = useThemeColors();
   const toast = useToast();
   // Mid-stream web-tool status for this chat (cleared between rounds); shown only on the streaming row.
   const toolActivity = useStreamingStore((s) =>
@@ -186,26 +187,27 @@ function AssistantMessageImpl({
         {showWebSearchFailed ? <WebSearchFailedNote /> : null}
         {isError ? (
           <View className="mt-2 flex-row items-center self-start rounded-full bg-destructive-soft pl-3.5 pr-1.5 py-1.5">
-            <Text className="font-sans text-sm text-destructive mr-2">
+            <Text className="font-sans text-footnote text-destructive mr-2">
               {ERROR_COPY[message.errorCode ?? "unknown"]}
             </Text>
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
-                <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-xs text-secondary-foreground">Retry</Text>
+                {/* Explicit color: lucide defaults to currentColor, which react-native-svg resolves to black in both themes. */}
+                <RotateCw size={iconSize.xs} color={colors.label} />
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">Retry</Text>
               </Button>
             ) : null}
           </View>
         ) : null}
         {isInterrupted ? (
           <View className="mt-2 flex-row items-center self-start">
-            <Text className="font-sans italic text-sm text-muted-foreground mr-2">
+            <Text className="font-sans italic text-footnote text-muted-foreground mr-2">
               Interrupted
             </Text>
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
-                <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-xs text-secondary-foreground">Retry</Text>
+                <RotateCw size={iconSize.xs} color={colors.label} />
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">Retry</Text>
               </Button>
             ) : null}
           </View>

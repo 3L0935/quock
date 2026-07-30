@@ -1,4 +1,4 @@
-// Pill orb — BlurView + tint + press feedback. Blur reveals scroll content; opaque surfaces show tint only.
+// Liquid Glass pill orb — BlurView + layered tint + specular ring/highlights + press feedback. Glass lives ONLY on floating controls over content (AGENTS.md §Surface primitives); solid surfaces never adopt it.
 
 import { BlurView } from "expo-blur";
 import React, { useCallback } from "react";
@@ -17,7 +17,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { pressSpring } from "@/lib/design/motion";
-import { componentLayout, motion, opacity, shadow } from "@/lib/design/tokens";
+import { boxShadow, componentLayout, motion, opacity, shadow } from "@/lib/design/tokens";
 
 export type GlassVariant = "clear" | "regular" | "thick";
 
@@ -58,15 +58,18 @@ export function GlassOrb({
   const themeColors = useThemeColors();
   const resolvedTint = tintColor ?? componentLayout.glassOrb.tint[resolved][variant];
   const isIOS = Platform.OS === "ios";
-  // Soft drop shadow lifts the orb off the surface. Android elevation needs an opaque base + radius on the wrapper (a transparent view casts nothing), so we paint the card surface under the blur; iOS honours shadow* on a transparent view untouched.
-  const shadowStyle: ViewStyle = {
-    shadowColor: themeColors.shadow,
-    shadowOpacity: shadow.orb.opacity,
-    shadowRadius: shadow.orb.radius,
-    shadowOffset: { width: 0, height: shadow.orb.offsetY },
-    elevation: shadow.orb.elevation,
-    ...(isIOS ? {} : { backgroundColor: themeColors.card, borderRadius }),
-  };
+  // iOS draws the glass ring + ambient lift via Fabric boxShadow on this unclipped wrapper (outset shadows escape the inner overflow-hidden). Android falls back to the solid recipe — dimezis blur + boxShadow insets misrender there, and elevation needs an opaque base + radius (a transparent view casts nothing).
+  const shadowStyle: ViewStyle = isIOS
+    ? { borderRadius, boxShadow: boxShadow.glass[resolved].ring }
+    : {
+        shadowColor: themeColors.shadow,
+        shadowOpacity: shadow.orb.opacity,
+        shadowRadius: shadow.orb.radius,
+        shadowOffset: { width: 0, height: shadow.orb.offsetY },
+        elevation: shadow.orb.elevation,
+        backgroundColor: themeColors.card,
+        borderRadius,
+      };
   // Press feedback driven by one shared value so brightness boost + scale stay in sync.
   const pressed = useSharedValue(0);
   const handlePressIn = useCallback((): void => {
@@ -103,6 +106,16 @@ export function GlassOrb({
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: resolvedTint }]}
       />
+      {isIOS ? (
+        // Inset speculars need their own layer above the tint: Fabric paints inset box-shadows under children, so on the wrapper they would hide behind blur + tint.
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { borderRadius, boxShadow: boxShadow.glass[resolved].highlight },
+          ]}
+        />
+      ) : null}
       {interactive ? (
         <Animated.View
           pointerEvents="none"
@@ -134,16 +147,19 @@ export function GlassOrb({
     );
   }
   return (
+    // Same two-view split as the interactive branch: the outset glass ring dies under overflow:hidden on Fabric, so the clip lives one level in.
     <View
-      style={[shadowStyle, wrapperStyle, dimStyle, style]}
+      style={[shadowStyle, dimStyle, style]}
       className={className}
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
       accessibilityState={{ disabled }}
     >
-      {stack}
-      {children}
+      <View style={wrapperStyle}>
+        {stack}
+        {children}
+      </View>
     </View>
   );
 }

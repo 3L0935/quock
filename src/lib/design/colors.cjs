@@ -53,6 +53,38 @@ const appleDark = {
   brown: "#B78A66",
 };
 
+// iOS 27 label ramp — secondary/tertiary/quaternary are translucent so text blends with whatever surface it sits on (HIG label colors).
+const labelLight = {
+  label: "#000000",
+  labelSecondary: "rgba(60,60,67,0.6)",
+  labelTertiary: "rgba(60,60,67,0.3)",
+};
+// Dark secondary sits at 70% — the iOS 27 kit value (brighter than the classic UIKit 60%).
+const labelDark = {
+  label: "#FFFFFF",
+  labelSecondary: "rgba(235,235,245,0.7)",
+  labelTertiary: "rgba(235,235,245,0.3)",
+};
+// iOS 27 separators — translucent hairline for stacked rows; opaque variant where translucency would compound over layered content. Dark non-opaque is a white wash (kit value), not the classic UIKit gray.
+const separatorLight = {
+  separator: "rgba(60,60,67,0.29)",
+  separatorOpaque: "#C6C6C8",
+};
+const separatorDark = {
+  separator: "rgba(255,255,255,0.17)",
+  separatorOpaque: "#38383A",
+};
+// iOS 27 system fills — translucent gray washes for control backgrounds INSIDE surfaces (glass stays on floating controls only). Quaternary is the faintest tier — large-area structural washes (Markdown table header band).
+const fillLight = {
+  fillSecondary: "rgba(120,120,128,0.16)",
+  fillTertiary: "rgba(118,118,128,0.12)",
+  fillQuaternary: "rgba(116,116,128,0.08)",
+};
+const fillDark = {
+  fillSecondary: "rgba(120,120,128,0.32)",
+  fillTertiary: "rgba(118,118,128,0.24)",
+  fillQuaternary: "rgba(118,118,128,0.18)",
+};
 // Apple HIG system grays — light + dark.
 const grayLight = {
   gray: "#8E8E93",
@@ -74,6 +106,9 @@ const grayDark = {
 const light = {
   ...appleLight,
   ...grayLight,
+  ...labelLight,
+  ...separatorLight,
+  ...fillLight,
   // Shadcn-style semantic layer — every component consumes these.
   // Body sits on systemGroupedBackground (gray6) so Glass surfaces + cards stand out.
   background: grayLight.gray6,                  // #F2F2F7
@@ -88,27 +123,37 @@ const light = {
   secondary: grayLight.gray4,                   // #D1D1D6
   secondaryForeground: "#1C1C1E",
   muted: grayLight.gray5,                       // search/input fields (kept softer than `secondary` so inputs blend with their card)
-  mutedForeground: grayLight.gray,              // #8E8E93 — secondary text
+  // iOS secondaryLabel — translucent so secondary text adapts to whichever surface hosts it.
+  mutedForeground: labelLight.labelSecondary,
   accent: grayLight.gray5,                      // interactive neutral surface
   accentForeground: "#1C1C1E",
   destructive: appleLight.red,
   destructiveForeground: "#FFFFFF",
   // Saturated past #FFE5E5 so the full-red label reads against this surface in light mode.
   destructiveSoft: "#FFD0D0",
-  // Heavier than systemGray5 so list-row hairlines read against the white card surface.
-  border: grayLight.gray4,                      // #D1D1D6
-  input: grayLight.gray4,
+  // iOS separator (non-opaque) — translucent hairline reads on both the white card and the gray6 body.
+  border: separatorLight.separator,
+  input: separatorLight.separator,
   ring: appleLight.blue,
   // Utility.
   scrim: "rgba(0,0,0,0.4)",
+  // Sheet scrim is lighter than the dialog scrim — iOS 27 kit overlay value.
+  scrimSheet: "rgba(0,0,0,0.2)",
   shadow: "#000000",
   // Theme-stable: iOS UISwitch thumb is white on both themes (Apple system convention).
   thumbFill: "#FFFFFF",
+  // Segmented selected-option pill — white over the fillTertiary track in light mode.
+  segmentedSelected: "#FFFFFF",
+  // Switch ON track — iOS system toggle green (semantic control key; components never read palette accessors).
+  toggleOn: appleLight.green,
 };
 
 const dark = {
   ...appleDark,
   ...grayDark,
+  ...labelDark,
+  ...separatorDark,
+  ...fillDark,
   background: "#000000",                        // systemGroupedBackground dark
   foreground: "#FFFFFF",
   card: grayDark.gray6,                         // #1C1C1E — elevated surface
@@ -121,20 +166,26 @@ const dark = {
   secondary: grayDark.gray4,                    // #3A3A3C
   secondaryForeground: "#FFFFFF",
   muted: grayDark.gray5,                        // #2C2C2E — search bg
-  mutedForeground: grayDark.gray,               // #8E8E93
+  // iOS secondaryLabel dark — translucent so secondary text adapts to whichever surface hosts it.
+  mutedForeground: labelDark.labelSecondary,
   accent: grayDark.gray5,
   accentForeground: "#FFFFFF",
   destructive: appleDark.red,
   destructiveForeground: "#FFFFFF",
   destructiveSoft: "#4D2622",
-  // Heavier than systemGray5 so list-row hairlines read against the #1C1C1E card.
-  border: grayDark.gray4,                       // #3A3A3C
-  input: grayDark.gray4,
+  // iOS separator (non-opaque) dark — translucent hairline reads on both the #1C1C1E card and the black body.
+  border: separatorDark.separator,
+  input: separatorDark.separator,
   ring: appleDark.blue,
   scrim: "rgba(0,0,0,0.6)",
+  // Same value both themes — the kit overlay does not deepen for dark.
+  scrimSheet: "rgba(0,0,0,0.2)",
   shadow: "#000000",
   // Same as light — Apple system convention.
   thumbFill: "#FFFFFF",
+  // iOS-real dark selected-segment fill is systemGray2 (§21) — the kit example renders a light pill; gray4 was too close to the dark track to read as selected.
+  segmentedSelected: grayDark.gray2,
+  toggleOn: appleDark.green,
 };
 
 // Light palette is the static default; theme swap happens via `vars()` (see ThemeProvider).

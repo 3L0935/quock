@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { type LucideIcon } from "lucide-react-native";
 import React from "react";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { componentLayout, type DesignColors } from "@/lib/design/tokens";
+import { componentLayout, size as designSize, type DesignColors } from "@/lib/design/tokens";
 import { Pressable } from "@/components/ui/Pressable";
 
 export type IconButtonTone = "default" | "muted" | "danger";
@@ -41,10 +41,9 @@ export function IconButton({
     <Pressable
       onPress={onPress}
       disabled={disabled ?? false}
-      className={clsx(
-        "w-11 h-11 items-center justify-center rounded-lg",
-        className,
-      )}
+      className={clsx("items-center justify-center rounded-lg", className)}
+      // Exact 44pt HIG target — w-11/h-11 render 38.5px under the 14px rem.
+      style={{ width: designSize.hitTargetMin, height: designSize.hitTargetMin }}
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >

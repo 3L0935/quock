@@ -148,7 +148,7 @@ export function AttachmentChip({
             </View>
             <Text
               className={clsx(
-                "font-sans flex-shrink text-xs",
+                "font-sans flex-shrink text-caption-1",
                 isInvalid ? "text-destructive" : "text-foreground",
               )}
               numberOfLines={1}

@@ -16,6 +16,7 @@ import {
   User,
   type LucideIcon,
 } from "lucide-react-native";
+import { Button } from "@/components/ui/Button";
 import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs } from "@/lib/design/motion";
@@ -81,7 +82,14 @@ function ChoiceRow({
         accessibilityLabel={`${label}, ${sizeLabel(bytes)}. ${hint}`}
         testID={testID}
       >
-        <View className="flex-row items-center gap-3.5 px-4.5 py-3.5">
+        <View
+          className="flex-row items-center gap-3.5 py-3.5"
+          // Shares the ListRow grid: 16pt inset + 52pt regular-row floor.
+          style={{
+            paddingHorizontal: componentLayout.listSection.insetX,
+            minHeight: componentLayout.listSection.rowHeightRegular,
+          }}
+        >
           <Icon
             size={iconSize.xl}
             color={colors.destructive}
@@ -90,20 +98,20 @@ function ChoiceRow({
           <View className="flex-1">
             <View className="flex-row items-center gap-2">
               <Text
-                className="flex-1 font-sans font-medium text-base text-destructive"
+                className="flex-1 font-sans text-body text-destructive"
                 numberOfLines={1}
               >
                 {label}
               </Text>
               <Text
-                className="font-mono text-muted-foreground text-xs"
+                className="font-sans text-footnote text-muted-foreground"
                 numberOfLines={1}
               >
                 {sizeLabel(bytes)}
               </Text>
             </View>
             <Text
-              className="mt-0.5 font-sans text-muted-foreground text-xs"
+              className="mt-0.5 font-sans text-footnote text-muted-foreground"
               numberOfLines={1}
             >
               {hint}
@@ -143,7 +151,8 @@ export function ClearChatsChooser({
     shadowOffset: { width: 0, height: shadow.dialog.offsetY },
     elevation: shadow.dialog.elevation,
   };
-  const cardRadius = componentLayout.dialog.cornerRadius;
+  // Chooser shares the iOS 27 alert rounding so every centered dialog carries one radius.
+  const cardRadius = componentLayout.alertDialog.cornerRadius;
 
   return (
     <Animated.View
@@ -179,10 +188,10 @@ export function ClearChatsChooser({
                 strokeWidth={strokeWidth.medium}
               />
             </View>
-            <Text className="font-sans font-semibold text-foreground text-base text-center">
+            <Text className="font-sans font-semibold text-headline text-foreground text-center">
               Clear chats
             </Text>
-            <Text className="mt-1 font-sans text-muted-foreground text-xs text-center">
+            <Text className="mt-1 font-sans text-footnote text-muted-foreground text-center">
               Choose what to delete. This can&apos;t be undone.
             </Text>
           </View>
@@ -205,25 +214,23 @@ export function ClearChatsChooser({
             testID="clear-scope-device"
           />
         </View>
-        {/* Intentional iOS action-sheet Cancel: a detached bg-card panel matching the options card, not a <Button> pill — no Button variant renders this card shape. */}
-        <RNPressable
-          onPress={onCancel}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          className="bg-card overflow-hidden"
+        {/* iOS action-sheet Cancel expressed through <Button> (AGENTS.md CTA rule): a ghost Button on a detached bg-card panel matching the options card; the semibold §11 label rides as a child node. */}
+        <View
+          className="bg-card"
           style={[{ borderRadius: cardRadius }, cardShadow]}
         >
-          {({ pressed }): React.ReactElement => (
-            <View
-              className="py-3.5 items-center justify-center"
-              style={pressed ? { backgroundColor: colors.muted } : undefined}
-            >
-              <Text className="font-sans font-semibold text-foreground text-base">
-                Cancel
-              </Text>
-            </View>
-          )}
-        </RNPressable>
+          <Button
+            variant="ghost"
+            size="lg"
+            fullWidth
+            onPress={onCancel}
+            testID="clear-chats-cancel"
+          >
+            <Text className="font-sans font-semibold text-body text-label">
+              Cancel
+            </Text>
+          </Button>
+        </View>
       </Animated.View>
     </Animated.View>
   );

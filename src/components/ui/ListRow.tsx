@@ -17,7 +17,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs, springEasing } from "@/lib/design/motion";
-import { iconSize, strokeWidth, timingsNamed } from "@/lib/design/tokens";
+import { componentLayout, iconSize, strokeWidth, timingsNamed } from "@/lib/design/tokens";
 
 export type ListRowChipTone = "neutral" | "accent";
 export interface ListRowChip {
@@ -36,16 +36,16 @@ export interface ListRowProps {
   /** Compact pill chips rendered below the label. Strings render with the neutral tone; pass descriptors to opt into the accent tone or attach a leading icon. */
   chips?: readonly (string | ListRowChip)[];
   trailing?: ReactNode;
-  /** Tiny mono caption rendered top-right of the row (e.g. relative timestamp). */
+  /** Small footnote caption rendered top-right of the row (e.g. relative timestamp). */
   trailingMeta?: string;
   onPress?: () => void;
   destructive?: boolean;
   showDivider?: boolean;
-  /** Render subtitle at the tiny `text-xs` scale instead of the default `sm`. Used where the subtitle is supporting metadata (e.g. a byte-size string), not real content. */
+  /** Render subtitle at the tiny caption-1 scale instead of the default footnote. Used where the subtitle is supporting metadata (e.g. a byte-size string), not real content. */
   subtitleTiny?: boolean;
   /** Center the leading slot vertically against the full content block. Useful when the row stacks title + chips + subtitle and a radio/checkbox would otherwise sit aligned to the title only. */
   centerLeading?: boolean;
-  /** Pin a minimum content height so multi-line rows render at a fixed height instead of varying with the chip/subtitle presence. */
+  /** Minimum content height override. Defaults to the iOS 27 regular row height (`listSection.rowHeightRegular`); pass a larger value to pin multi-line rows to a fixed height. */
   minRowHeight?: number;
   /** When true, the visual order becomes label → subtitle → chips (mirrors the ollama.com model card stack). Default is label → chips → subtitle, which is the long-standing settings-row order. */
   chipsBelowSubtitle?: boolean;
@@ -76,7 +76,7 @@ function ListRowImpl({
   testID,
 }: ListRowProps): React.ReactElement {
   const colors = useThemeColors();
-  const labelColor = destructive ? "text-destructive" : "text-foreground";
+  const labelColor = destructive ? "text-destructive" : "text-label";
   const iconColor = destructive ? colors.destructive : colors.foreground;
   // `leading` wins over `icon` so model-row radios sit in the same slot settings-row icons do.
   const leadingNode =
@@ -98,8 +98,12 @@ function ListRowImpl({
   const alignmentClass = centerLeading ? "items-center" : "items-start";
   // Render the divider as a `borderBottom` on the content itself — a sibling `<View>` with `height: hairlineWidth` rasterises irregularly above the Glass blur, while iOS's native border-hairline path stays stable.
   const contentStyle = React.useMemo(() => {
-    const base: ViewStyle = {};
-    if (minRowHeight !== undefined) base.minHeight = minRowHeight;
+    // 16pt inset + 52pt regular-row floor from the token — minHeight lets stacked rows (chips/subtitle) grow past it naturally. §15 leading/content/trailing gap is the same 16pt as the inset (gap-* tiers miss it at the 14px rem).
+    const base: ViewStyle = {
+      paddingHorizontal: componentLayout.listSection.insetX,
+      columnGap: componentLayout.listSection.insetX,
+      minHeight: minRowHeight ?? componentLayout.listSection.rowHeightRegular,
+    };
     if (showDivider) {
       base.borderBottomWidth = StyleSheet.hairlineWidth;
       base.borderBottomColor = colors.border;
@@ -108,14 +112,15 @@ function ListRowImpl({
   }, [minRowHeight, showDivider, colors.border]);
   const content = (
     <View
-      className={`flex-row ${alignmentClass} gap-3.5 px-4.5 py-3.5`}
+      className={clsx("flex-row py-3.5", alignmentClass)}
       style={contentStyle}
     >
       {leadingNode}
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
           <Text
-            className={clsx("flex-1 font-sans text-base", labelColor)}
+            // §15 row title = labels/primary (#000 light), one tier above `foreground`.
+            className={clsx("flex-1 font-sans text-body", labelColor)}
             numberOfLines={1}
           >
             {label}
@@ -123,7 +128,7 @@ function ListRowImpl({
           {trailingMeta ? (
             <Animated.View style={trailingMetaAnimStyle}>
               <Text
-                className="font-mono text-muted-foreground text-xs"
+                className="font-sans text-footnote text-muted-foreground"
                 numberOfLines={1}
               >
                 {trailingMeta}
@@ -136,7 +141,7 @@ function ListRowImpl({
           <Text
             className={clsx(
               "font-sans text-muted-foreground mt-1",
-              subtitleTiny ? "text-xs" : "text-sm",
+              subtitleTiny ? "text-caption-1" : "text-footnote",
             )}
             numberOfLines={subtitleNumberOfLines}
           >
@@ -169,7 +174,7 @@ function ListRowImpl({
                   ) : null}
                   <Text
                     className={clsx(
-                      "font-mono text-xs",
+                      "font-mono text-caption-2",
                       isAccent ? "text-primary-foreground" : "text-muted-foreground",
                     )}
                   >
@@ -184,7 +189,7 @@ function ListRowImpl({
           <Text
             className={clsx(
               "font-sans text-muted-foreground mt-1",
-              subtitleTiny ? "text-xs" : "text-sm",
+              subtitleTiny ? "text-caption-1" : "text-footnote",
             )}
             numberOfLines={subtitleNumberOfLines}
           >

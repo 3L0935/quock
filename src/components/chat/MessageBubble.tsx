@@ -31,7 +31,7 @@ function MessageBubbleImpl({
   if (role === "tool") {
     return (
       <View className="px-4 py-2">
-        <View className="bg-muted rounded-lg px-3 py-2 border border-border">
+        <View className="bg-fill-secondary rounded-full px-3 py-2">
           {children}
         </View>
       </View>

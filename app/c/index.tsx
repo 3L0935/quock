@@ -42,7 +42,7 @@ export default function NewChatRoute(): React.ReactElement {
   if (hasFailed) {
     return (
       <View className="flex-1 items-center justify-center gap-5 bg-background px-8">
-        <Text className="text-center text-base text-foreground">
+        <Text className="text-center text-body text-foreground">
           Couldn&apos;t start a new chat.
         </Text>
         <Button variant="primary" onPress={() => void createChat()}>

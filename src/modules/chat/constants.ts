@@ -42,15 +42,14 @@ export const THINKING_DOT_DURATION_MS = 900;
 export const THINKING_DOT_STAGGER_MS = 140;
 export const THINKING_DOT_MIN_OPACITY = 0.3;
 
-// Composer: send/stop icon cross-fade window, line height, and visible-rows cap (8 = Telegram-style sweet spot) before the TextField starts scrolling internally.
+// Composer: send/stop icon cross-fade window and visible-rows cap (8 = Telegram-style sweet spot) before the TextField starts scrolling internally. Line height lives in componentLayout.composer.inputLineHeight — one home.
 export const COMPOSER_SEND_MORPH_DURATION_MS = 200;
-export const COMPOSER_LINE_HEIGHT = 21;
 export const COMPOSER_MAX_LINES = 8;
 
 // Sheet snap points owned by the chat feature.
 export const ATTACH_SHEET_SNAP = "25%" as const;
-// Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area.
-export const ATTACH_SHEET_SNAP_WITH_TOOLS = "33%" as const;
+// Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area — 37% covers the sheet card's internal home-indicator padding on 812-874pt devices (33% left the second tool row ~15pt inside the safe-area band).
+export const ATTACH_SHEET_SNAP_WITH_TOOLS = "37%" as const;
 // Web search: results per query (Ollama default 5, max 10) and a ceiling on agentic tool rounds so a misbehaving model can't loop forever.
 export const WEB_SEARCH_MAX_RESULTS = 5;
 export const WEB_SEARCH_MAX_TOOL_ROUNDS = 4;

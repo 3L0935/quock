@@ -40,8 +40,8 @@ function renderInline(node: InlineNode, key: number): React.ReactElement {
       );
     case "code":
       return (
-        // `text-base` matches the surrounding paragraph so the chip doesn't shrink mid-line.
-        <Text key={key} className="font-mono text-base bg-muted text-foreground rounded-lg">
+        // `text-body` matches the surrounding paragraph so the chip doesn't shrink mid-line.
+        <Text key={key} className="font-mono text-body bg-muted text-foreground rounded-lg">
           {node.value}
         </Text>
       );
@@ -60,14 +60,14 @@ function renderInline(node: InlineNode, key: number): React.ReactElement {
   }
 }
 
-// Heading sizes step down per level; h4-h6 hold at body size and lean on weight/colour so deep headings read as headings without dwarfing the text.
+// Headings walk the iOS type ramp (title-2 bold per Apple's Emphasized pairing, then semibold tiers); h6 leans on colour so deep headings read as headings without dwarfing the text.
 const HEADING_CLASS = {
-  1: "font-sans text-2xl font-semibold text-foreground mb-3 mt-2",
-  2: "font-sans text-xl font-semibold text-foreground mb-2 mt-2",
-  3: "font-sans text-lg font-semibold text-foreground mb-2 mt-2",
-  4: "font-sans text-base font-semibold text-foreground mb-2 mt-2",
-  5: "font-sans text-sm font-semibold text-foreground mb-1 mt-2",
-  6: "font-sans text-sm font-semibold text-muted-foreground mb-1 mt-2",
+  1: "font-sans text-title-2 font-bold text-foreground mb-3 mt-2",
+  2: "font-sans text-title-3 font-semibold text-foreground mb-2 mt-2",
+  3: "font-sans text-headline font-semibold text-foreground mb-2 mt-2",
+  4: "font-sans text-callout font-semibold text-foreground mb-2 mt-2",
+  5: "font-sans text-subhead font-semibold text-foreground mb-1 mt-2",
+  6: "font-sans text-subhead font-semibold text-muted-foreground mb-1 mt-2",
 } as const;
 
 // A wide table gives each column a readable min width and scrolls sideways; one that already fits fills the width instead.
@@ -77,7 +77,7 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
   switch (node.type) {
     case "paragraph":
       return (
-        <Text key={key} className="font-sans text-base text-foreground leading-6 mb-3">
+        <Text key={key} className="font-sans text-body text-foreground mb-3">
           {node.children.map(renderInline)}
         </Text>
       );
@@ -92,8 +92,8 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
         <View key={key} className="mb-3">
           {node.items.map((item, idx) => (
             <View key={idx} className="flex-row mb-1">
-              <Text className="font-sans text-base text-muted-foreground mr-2">•</Text>
-              <Text className="font-sans text-base text-foreground flex-1 leading-6">
+              <Text className="font-sans text-body text-muted-foreground mr-2">•</Text>
+              <Text className="font-sans text-body text-foreground flex-1">
                 {item.map(renderInline)}
               </Text>
             </View>
@@ -105,10 +105,10 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
         <View key={key} className="mb-3">
           {node.items.map((item, idx) => (
             <View key={idx} className="flex-row mb-1">
-              <Text className="font-sans text-base text-muted-foreground mr-2">
+              <Text className="font-sans text-body text-muted-foreground mr-2">
                 {`${node.start + idx}.`}
               </Text>
-              <Text className="font-sans text-base text-foreground flex-1 leading-6">
+              <Text className="font-sans text-body text-foreground flex-1">
                 {item.map(renderInline)}
               </Text>
             </View>
@@ -157,14 +157,15 @@ function TableBlock({ headers, rows }: TableBlockProps): React.ReactElement {
     <View className="mb-3" onLayout={onLayout}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View className="rounded-xl border border-border overflow-hidden">
-          <View className="flex-row bg-muted">
+          {/* Header band uses the faint large-area fill (iOS quaternarySystemFill) so it reads as structure, not a control. */}
+          <View className="flex-row bg-fill-quaternary">
             {headers.map((cell, ci) => (
               <View
                 key={ci}
                 style={{ width: columnWidth }}
                 className={clsx("px-3 py-2", ci > 0 && "border-l border-border")}
               >
-                <Text className="font-sans text-base font-semibold text-foreground">
+                <Text className="font-sans text-subhead font-semibold text-foreground">
                   {cell.map(renderInline)}
                 </Text>
               </View>
@@ -181,7 +182,7 @@ function TableBlock({ headers, rows }: TableBlockProps): React.ReactElement {
                     ci > 0 && "border-l border-border",
                   )}
                 >
-                  <Text className="font-sans text-base text-foreground leading-6">
+                  <Text className="font-sans text-subhead text-foreground">
                     {cell.map(renderInline)}
                   </Text>
                 </View>

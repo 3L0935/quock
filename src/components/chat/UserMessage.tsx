@@ -171,7 +171,7 @@ function UserMessageImpl({
         </View>
       ) : null}
       <MessageBubble role="user">
-        <Text className="font-sans text-primary-foreground text-base leading-6">
+        <Text className="font-sans text-body text-primary-foreground">
           {message.content}
         </Text>
       </MessageBubble>

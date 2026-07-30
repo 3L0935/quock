@@ -52,7 +52,6 @@ import {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_TOTAL_BYTES,
   BYTES_PER_MB,
-  COMPOSER_LINE_HEIGHT,
   COMPOSER_MAX_LINES,
   COMPOSER_SEND_MORPH_DURATION_MS,
 } from "@/modules/chat/constants";
@@ -339,19 +338,23 @@ export function Composer({
         ) : null}
         {invalidReasonText !== null ? (
           <Text
-            className="font-sans text-destructive text-xs px-3 pb-1.5"
+            className="font-sans text-caption-1 text-destructive px-3 pb-1.5"
             numberOfLines={1}
           >
             {invalidReasonText}
           </Text>
         ) : null}
         {isAttachmentTotalTooLarge ? (
-          <Text className="font-sans text-xs text-destructive px-3 pb-1">
+          <Text className="font-sans text-caption-1 text-destructive px-3 pb-1">
             Attachments too large —{" "}
             {Math.floor(ATTACHMENT_MAX_TOTAL_BYTES / BYTES_PER_MB)} MB max total
           </Text>
         ) : null}
-        <View className="flex-row items-end px-3 py-2.5 gap-2">
+        {/* Orb-row vertical padding is exact pt from the token (py-2.5 renders 8.75 under the 14px rem) so the blur height and jump-arrow anchor math stay true. */}
+        <View
+          className="flex-row items-end px-3 gap-2"
+          style={{ paddingVertical: componentLayout.composer.orbRowPaddingY }}
+        >
           <GlassOrb
             variant="regular"
             interactive
@@ -407,15 +410,15 @@ export function Composer({
             placeholder="Type a message..."
             multiline
             maxLines={COMPOSER_MAX_LINES}
-            lineHeight={COMPOSER_LINE_HEIGHT}
+            lineHeight={componentLayout.composer.inputLineHeight}
             // Always editable: the user can compose their next message while the assistant is still streaming. The send orb stays in STOP mode mid-stream, so this only enables typing — not sending (a send queue comes later).
             editable
             testID="composer-input"
             containerClassName="flex-1 bg-card border border-border rounded-3xl px-3.5"
-            // Line-height locked to COMPOSER_LINE_HEIGHT so the maxLines computation stays accurate.
+            // Line-height locked to the shared token (iOS body 17/22) so the maxLines computation stays accurate.
             inputStyle={{
               fontSize: componentLayout.composer.inputFontSize,
-              lineHeight: COMPOSER_LINE_HEIGHT,
+              lineHeight: componentLayout.composer.inputLineHeight,
               letterSpacing: componentLayout.composer.inputAccentLetterSpacing,
               color: colors.foreground,
             }}
