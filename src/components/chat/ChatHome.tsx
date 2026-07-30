@@ -94,7 +94,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     useSendMessage(chatId);
   const { model } = useChatModel(chatId);
   const canWebSearch = useHasToolsCapability(model?.name);
-  const { setWebSearchEnabled } = useChatComposerModes(chatId);
+  const { webSearchEnabled } = useChatComposerModes(chatId);
   // Null means the user never reworded it, so the shipped default applies.
   const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
   const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
@@ -147,9 +147,8 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleDeepDive = useCallback(
     (excerpt: string): void => {
-      closeExcerptMenu();
-      // A second send mid-stream would overwrite the chat's single AbortController and orphan the running stream,
-      // leaving it unabortable — the same guard regenerate and retry use.
+      // Guard before closing, or a refusal costs the user the selection. Sending mid-stream would also overwrite the
+      // chat's single AbortController and orphan the running stream — the same guard regenerate and retry use.
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -157,21 +156,30 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         });
         return;
       }
+      closeExcerptMenu();
       void send({
         text: excerptPrompt(
           deepDiveInstruction ?? DEFAULT_DEEP_DIVE_INSTRUCTION,
           excerpt,
         ),
+        // `send` grants tools off this flag only, so omitting it made deep dive the one path that ignored the globe.
+        webSearch: webSearchEnabled,
       }).catch((err: unknown) => {
         console.warn("ChatHome: deep dive failed", err);
         toast({ title: "Couldn't send", tone: "error" });
       });
     },
-    [closeExcerptMenu, deepDiveInstruction, isStreaming, send, toast],
+    [
+      closeExcerptMenu,
+      deepDiveInstruction,
+      isStreaming,
+      send,
+      toast,
+      webSearchEnabled,
+    ],
   );
   const handleWebSearch = useCallback(
     (excerpt: string): void => {
-      closeExcerptMenu();
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -179,8 +187,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         });
         return;
       }
-      // Turn web search on for the chat (sticky, like the composer globe), then send with the flag so this turn is grounded.
-      setWebSearchEnabled(true);
+      closeExcerptMenu();
       void send({
         text: excerptPrompt(
           webSearchInstruction ?? DEFAULT_WEB_SEARCH_INSTRUCTION,
@@ -192,14 +199,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         toast({ title: "Couldn't send", tone: "error" });
       });
     },
-    [
-      closeExcerptMenu,
-      isStreaming,
-      send,
-      setWebSearchEnabled,
-      toast,
-      webSearchInstruction,
-    ],
+    [closeExcerptMenu, isStreaming, send, toast, webSearchInstruction],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {
