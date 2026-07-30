@@ -146,6 +146,18 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [abort, editAndResend, isStreaming, toast],
   );
+  // Both actions resolve the same way, and an unresolvable key means the renderer and the cache disagree — worth a log,
+  // not just a toast, since the key was emitted from this very array a frame earlier.
+  const resolveOrToast = useCallback(
+    (unitKey: string): string | null => {
+      const excerpt = resolveExcerpt(data?.messages ?? [], unitKey);
+      if (excerpt.length > 0) return excerpt;
+      console.warn("ChatHome: no excerpt text for", unitKey);
+      toast({ title: "Couldn't read that part", tone: "error" });
+      return null;
+    },
+    [data?.messages, toast],
+  );
   const handleDeepDive = useCallback(
     (unitKey: string): void => {
       // Guard before closing, or a refusal costs the user the selection. Sending mid-stream would also overwrite the
@@ -157,11 +169,8 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         });
         return;
       }
-      const excerpt = resolveExcerpt(data?.messages ?? [], unitKey);
-      if (excerpt.length === 0) {
-        toast({ title: "Couldn't read that part", tone: "error" });
-        return;
-      }
+      const excerpt = resolveOrToast(unitKey);
+      if (excerpt === null) return;
       closeExcerptMenu();
       void send({
         text: excerptPrompt(
@@ -177,9 +186,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [
       closeExcerptMenu,
-      data?.messages,
       deepDiveInstruction,
       isStreaming,
+      resolveOrToast,
       send,
       toast,
       webSearchEnabled,
@@ -194,11 +203,8 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         });
         return;
       }
-      const excerpt = resolveExcerpt(data?.messages ?? [], unitKey);
-      if (excerpt.length === 0) {
-        toast({ title: "Couldn't read that part", tone: "error" });
-        return;
-      }
+      const excerpt = resolveOrToast(unitKey);
+      if (excerpt === null) return;
       closeExcerptMenu();
       void send({
         text: excerptPrompt(
@@ -213,8 +219,8 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [
       closeExcerptMenu,
-      data?.messages,
       isStreaming,
+      resolveOrToast,
       send,
       toast,
       webSearchInstruction,
