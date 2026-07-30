@@ -1,5 +1,5 @@
 // Floating action pill anchored above (or below) the long-pressed reply block — Deep dive / Web search on that excerpt.
-// Not a native menu (RN can't add items to iOS's selection menu); built from GlassOrb to match the app's iOS-26 pills.
+// Not a native menu (RN can't add items to iOS's selection menu); built from GlassOrb to match the app's iOS 27 pills.
 
 import { Globe, Sparkles } from "lucide-react-native";
 import React from "react";
@@ -79,7 +79,7 @@ export function ExcerptPill({
               color={colors.foreground}
               strokeWidth={strokeWidth.medium}
             />
-            <Text className="font-sans text-sm text-foreground">Deep dive</Text>
+            <Text className="font-sans text-subhead text-foreground">Deep dive</Text>
           </View>
         </GlassOrb>
         {canWebSearch ? (
@@ -96,7 +96,7 @@ export function ExcerptPill({
                 color={colors.foreground}
                 strokeWidth={strokeWidth.medium}
               />
-              <Text className="font-sans text-sm text-foreground">
+              <Text className="font-sans text-subhead text-foreground">
                 Web search
               </Text>
             </View>

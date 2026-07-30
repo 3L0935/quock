@@ -12,7 +12,7 @@ import { OLLAMA_LINKS } from "@/lib/api/config";
 import { ListRow } from "@/components/ui/ListRow";
 import { Section } from "@/components/ui/Section";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { iconSize, size } from "@/lib/design/tokens";
+import { componentLayout, iconSize, size } from "@/lib/design/tokens";
 import { useToast } from "@/lib/hooks/useToast";
 
 // Top-edge breathing space below the sheet header; bottom-edge spacing before the sheet bottom inset so the last row never sits flush against the safe-area edge.
@@ -50,17 +50,23 @@ export function OllamaView(): React.ReactElement {
       bounces
       decelerationRate="normal"
     >
-      <View className="flex-row items-center gap-3 px-4.5 mt-2.5 mb-3">
+      <View
+        className="flex-row items-center gap-3 mt-2.5 mb-3"
+        style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+      >
         <OllamaSvg
           width={iconSize["3xl"]}
           height={iconSize["3xl"]}
           color={colors.foreground}
         />
-        <Text className="font-sans font-semibold text-foreground text-xl">
+        <Text className="font-sans font-semibold text-title-3 text-foreground">
           Ollama
         </Text>
       </View>
-      <Text className="font-sans text-muted-foreground text-sm px-4.5 mb-4.5">
+      <Text
+        className="font-sans text-footnote text-muted-foreground mb-4.5"
+        style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+      >
         Quock is a third-party chat client for Ollama Cloud — your messages
         go to Ollama&apos;s servers and the responses stream back to your
         device. Quock is not affiliated with or endorsed by Ollama, Inc.

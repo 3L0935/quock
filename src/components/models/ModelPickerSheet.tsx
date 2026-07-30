@@ -178,7 +178,11 @@ export function ModelPickerSheet({
         }
       />
       {/* Four equal-width filter orbs. Each is a self-contained GlassOrb pill — the foreground tint flips to the inverse on active so the selection reads at a glance. */}
-      <View className="flex-row items-center px-4 pb-3 gap-1.5">
+      <View
+        className="flex-row items-center pb-3 gap-1.5"
+        // Filter row shares the 16pt list grid with the rows below (px-4 renders 14 at the 14px rem).
+        style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+      >
         {FILTER_PILLS.map((pill) => {
           const isActive = activeFilter === pill.key;
           const Icon = pill.icon;
@@ -204,7 +208,7 @@ export function ModelPickerSheet({
                 />
                 <Text
                   className={clsx(
-                    "font-sans text-xs",
+                    "font-sans text-caption-1",
                     isActive ? "text-background" : "text-muted-foreground",
                   )}
                 >
@@ -222,15 +226,15 @@ export function ModelPickerSheet({
         bounces
       >
         {modelsQuery.isLoading ? (
-          <Text className="font-sans text-muted-foreground text-sm py-8 text-center">
+          <Text className="font-sans text-footnote text-muted-foreground py-8 text-center">
             Loading models…
           </Text>
         ) : modelsQuery.isError ? (
-          <Text className="font-sans text-muted-foreground text-sm py-8 text-center">
+          <Text className="font-sans text-footnote text-muted-foreground py-8 text-center">
             Could not load models
           </Text>
         ) : filteredModels.length === 0 ? (
-          <Text className="font-sans text-muted-foreground text-sm py-8 text-center">
+          <Text className="font-sans text-footnote text-muted-foreground py-8 text-center">
             {activeFilter === null
               ? "No cloud models available"
               : `No ${activeFilter} models available`}

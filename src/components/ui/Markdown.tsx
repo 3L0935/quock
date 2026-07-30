@@ -13,8 +13,6 @@ import {
 } from "react-native";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { withAlpha } from "@/lib/design/color";
-import { opacity } from "@/lib/design/tokens";
 import {
   type BlockNode,
   type InlineNode,
@@ -65,8 +63,8 @@ function renderInline(node: InlineNode, key: number): React.ReactElement {
       );
     case "code":
       return (
-        // `text-base` matches the surrounding paragraph so the chip doesn't shrink mid-line.
-        <Text key={key} className="font-mono text-base bg-muted text-foreground rounded-lg">
+        // `text-body` matches the surrounding paragraph so the chip doesn't shrink mid-line.
+        <Text key={key} className="font-mono text-body bg-muted text-foreground rounded-lg">
           {node.value}
         </Text>
       );
@@ -85,14 +83,14 @@ function renderInline(node: InlineNode, key: number): React.ReactElement {
   }
 }
 
-// Heading sizes step down per level; h4-h6 hold at body size and lean on weight/colour so deep headings read as headings without dwarfing the text.
+// Headings walk the iOS type ramp (title-2 bold per Apple's Emphasized pairing, then semibold tiers); h6 leans on colour so deep headings read as headings without dwarfing the text.
 const HEADING_CLASS = {
-  1: "font-sans text-2xl font-semibold text-foreground mb-3 mt-2",
-  2: "font-sans text-xl font-semibold text-foreground mb-2 mt-2",
-  3: "font-sans text-lg font-semibold text-foreground mb-2 mt-2",
-  4: "font-sans text-base font-semibold text-foreground mb-2 mt-2",
-  5: "font-sans text-sm font-semibold text-foreground mb-1 mt-2",
-  6: "font-sans text-sm font-semibold text-muted-foreground mb-1 mt-2",
+  1: "font-sans text-title-2 font-bold text-foreground mb-3 mt-2",
+  2: "font-sans text-title-3 font-semibold text-foreground mb-2 mt-2",
+  3: "font-sans text-headline font-semibold text-foreground mb-2 mt-2",
+  4: "font-sans text-callout font-semibold text-foreground mb-2 mt-2",
+  5: "font-sans text-subhead font-semibold text-foreground mb-1 mt-2",
+  6: "font-sans text-subhead font-semibold text-muted-foreground mb-1 mt-2",
 } as const;
 
 // A wide table gives each column a readable min width and scrolls sideways; one that already fits fills the width instead.
@@ -111,7 +109,7 @@ function renderBlock(
           key={key}
           suppressHighlighting
           onLongPress={onLongPress}
-          className="font-sans text-base text-foreground leading-6 mb-3"
+          className="font-sans text-body text-foreground mb-3"
         >
           {node.children.map(renderInline)}
         </Text>
@@ -127,19 +125,20 @@ function renderBlock(
           {node.children.map(renderInline)}
         </Text>
       );
+    // Both list flavours share one branch: only the marker differs, and both need the same long-press wiring.
     case "list":
     case "orderedList":
       return (
         <View key={key} className="mb-3">
           {node.items.map((item, idx) => (
             <View key={idx} className="flex-row mb-1">
-              <Text className="font-sans text-base text-muted-foreground mr-2">
+              <Text className="font-sans text-body text-muted-foreground mr-2">
                 {node.type === "orderedList" ? `${node.start + idx}.` : "•"}
               </Text>
               <Text
                 suppressHighlighting
                 onLongPress={onLongPress}
-                className="font-sans text-base text-foreground flex-1 leading-6"
+                className="font-sans text-body text-foreground flex-1"
               >
                 {item.map(renderInline)}
               </Text>
@@ -201,8 +200,8 @@ function TableBlock({
     <View className="mb-3" onLayout={onLayout}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View className="rounded-xl border border-border overflow-hidden">
-          {/* No header fill: a selection highlight then tints header and body uniformly — bold text + the row divider mark it. */}
-          <View className="flex-row">
+          {/* Header band uses the faint large-area fill (iOS quaternarySystemFill) so it reads as structure, not a control. An excerpt highlight sits on the unit behind it, so a tinted table shows the band slightly darker than its rows — the kit's structure wins over a uniform wash. */}
+          <View className="flex-row bg-fill-quaternary">
             {headers.map((cell, ci) => (
               <View
                 key={ci}
@@ -212,7 +211,7 @@ function TableBlock({
                 <Text
                   suppressHighlighting
                   onLongPress={onLongPress}
-                  className="font-sans text-base font-semibold text-foreground"
+                  className="font-sans text-subhead font-semibold text-foreground"
                 >
                   {cell.map(renderInline)}
                 </Text>
@@ -233,7 +232,7 @@ function TableBlock({
                   <Text
                     suppressHighlighting
                     onLongPress={onLongPress}
-                    className="font-sans text-base text-foreground leading-6"
+                    className="font-sans text-subhead text-foreground"
                   >
                     {cell.map(renderInline)}
                   </Text>
@@ -258,8 +257,9 @@ export function Markdown({
   const colors = useThemeColors();
   const unitRefs = React.useRef(new Map<string, View>());
   const prefix = highlightPrefix ?? "";
-  // Subtle translucent wash so the active unit reads as glass, not a solid grey block.
-  const highlightColor = withAlpha(colors.mutedForeground, opacity.ghostTint);
+  // iOS tertiarySystemFill — the translucent wash the system paints on a picked row. Kept as a fill tier (not an
+  // alpha over a label colour) because the iOS 27 label ramp is itself translucent and cannot take a second alpha.
+  const highlightColor = colors.fillTertiary;
   const blocks = parseMarkdown(source);
   const units = groupIntoUnits(blocks);
   // Measure the unit's container in-window and hand its top/bottom to the pill so it anchors above/below, not over the text.
@@ -313,13 +313,13 @@ export function Markdown({
                 style={unitStyle(iKey)}
                 className="flex-row mb-1 -mx-2 px-2 rounded-xl"
               >
-                <Text className="font-sans text-base text-muted-foreground mr-2">
+                <Text className="font-sans text-body text-muted-foreground mr-2">
                   {marker}
                 </Text>
                 <Text
                   suppressHighlighting
                   onLongPress={(): void => open(iText, iKey)}
-                  className="font-sans text-base text-foreground flex-1 leading-6"
+                  className="font-sans text-body text-foreground flex-1"
                 >
                   {item.map(renderInline)}
                 </Text>

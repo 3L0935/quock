@@ -22,11 +22,12 @@ export function EmptyState(): React.ReactElement {
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return (
     <Animated.View style={animatedStyle} className="flex-1 justify-end pb-4">
+      {/* iOS 27 empty state: 22pt message/description pair — semibold primary over medium secondary. */}
       <View className="flex-1 items-center justify-center px-6">
-        <Text className="font-sans font-semibold text-foreground text-center text-xl mb-1.5">
+        <Text className="font-sans font-semibold text-title-2 text-foreground text-center">
           Start a conversation
         </Text>
-        <Text className="font-sans text-muted-foreground text-center text-sm max-w-65">
+        <Text className="font-sans font-medium text-title-2 text-muted-foreground text-center max-w-65">
           Ask anything to get started.
         </Text>
       </View>

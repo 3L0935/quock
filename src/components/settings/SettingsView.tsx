@@ -4,8 +4,8 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import { ScrollView, View } from "react-native";
 import { ChevronRight, Palette, Sparkles, Trash2, Vibrate } from "lucide-react-native";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
-import { SettingsGroup } from "@/components/settings/SettingsGroup";
 import { ListRow } from "@/components/ui/ListRow";
+import { Section } from "@/components/ui/Section";
 import {
   SegmentedControl,
   type SegmentedOption,
@@ -116,7 +116,7 @@ export function SettingsView({
         decelerationRate="normal"
         keyboardShouldPersistTaps="handled"
       >
-        <SettingsGroup label="APPEARANCE">
+        <Section label="Appearance">
           <ListRow
             icon={Palette}
             label="Theme"
@@ -139,15 +139,16 @@ export function SettingsView({
             }
             showDivider={false}
           />
-        </SettingsGroup>
-        <SettingsGroup label="CHAT">
+        </Section>
+        <Section label="Chat">
           <ListRow
             icon={Sparkles}
             label="Default model"
             subtitle={modelLabel}
             onPress={handleChangeModel}
             trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+              // §15 drill-in chevrons carry the tertiary label tint (external-link rows stay secondary).
+              <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
             }
           />
           <ListRow
@@ -160,7 +161,7 @@ export function SettingsView({
             onPress={openChooser}
             showDivider={false}
           />
-        </SettingsGroup>
+        </Section>
       </ScrollView>
     </>
   );

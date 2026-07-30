@@ -47,10 +47,10 @@ export function AiConsentGate(): React.ReactElement | null {
                 accessibilityLabel="Quock"
               />
             </View>
-            <Text className="font-sans font-semibold text-foreground text-xl text-center mb-8">
+            <Text className="font-sans font-semibold text-title-3 text-foreground text-center mb-8">
               How Quock uses your messages
             </Text>
-            <Text className="font-sans text-muted-foreground text-base leading-6 mb-6">
+            <Text className="font-sans text-body text-muted-foreground mb-6">
               Quock is an open-source client for{" "}
               <Text
                 accessibilityRole="link"
@@ -61,11 +61,11 @@ export function AiConsentGate(): React.ReactElement | null {
               </Text>
               .
             </Text>
-            <Text className="font-sans text-foreground text-base leading-6 mb-6">
+            <Text className="font-sans text-body text-foreground mb-6">
               When you send a message, your text and any attachments are sent to
               Ollama Cloud — a third-party service — to generate the AI reply.
             </Text>
-            <Text className="font-sans text-muted-foreground text-base leading-6 mb-7">
+            <Text className="font-sans text-body text-muted-foreground mb-7">
               Your chats are stored only on this device. Quock runs no servers of
               its own and collects no analytics or tracking.
             </Text>
@@ -74,7 +74,7 @@ export function AiConsentGate(): React.ReactElement | null {
                 onPress={(): void => openExternal(LEGAL_URLS.privacy)}
                 haptic={false}
               >
-                <Text className="font-sans text-muted-foreground text-sm underline">
+                <Text className="font-sans text-footnote text-muted-foreground underline">
                   Privacy Policy
                 </Text>
               </Pressable>
@@ -83,13 +83,13 @@ export function AiConsentGate(): React.ReactElement | null {
                 onPress={(): void => openExternal(LEGAL_URLS.terms)}
                 haptic={false}
               >
-                <Text className="font-sans text-muted-foreground text-sm underline">
+                <Text className="font-sans text-footnote text-muted-foreground underline">
                   Terms of Service
                 </Text>
               </Pressable>
             </View>
             <View className="flex-1" />
-            <Text className="font-sans text-muted-foreground text-xs leading-5 text-center mb-4">
+            <Text className="font-sans text-caption-1 text-muted-foreground text-center mb-4">
               By continuing, you consent to your messages being sent to Ollama
               Cloud for AI processing.
             </Text>

@@ -1,4 +1,4 @@
-// Bottom sheet via Reanimated 4 + Gesture.Pan grabber. Full-width slab, top corners rounded to sheetPrimitive.cornerRadius (28pt), opaque bg-card body.
+// Bottom sheet via Reanimated 4 + Gesture.Pan grabber. iOS 27 floating card: 6pt insets off the bare display edge (the card extends under the home indicator; content pads for it internally), 34/58 capsule corners, glass shadow ring, 0.2 dim scrim.
 
 import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect } from "react";
@@ -24,10 +24,11 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
-import { useTheme } from "@/lib/theme/ThemeContext";
+import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { sheetSpring } from "@/lib/design/motion";
-import { iconSize, sheetPrimitive, timingsNamed } from "@/lib/design/tokens";
+import { boxShadow, iconSize, sheetPrimitive, size, timingsNamed } from "@/lib/design/tokens";
 
 import { IconButton } from "@/components/ui/IconButton";
 import { ToastViewport } from "@/components/global/ToastContext";
@@ -49,6 +50,14 @@ export interface SheetProps {
   testID?: string;
 }
 
+// Capsule-continuous corners — looser at the bottom so the card hugs the display curve. Shared by the ring wrapper, the clipped body, and the specular overlay so all three hug the same curve.
+const cardRadii = {
+  borderTopLeftRadius: sheetPrimitive.cornerRadiusTop,
+  borderTopRightRadius: sheetPrimitive.cornerRadiusTop,
+  borderBottomLeftRadius: sheetPrimitive.cornerRadiusBottom,
+  borderBottomRightRadius: sheetPrimitive.cornerRadiusBottom,
+} as const;
+
 function resolveHeight(snap: string | number): string {
   if (typeof snap === "number") return `${snap}%`;
   if (snap.endsWith("%")) return snap;
@@ -68,6 +77,8 @@ export function Sheet({
   testID,
 }: SheetProps): React.ReactElement {
   const { resolved } = useTheme();
+  const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   // `translateY` is the rest offset (0=open, offscreen=closed); `dragY` is the live finger offset added during a pan.
   const translateY = useSharedValue<number>(sheetPrimitive.offscreenTranslateY);
   const scrimOpacity = useSharedValue<number>(0);
@@ -164,8 +175,8 @@ export function Sheet({
       {/* GestureHandlerRootView inside the Modal — iOS renders the Modal in a separate window where the app-level gesture root doesn't reach, so every gesture handler inside the sheet needs this root. */}
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>
         <Animated.View
-          className="absolute inset-0 bg-scrim"
-          style={scrimStyle}
+          className="absolute inset-0"
+          style={[{ backgroundColor: colors.scrimSheet }, scrimStyle]}
         >
           {/* Faint blur turns the dimmed background into bokeh rather than a flat wash. iOS only — Android's BlurView fallback is too uneven. */}
           {Platform.OS === "ios" ? (
@@ -184,35 +195,51 @@ export function Sheet({
         </Animated.View>
         <Animated.View
           className={className}
+          // Glass ring stays on this unclipped wrapper — Fabric drops outset box shadows under overflow:hidden.
           style={[
             {
               position: "absolute",
-              left: sheetPrimitive.insetX,
-              right: sheetPrimitive.insetX,
-              bottom: sheetPrimitive.insetBottom,
+              left: sheetPrimitive.insetMargin,
+              right: sheetPrimitive.insetMargin,
+              // 6pt off the bare display edge — the 58pt bottom radii exist to hug the device corner curve.
+              bottom: sheetPrimitive.insetMargin,
               height: heightPercent as ViewStyle["height"],
-              // Only the top corners are rounded (28pt); the bottom + sides touch the display edges.
-              borderTopLeftRadius: sheetPrimitive.cornerRadius,
-              borderTopRightRadius: sheetPrimitive.cornerRadius,
-              overflow: "hidden",
+              boxShadow: boxShadow.sheet[resolved],
+              ...cardRadii,
             },
             slideStyle,
           ]}
         >
-          <View className="flex-1 bg-card">
+          <View
+            className="flex-1 bg-card"
+            // Card extends under the home indicator, so the content pads for it internally.
+            style={{ ...cardRadii, overflow: "hidden", paddingBottom: insets.bottom }}
+          >
             {/* Grabber zone — drag handle + optional title row — owns the pan gesture. */}
             <GestureDetector gesture={panGesture}>
               <View>
-                <View className="pt-2.5 pb-1.5 items-center">
-                  <View className="w-9 h-1 rounded-sm bg-muted-foreground" />
+                <View
+                  className="pb-2 items-center"
+                  // Grabber offset + pill size are exact pt values from tokens — the Tailwind scale has no 5/58/4 steps.
+                  style={{ paddingTop: sheetPrimitive.grabberTopOffset }}
+                >
+                  {/* Kit grabber is fills/vibrant #CCCCCC; separator-opaque (#C6C6C8 light, #38383A dark — §20) is visually equivalent on both themes, so no extra color token. */}
+                  <View
+                    className="rounded-full bg-separator-opaque"
+                    style={{
+                      width: sheetPrimitive.grabberWidth,
+                      height: sheetPrimitive.grabberHeight,
+                    }}
+                  />
                 </View>
                 {title !== undefined ? (
                   <View className="flex-row items-center justify-between py-1 px-4 border-b border-border">
-                    <View className="w-11" />
-                    <Text className="flex-1 text-center font-sans font-bold text-foreground text-lg">
+                    {/* Slots mirror IconButton's exact 44pt box so the title stays centered. */}
+                    <View style={{ width: size.hitTargetMin }} />
+                    <Text className="flex-1 text-center font-sans font-semibold text-label text-headline">
                       {title}
                     </Text>
-                    <View className="w-11 items-end">
+                    <View className="items-end" style={{ width: size.hitTargetMin }}>
                       <IconButton
                         icon={X}
                         size={iconSize.xl}
