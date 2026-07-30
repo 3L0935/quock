@@ -35,9 +35,11 @@ import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes"
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { useHasToolsCapability } from "@/modules/models/hooks/useModelCapabilities";
 import {
-  deepDivePrompt,
-  webSearchPrompt,
+  DEFAULT_DEEP_DIVE_INSTRUCTION,
+  DEFAULT_WEB_SEARCH_INSTRUCTION,
+  excerptPrompt,
 } from "@/modules/chat/lib/selectionPrompts";
+import { useSettingsStore } from "@/lib/stores/settings.store";
 
 export interface ChatHomeProps {
   chatId: ChatId;
@@ -93,6 +95,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const { model } = useChatModel(chatId);
   const canWebSearch = useHasToolsCapability(model?.name);
   const { setWebSearchEnabled } = useChatComposerModes(chatId);
+  // Null means the user never reworded it, so the shipped default applies.
+  const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
+  const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
   const toast = useToast();
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
@@ -152,12 +157,17 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         });
         return;
       }
-      void send({ text: deepDivePrompt(excerpt) }).catch((err: unknown) => {
+      void send({
+        text: excerptPrompt(
+          deepDiveInstruction ?? DEFAULT_DEEP_DIVE_INSTRUCTION,
+          excerpt,
+        ),
+      }).catch((err: unknown) => {
         console.warn("ChatHome: deep dive failed", err);
         toast({ title: "Couldn't send", tone: "error" });
       });
     },
-    [closeExcerptMenu, isStreaming, send, toast],
+    [closeExcerptMenu, deepDiveInstruction, isStreaming, send, toast],
   );
   const handleWebSearch = useCallback(
     (excerpt: string): void => {
@@ -171,14 +181,25 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       }
       // Turn web search on for the chat (sticky, like the composer globe), then send with the flag so this turn is grounded.
       setWebSearchEnabled(true);
-      void send({ text: webSearchPrompt(excerpt), webSearch: true }).catch(
-        (err: unknown) => {
-          console.warn("ChatHome: web search failed", err);
-          toast({ title: "Couldn't send", tone: "error" });
-        },
-      );
+      void send({
+        text: excerptPrompt(
+          webSearchInstruction ?? DEFAULT_WEB_SEARCH_INSTRUCTION,
+          excerpt,
+        ),
+        webSearch: true,
+      }).catch((err: unknown) => {
+        console.warn("ChatHome: web search failed", err);
+        toast({ title: "Couldn't send", tone: "error" });
+      });
     },
-    [closeExcerptMenu, isStreaming, send, setWebSearchEnabled, toast],
+    [
+      closeExcerptMenu,
+      isStreaming,
+      send,
+      setWebSearchEnabled,
+      toast,
+      webSearchInstruction,
+    ],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {

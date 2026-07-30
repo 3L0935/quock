@@ -1,12 +1,11 @@
-// Prompt templates for the excerpt actions — each is sent to the same chat as a fresh user turn that operates
-// on the block the user long-pressed in a previous reply.
+// Wording for the excerpt actions, each sent as a fresh user turn. The user may reword the INSTRUCTION in Settings; the
+// excerpt is always appended by `excerptPrompt`, so an editable `{excerpt}` placeholder can never be lost.
+export const DEFAULT_DEEP_DIVE_INSTRUCTION =
+  "Expand on this in depth — detail, reasoning, examples, caveats:";
 
-// Ask the model to expand on the picked block in more depth.
-export function deepDivePrompt(excerpt: string): string {
-  return `Take this excerpt from your previous reply and expand on it in depth — add detail, reasoning, concrete examples, and any important caveats:\n\n"${excerpt}"`;
-}
+export const DEFAULT_WEB_SEARCH_INSTRUCTION =
+  "Search the web and summarise the current, sourced facts on this:";
 
-// Ask the model to web-search the picked block and answer with current, sourced information.
-export function webSearchPrompt(excerpt: string): string {
-  return `Using web search, find current and authoritative information on the following and give an updated, well-sourced summary:\n\n"${excerpt}"`;
+export function excerptPrompt(instruction: string, excerpt: string): string {
+  return `${instruction}\n\n"${excerpt}"`;
 }
