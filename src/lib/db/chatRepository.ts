@@ -150,9 +150,10 @@ export class ChatRepository {
     const now = Date.now();
     const resolvedTitle = title ?? "";
     const userId = this.getUserId();
-    // model is left NULL so a new chat follows the user's global default until they pin one; mode toggles default off (0). user_id scopes the chat to the signed-in account.
+    // model NULL follows the user's global default; think off lets the model's own default apply; web search on is the
+    // app-wide default, capability-gated downstream. user_id scopes the chat to the signed-in account.
     await this.db.runAsync(
-      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, 0)",
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, 1)",
       [id, userId, resolvedTitle, now, now],
     );
     return {
@@ -163,7 +164,7 @@ export class ChatRepository {
       syncedAt: null,
       model: null,
       thinkEnabled: false,
-      webSearchEnabled: false,
+      webSearchEnabled: true,
     };
   }
   // Pins a model to this chat so it persists across restarts and stays scoped to this chat alone. We deliberately do NOT touch updated_at: changing the model isn't conversational activity and shouldn't reorder the history list.

@@ -17,7 +17,11 @@ export interface UseChatComposerModesResult extends ComposerModes {
   setWebSearchEnabled: (enabled: boolean) => void;
 }
 
-const MODES_OFF: ComposerModes = { thinkEnabled: false, webSearchEnabled: false };
+// Web search is the app-wide default, so it reads as on before the chat row resolves and for a chat that has no row.
+const MODES_DEFAULT: ComposerModes = {
+  thinkEnabled: false,
+  webSearchEnabled: true,
+};
 
 export function useChatComposerModes(
   chatId: ChatId,
@@ -26,13 +30,13 @@ export function useChatComposerModes(
   const queryClient = useQueryClient();
   // staleTime Infinity (same guard as useChatModel): the setters below patch this cache, so a mount refetch
   // must not re-read the DB and revert an optimistic flip before its write commits.
-  const { data: modes = MODES_OFF } = useQuery<ComposerModes>({
+  const { data: modes = MODES_DEFAULT } = useQuery<ComposerModes>({
     queryKey: queryKeys.chatComposerModes(chatId),
     queryFn: async (): Promise<ComposerModes> => {
       const chat = await chats.get(chatId);
       return {
         thinkEnabled: chat?.thinkEnabled ?? false,
-        webSearchEnabled: chat?.webSearchEnabled ?? false,
+        webSearchEnabled: chat?.webSearchEnabled ?? true,
       };
     },
     staleTime: Infinity,
@@ -43,7 +47,8 @@ export function useChatComposerModes(
   const patch = React.useCallback(
     (next: Partial<ComposerModes>, persist: () => Promise<void>): void => {
       const key = queryKeys.chatComposerModes(chatId);
-      const before = queryClient.getQueryData<ComposerModes>(key) ?? MODES_OFF;
+      const before =
+        queryClient.getQueryData<ComposerModes>(key) ?? MODES_DEFAULT;
       const revert: Partial<ComposerModes> = {};
       if (next.thinkEnabled !== undefined) {
         revert.thinkEnabled = before.thinkEnabled;
@@ -52,13 +57,13 @@ export function useChatComposerModes(
         revert.webSearchEnabled = before.webSearchEnabled;
       }
       queryClient.setQueryData<ComposerModes>(key, (c) => ({
-        ...(c ?? MODES_OFF),
+        ...(c ?? MODES_DEFAULT),
         ...next,
       }));
       void persist().catch((err: unknown) => {
         console.error("useChatComposerModes: failed to persist mode", err);
         queryClient.setQueryData<ComposerModes>(key, (c) => ({
-          ...(c ?? MODES_OFF),
+          ...(c ?? MODES_DEFAULT),
           ...revert,
         }));
       });
@@ -90,6 +95,11 @@ export function useChatComposerModes(
       setThinkEnabled,
       setWebSearchEnabled,
     }),
-    [modes.thinkEnabled, modes.webSearchEnabled, setThinkEnabled, setWebSearchEnabled],
+    [
+      modes.thinkEnabled,
+      modes.webSearchEnabled,
+      setThinkEnabled,
+      setWebSearchEnabled,
+    ],
   );
 }

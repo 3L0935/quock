@@ -76,6 +76,12 @@ const ADD_CHAT_USER = `
   CREATE INDEX IF NOT EXISTS idx_chats_user_updated ON chats(user_id, updated_at DESC);
 `;
 
+// Web search became the app-wide default, so chats created before it flip on once. Every stored 0 predates the change
+// (the column shipped defaulting to 0), which is why this overwrites rather than preserving per-chat state.
+const DEFAULT_CHAT_WEB_SEARCH_ON = `
+  UPDATE chats SET web_search_enabled = 1;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
   { id: 2, up: ADD_MESSAGE_STATUS },
@@ -85,6 +91,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 6, up: ADD_CHAT_COMPOSER_MODES },
   { id: 7, up: ADD_MESSAGE_SENT_MODES },
   { id: 8, up: ADD_CHAT_USER },
+  { id: 9, up: DEFAULT_CHAT_WEB_SEARCH_ON },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
