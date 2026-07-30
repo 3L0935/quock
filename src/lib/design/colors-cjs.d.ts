@@ -68,7 +68,6 @@ declare module "*/design/colors.cjs" {
     scrim: string;
     scrimSheet: string;
     scrimExcerpt: string;
-    excerptRimGlow: string;
     excerptRimMesh: readonly string[];
     shadow: string;
     thumbFill: string;

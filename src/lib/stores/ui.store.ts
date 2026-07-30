@@ -42,6 +42,8 @@ interface UIState {
   closeSelectText: () => void;
   openExcerptMenu: (text: string, key: string, anchor: AnchorRect) => void;
   closeExcerptMenu: () => void;
+  /** Drops the highlight once the menu's exit animation has finished, not when it starts. */
+  clearExcerptHighlight: () => void;
   // Choreographed transitions: close the current sheet, then schedule the next after `timingsNamed.sheetCloseTail` so the two animations do not stack and stutter.
   switchToModelPickerFromAccount: () => void;
 }
@@ -100,6 +102,9 @@ export const useUIStore = create<UIState>((set) => ({
   },
   closeExcerptMenu: (): void => {
     set({ excerptMenuOpen: false });
+  },
+  clearExcerptHighlight: (): void => {
+    set({ excerptMenuKey: "" });
   },
   pushSheet: (): void => {
     set((s) => ({ openSheetCount: s.openSheetCount + 1 }));

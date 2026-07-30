@@ -70,7 +70,6 @@ export interface DesignColors {
   scrimSheet: string;
   // Excerpt menu dim (lighter than a sheet: it blurs too) and the ported BorderGlow rim palette, that effect only.
   scrimExcerpt: string;
-  excerptRimGlow: string;
   excerptRimMesh: readonly string[];
   shadow: string;
   // Theme-stable neutrals — iOS UISwitch thumb stays white on both themes.
@@ -269,8 +268,8 @@ export interface DesignBoxShadow {
   sheet: Record<"light" | "dark", string>;
   // SegmentedControl selected-pill lift — kit CSS blur rendered verbatim by Fabric (legacy shadowRadius would halve it).
   control: string;
-  // Excerpt spotlight edge light: the web BorderGlow's ladder — crisp 1px line, then blurs 1/3/6/15/25/50 at alphas
-  // 60/50/40/30/20/10. Its inset half is dropped: over our white paragraph a cream inner glow is invisible.
+  // Excerpt spotlight edge light: the web BorderGlow's ladder, cut where the mask cuts. Its 50px tier blurred past
+  // glowReach (26) and was rasterised only to be masked away; its inset half is invisible over a white paragraph.
   excerptRim: string;
 }
 export const boxShadow: DesignBoxShadow = {
@@ -298,8 +297,7 @@ export const boxShadow: DesignBoxShadow = {
     "0 0 3px rgba(245,218,163,0.5)",
     "0 0 6px rgba(245,218,163,0.4)",
     "0 0 15px rgba(245,218,163,0.3)",
-    "0 0 25px 2px rgba(245,218,163,0.2)",
-    "0 0 50px 2px rgba(245,218,163,0.1)",
+    "0 0 24px 2px rgba(245,218,163,0.2)",
   ].join(", "),
 };
 // Per-component layout constants. Shape `{ component: { key: number } }` keeps the call sites unambiguous.

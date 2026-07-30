@@ -1,7 +1,7 @@
 // Rim light on the excerpt spotlight, ported from the web BorderGlow and looping instead of pointer-driven.
 // RN has no conic-gradient mask, so each of its three layers is rebuilt: see the commit for the mapping.
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import MaskedView from "@react-native-masked-view/masked-view";
 import Animated, {
@@ -82,9 +82,14 @@ const SPOTLIGHT = componentLayout.excerptMenu;
 export function SpotlightGlow({
   rect,
   progress,
-}: SpotlightGlowProps): React.ReactElement {
+}: SpotlightGlowProps): React.ReactElement | null {
   const colors = useThemeColors();
-  const radius = SPOTLIGHT.spotlightRadius;
+  // Clamped: a one-line excerpt can be shorter than two radii, and the path's vertical edges would then reverse.
+  const radius = Math.min(
+    SPOTLIGHT.spotlightRadius,
+    rect.width / 2,
+    rect.height / 2,
+  );
   // Both masks turn, so each is a square on the rim's diagonal — otherwise a corner leaves the mask mid-lap.
   const side = Math.hypot(rect.width, rect.height) + SPOTLIGHT.glowReach * 2;
   const centre = side / 2;
@@ -103,6 +108,9 @@ export function SpotlightGlow({
   const spinStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${angle.value * 360}deg` }],
   }));
+  // Android renders nothing: MaskedView there never applies the mask child's rotation, so the light would sit frozen
+  // and offset while still allocating a bitmap per mask per frame.
+  const isSupported = Platform.OS === "ios";
   const squareStyle = {
     position: "absolute" as const,
     left: (rect.width - side) / 2,
@@ -110,10 +118,12 @@ export function SpotlightGlow({
     width: side,
     height: side,
   };
+  if (!isSupported) return null;
   return (
     <Animated.View
       pointerEvents="none"
       accessible={false}
+      accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       style={[
         {

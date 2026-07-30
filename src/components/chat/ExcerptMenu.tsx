@@ -6,7 +6,6 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import { Globe, Sparkles } from "lucide-react-native";
 import React, { useCallback, useMemo } from "react";
 import {
-  Keyboard,
   Platform,
   Pressable as RNPressable,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Animated, {
+  cancelAnimation,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -33,6 +33,7 @@ import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { springEasing, surfaceSpring } from "@/lib/design/motion";
 import { componentLayout, motion, timings, zLayer } from "@/lib/design/tokens";
 import { useUIStore } from "@/lib/stores/ui.store";
+import { excerptMenuTop } from "@/modules/chat/lib/excerptMenuPlacement";
 
 const TOOLBAR = componentLayout.glassToolbar;
 const SPOTLIGHT = componentLayout.excerptMenu;
@@ -83,6 +84,8 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
   const { resolved } = useTheme();
   const colors = useThemeColors();
   const haptics = useHaptics();
+  const hapticsRef = React.useRef(haptics);
+  hapticsRef.current = haptics;
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const open = useUIStore((s) => s.excerptMenuOpen);
   const text = useUIStore((s) => s.excerptMenuText);
@@ -91,15 +94,18 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
   // Kept mounted through the exit animation, as <Sheet> does — unmounting on the flag alone would cut it off mid-fade.
   const [mounted, setMounted] = React.useState(open);
   const progress = useSharedValue(0);
+  const clearHighlight = useUIStore((s) => s.clearExcerptHighlight);
+  // Held until the exit finishes: clearing on the flag left the rim and the undimmed hole over untinted text.
   const releaseMount = useCallback((): void => {
     setMounted(false);
-  }, []);
+    clearHighlight();
+  }, [clearHighlight]);
   React.useEffect(() => {
     if (open) {
       setMounted(true);
-      // iOS answers the long-press with an impact and drops the keyboard before the menu paints.
-      haptics.medium();
-      Keyboard.dismiss();
+      // No Keyboard.dismiss() here: the anchor was measured a frame earlier, and dropping the keyboard shrinks the
+      // list's bottom inset, which scrolls the content out from under the cutout by up to the keyboard's height.
+      hapticsRef.current.medium();
       progress.value = withSpring(1, surfaceSpring);
       return;
     }
@@ -111,7 +117,10 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
         if (finished) runOnJS(releaseMount)();
       },
     );
-  }, [open, progress, haptics, releaseMount]);
+    return () => {
+      cancelAnimation(progress);
+    };
+  }, [open, progress, releaseMount]);
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const toolbarStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
@@ -163,24 +172,23 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
       ),
     [screenWidth, screenHeight, spotlightRect],
   );
-  // Both placements clamp into the same band, so neither the header orbs nor the composer can end up covered.
-  const position = useMemo(() => {
-    const lowest = Math.max(
-      topInset,
-      screenHeight - bottomInset - glassToolbarHeight,
-    );
-    const above = anchor.top - TOOLBAR.anchorGap - glassToolbarHeight;
-    const top =
-      above >= topInset
-        ? Math.min(above, lowest)
-        : Math.min(
-            Math.max(topInset, anchor.bottom + TOOLBAR.anchorGap),
-            lowest,
-          );
-    // Centred on the display rather than leading-aligned to the block: the kit anchors to the content, but a centred
-    // bar reads better over a full-width reply. The bar is content-sized, so a full-width row centres it.
-    return { top, maxWidth: screenWidth - SIDE_GUTTER * 2 };
-  }, [anchor, bottomInset, screenHeight, screenWidth, topInset]);
+  const position = useMemo(
+    () => ({
+      top: excerptMenuTop({
+        anchorTop: anchor.top,
+        anchorBottom: anchor.bottom,
+        topInset,
+        bottomInset,
+        screenHeight,
+        barHeight: glassToolbarHeight,
+        gap: TOOLBAR.anchorGap,
+      }),
+      // Centred on the display rather than leading-aligned to the block: the kit anchors to the content, but a centred
+      // bar reads better over a full-width reply.
+      maxWidth: screenWidth - SIDE_GUTTER * 2,
+    }),
+    [anchor, bottomInset, screenHeight, screenWidth, topInset],
+  );
   if (!mounted) return null;
   return (
     <View
@@ -197,33 +205,48 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
         accessibilityLabel="Dismiss"
         onPress={close}
       />
-      <MaskedView
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-        maskElement={
-          <Svg width={screenWidth} height={screenHeight}>
-            <Path d={dimMask} fill={MASK_SHOW} fillRule="evenodd" />
-          </Svg>
-        }
-      >
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: colors.scrimExcerpt },
-            scrimStyle,
-          ]}
+      {Platform.OS === "ios" ? (
+        <MaskedView
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          maskElement={
+            <Svg width={screenWidth} height={screenHeight}>
+              <Path d={dimMask} fill={MASK_SHOW} fillRule="evenodd" />
+            </Svg>
+          }
         >
-          {/* iOS only, as the sheet scrim does — Android's blur fallback is too uneven to dim with. */}
-          {Platform.OS === "ios" ? (
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: colors.scrimExcerpt },
+              scrimStyle,
+            ]}
+          >
+            {/* iOS only, as the sheet scrim does — Android's blur fallback is too uneven to dim with. */}
             <BlurView
               tint={resolved === "dark" ? "dark" : "light"}
               intensity={SPOTLIGHT.dimBlurIntensity}
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
-          ) : null}
+          </Animated.View>
+        </MaskedView>
+      ) : (
+        // Android has no blur here, so the dim is one filled path with the cutout punched out — a masked view would
+        // allocate a screen-sized bitmap every frame to achieve the same flat colour.
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, scrimStyle]}
+        >
+          <Svg width={screenWidth} height={screenHeight}>
+            <Path
+              d={dimMask}
+              fill={colors.scrimExcerpt}
+              fillRule="evenodd"
+            />
+          </Svg>
         </Animated.View>
-      </MaskedView>
+      )}
       <SpotlightGlow rect={spotlightRect} progress={progress} />
       <Animated.View
         pointerEvents="box-none"

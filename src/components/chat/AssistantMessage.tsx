@@ -134,7 +134,7 @@ function AssistantMessageImpl({
   const openExcerptMenu = useUIStore((s) => s.openExcerptMenu);
   // Scoped so only THIS message re-renders when its own unit is highlighted (others get a stable undefined).
   const activeHighlightKey = useUIStore((s) =>
-    s.excerptMenuOpen && s.excerptMenuKey.startsWith(`${message.id}:`)
+    s.excerptMenuKey.startsWith(`${message.id}:`)
       ? s.excerptMenuKey
       : undefined,
   );
