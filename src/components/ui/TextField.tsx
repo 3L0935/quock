@@ -182,7 +182,7 @@ export function TextField({
         hasCustomContainer
           ? containerStyle
           : [
-              { borderWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
+              { borderWidth: StyleSheet.hairlineWidth },
               animatedBorderStyle,
               containerStyle,
             ]

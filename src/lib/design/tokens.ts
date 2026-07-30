@@ -398,6 +398,7 @@ export interface DesignComponentLayout {
     dimBlurIntensity: number; // 2 — the faintest blur that still registers; above this the surround reads as frosted
     glowReach: number; // 26 — how far the edge light spreads past the cutout (the original's glowRadius, scaled to a 14pt corner)
     rimWidth: number; // 1.5 — width of the mesh-gradient ring
+    coneFadeStop: number; // 0.52 — where the half-plane mask fades out, i.e. how much of the rim carries colour
   };
   // Floating action bar shaped like the iOS text-selection menu: one capsule, actions inline, hairline between them.
   glassToolbar: {
@@ -500,6 +501,7 @@ export const componentLayout: DesignComponentLayout = {
     dimBlurIntensity: 2,
     glowReach: 26,
     rimWidth: 1.5,
+    coneFadeStop: 0.52,
   },
   glassToolbar: {
     radius: 999,

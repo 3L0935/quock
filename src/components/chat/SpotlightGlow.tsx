@@ -138,7 +138,7 @@ export function SpotlightGlow({
           <Animated.View style={[squareStyle, spinStyle]}>
             <LinearGradient
               colors={[maskPaint.opaque, maskPaint.clear]}
-              locations={[0, 0.52]}
+              locations={[0, SPOTLIGHT.coneFadeStop]}
               style={StyleSheet.absoluteFill}
             />
           </Animated.View>
