@@ -47,6 +47,9 @@ export function useChatComposerModes(
   const patch = React.useCallback(
     (next: Partial<ComposerModes>, persist: () => Promise<void>): void => {
       const key = queryKeys.chatComposerModes(chatId);
+      // staleTime stops refetches, not the first fetch: a read issued at mount can resolve after this write and put
+      // the old value back, which with the new default lands on the permissive side.
+      void queryClient.cancelQueries({ queryKey: key });
       const before =
         queryClient.getQueryData<ComposerModes>(key) ?? MODES_DEFAULT;
       const revert: Partial<ComposerModes> = {};
