@@ -39,6 +39,7 @@ import {
   DEFAULT_WEB_SEARCH_INSTRUCTION,
   excerptPrompt,
 } from "@/modules/chat/lib/selectionPrompts";
+import { resolveExcerpt } from "@/modules/chat/lib/excerptSelection";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
 export interface ChatHomeProps {
@@ -146,7 +147,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     [abort, editAndResend, isStreaming, toast],
   );
   const handleDeepDive = useCallback(
-    (excerpt: string): void => {
+    (unitKey: string): void => {
       // Guard before closing, or a refusal costs the user the selection. Sending mid-stream would also overwrite the
       // chat's single AbortController and orphan the running stream — the same guard regenerate and retry use.
       if (isStreaming) {
@@ -154,6 +155,11 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
           title: "Already streaming",
           description: "Stop the current response before asking for more.",
         });
+        return;
+      }
+      const excerpt = resolveExcerpt(data?.messages ?? [], unitKey);
+      if (excerpt.length === 0) {
+        toast({ title: "Couldn't read that part", tone: "error" });
         return;
       }
       closeExcerptMenu();
@@ -171,6 +177,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [
       closeExcerptMenu,
+      data?.messages,
       deepDiveInstruction,
       isStreaming,
       send,
@@ -179,12 +186,17 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     ],
   );
   const handleWebSearch = useCallback(
-    (excerpt: string): void => {
+    (unitKey: string): void => {
       if (isStreaming) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before asking for more.",
         });
+        return;
+      }
+      const excerpt = resolveExcerpt(data?.messages ?? [], unitKey);
+      if (excerpt.length === 0) {
+        toast({ title: "Couldn't read that part", tone: "error" });
         return;
       }
       closeExcerptMenu();
@@ -199,7 +211,14 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         toast({ title: "Couldn't send", tone: "error" });
       });
     },
-    [closeExcerptMenu, isStreaming, send, toast, webSearchInstruction],
+    [
+      closeExcerptMenu,
+      data?.messages,
+      isStreaming,
+      send,
+      toast,
+      webSearchInstruction,
+    ],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {
