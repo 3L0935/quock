@@ -99,6 +99,16 @@ const BLOCK_MARGIN_TOP: Partial<Record<BlockNode["type"], number>> = {
   heading: 7,
   rule: 14,
 };
+// Heading bottoms differ by level in HEADING_CLASS (h1 mb-3, h2-h4 mb-2, h5-h6 mb-1), so they cannot share one entry.
+type HeadingLevel = Extract<BlockNode, { type: "heading" }>["level"];
+const HEADING_MARGIN_BOTTOM: Record<HeadingLevel, number> = {
+  1: 10.5,
+  2: 7,
+  3: 7,
+  4: 7,
+  5: 3.5,
+  6: 3.5,
+};
 const BLOCK_MARGIN_BOTTOM: Partial<Record<BlockNode["type"], number>> = {
   paragraph: 10.5,
   list: 10.5,
@@ -106,9 +116,13 @@ const BLOCK_MARGIN_BOTTOM: Partial<Record<BlockNode["type"], number>> = {
   blockquote: 10.5,
   code: 10.5,
   table: 10.5,
-  heading: 7,
   rule: 14,
 };
+
+function marginBottomOf(block: BlockNode): number {
+  if (block.type === "heading") return HEADING_MARGIN_BOTTOM[block.level];
+  return BLOCK_MARGIN_BOTTOM[block.type] ?? 0;
+}
 
 // Renders a block; onLongPress (a no-arg trigger for this block's unit) is attached to the Text where iOS long-press fires.
 function renderBlock(
@@ -366,7 +380,7 @@ export function Markdown({
     // amount back out — the box ends up vertically even without moving a single line of text.
     const balance = Math.max(
       0,
-      (BLOCK_MARGIN_BOTTOM[blocks[i - 1].type] ?? 0) -
+      marginBottomOf(blocks[i - 1]) -
         (BLOCK_MARGIN_TOP[blocks[start].type] ?? 0),
     );
     out.push(
