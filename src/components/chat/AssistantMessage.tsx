@@ -4,7 +4,13 @@ import clsx from "clsx";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
-import { Copy, Globe, Highlighter, RotateCw, type LucideIcon } from "lucide-react-native";
+import {
+  Copy,
+  Globe,
+  Highlighter,
+  RotateCw,
+  type LucideIcon,
+} from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
@@ -21,6 +27,7 @@ import {
   type ToolActivity,
 } from "@/modules/chat/stores/streaming.store";
 import { useUIStore } from "@/lib/stores/ui.store";
+import type { AnchorRect } from "@/lib/types/geometry";
 import type { MessageId } from "@/lib/types/ids";
 
 export interface AssistantMessageProps {
@@ -124,11 +131,11 @@ function AssistantMessageImpl({
     s.toolActivity.get(message.chatId),
   );
   const openSelectText = useUIStore((s) => s.openSelectText);
-  const openExcerptPill = useUIStore((s) => s.openExcerptPill);
+  const openExcerptMenu = useUIStore((s) => s.openExcerptMenu);
   // Scoped so only THIS message re-renders when its own unit is highlighted (others get a stable undefined).
   const activeHighlightKey = useUIStore((s) =>
-    s.excerptPillOpen && s.excerptPillKey.startsWith(`${message.id}:`)
-      ? s.excerptPillKey
+    s.excerptMenuOpen && s.excerptMenuKey.startsWith(`${message.id}:`)
+      ? s.excerptMenuKey
       : undefined,
   );
   const handleCopy = useCallback((): void => {
@@ -151,17 +158,16 @@ function AssistantMessageImpl({
     openSelectText(message.id);
   }, [openSelectText, message.id]);
   const handleLongPressExcerpt = useCallback(
-    (text: string, unitKey: string, top: number, bottom: number): void => {
-      openExcerptPill(text, unitKey, top, bottom);
+    (text: string, unitKey: string, anchor: AnchorRect): void => {
+      openExcerptMenu(text, unitKey, anchor);
     },
-    [openExcerptPill],
+    [openExcerptMenu],
   );
   const isPending = message.status === "pending";
   const isError = message.status === "error";
   const isInterrupted = message.status === "interrupted";
   // Has the model produced any reasoning yet (think: true models stream `<think>` tokens before the answer).
-  const hasThinking =
-    message.thinking !== null && message.thinking.length > 0;
+  const hasThinking = message.thinking !== null && message.thinking.length > 0;
   const hasContent = message.content.length > 0;
   // A web tool is running right now — only on the live streaming row, never on older bubbles that share the chat's transient activity.
   const isSearching = isStreaming && toolActivity !== undefined;
@@ -187,10 +193,13 @@ function AssistantMessageImpl({
         ) : null}
         {hasContent || showCursor ? (
           <View className="flex-row items-end flex-wrap">
+            {/* Excerpt actions only on a landed reply: mid-stream the list follows the tail, so a menu anchored to a moving unit would drift off it. */}
             <Markdown
               source={message.content}
               className="flex-1"
-              onLongPressExcerpt={handleLongPressExcerpt}
+              {...(showActionRow
+                ? { onLongPressExcerpt: handleLongPressExcerpt }
+                : {})}
               highlightPrefix={String(message.id)}
               activeHighlightKey={activeHighlightKey}
             />
@@ -213,7 +222,9 @@ function AssistantMessageImpl({
               <Button variant="secondary" size="sm" onPress={handleRetry}>
                 {/* Explicit color: lucide defaults to currentColor, which react-native-svg resolves to black in both themes. */}
                 <RotateCw size={iconSize.xs} color={colors.label} />
-                <Text className="ml-1 font-sans font-medium text-footnote text-label">Retry</Text>
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">
+                  Retry
+                </Text>
               </Button>
             ) : null}
           </View>
@@ -226,7 +237,9 @@ function AssistantMessageImpl({
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
                 <RotateCw size={iconSize.xs} color={colors.label} />
-                <Text className="ml-1 font-sans font-medium text-footnote text-label">Retry</Text>
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">
+                  Retry
+                </Text>
               </Button>
             ) : null}
           </View>

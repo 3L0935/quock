@@ -1,6 +1,6 @@
 // Renders parsed markdown nodes — inline nodes nest in Text for wrapping, block nodes are Views.
 // Each excerpt UNIT (a heading's whole section, a standalone block, or a top-level list item — see groupIntoUnits) is
-// wrapped in one container so its highlight is continuous and measurable; long-press fires the pill anchored to it.
+// wrapped in one container so its highlight is continuous and measurable; long-press fires the menu anchored to it.
 
 import clsx from "clsx";
 import React from "react";
@@ -12,6 +12,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import type { AnchorRect } from "@/lib/types/geometry";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import {
   type BlockNode,
@@ -20,12 +21,11 @@ import {
 } from "@/components/ui/markdown/parseMarkdown";
 import { groupIntoUnits } from "@/components/ui/markdown/groupIntoUnits";
 
-// Hands the unit's plain text, its message-scoped key, and the unit's on-screen top/bottom (for the pill anchor).
+// Hands the unit's plain text, its message-scoped key, and the unit's on-screen bounds (for the menu anchor).
 type OnLongPressExcerpt = (
   text: string,
   key: string,
-  top: number,
-  bottom: number,
+  anchor: AnchorRect,
 ) => void;
 
 export interface MarkdownProps {
@@ -35,7 +35,7 @@ export interface MarkdownProps {
   onLongPressExcerpt?: OnLongPressExcerpt;
   // Message id, prepended to unit keys so highlights never collide across messages.
   highlightPrefix?: string;
-  // Full key (prefix:unitKey) of the unit to tint while its pill is open.
+  // Full key (prefix:unitKey) of the unit to tint while its menu is open.
   activeHighlightKey?: string;
 }
 // Opens a markdown link externally; a rejected promise (bad scheme / no handler) is logged, never thrown, so a malformed LLM link can't crash the row.
@@ -64,7 +64,10 @@ function renderInline(node: InlineNode, key: number): React.ReactElement {
     case "code":
       return (
         // `text-body` matches the surrounding paragraph so the chip doesn't shrink mid-line.
-        <Text key={key} className="font-mono text-body bg-muted text-foreground rounded-lg">
+        <Text
+          key={key}
+          className="font-mono text-body bg-muted text-foreground rounded-lg"
+        >
           {node.value}
         </Text>
       );
@@ -149,7 +152,9 @@ function renderBlock(
     case "blockquote":
       return (
         <View key={key} className="mb-3 border-l-4 border-border pl-3">
-          {node.children.map((child, idx) => renderBlock(child, idx, onLongPress))}
+          {node.children.map((child, idx) =>
+            renderBlock(child, idx, onLongPress),
+          )}
         </View>
       );
     case "rule":
@@ -206,7 +211,10 @@ function TableBlock({
               <View
                 key={ci}
                 style={{ width: columnWidth }}
-                className={clsx("px-3 py-2", ci > 0 && "border-l border-border")}
+                className={clsx(
+                  "px-3 py-2",
+                  ci > 0 && "border-l border-border",
+                )}
               >
                 <Text
                   suppressHighlighting
@@ -257,19 +265,21 @@ export function Markdown({
   const colors = useThemeColors();
   const unitRefs = React.useRef(new Map<string, View>());
   const prefix = highlightPrefix ?? "";
-  // iOS tertiarySystemFill — the translucent wash the system paints on a picked row. Kept as a fill tier (not an
-  // alpha over a label colour) because the iOS 27 label ramp is itself translucent and cannot take a second alpha.
-  const highlightColor = colors.fillTertiary;
-  const blocks = parseMarkdown(source);
-  const units = groupIntoUnits(blocks);
+  // iOS secondarySystemFill — a tier above the picked-row wash because the excerpt menu dims everything behind it, and
+  // a fainter tint would sink under that dim. A fill tier, not an alpha over a label colour: the iOS 27 label ramp is
+  // itself translucent, so it cannot take a second alpha.
+  const highlightColor = colors.fillSecondary;
+  // Reparsing on every render would run the whole reply through the parser twice per menu open/close.
+  const blocks = React.useMemo(() => parseMarkdown(source), [source]);
+  const units = React.useMemo(() => groupIntoUnits(blocks), [blocks]);
   // Measure the unit's container in-window and hand its top/bottom to the pill so it anchors above/below, not over the text.
   const open = (text: string, unitKey: string): void => {
     if (!onLongPressExcerpt) return;
     const full = `${prefix}:${unitKey}`;
     const node = unitRefs.current.get(full);
     if (node) {
-      node.measureInWindow((_x, y, _w, h) =>
-        onLongPressExcerpt(text, full, y, y + h),
+      node.measureInWindow((x, y, _w, h) =>
+        onLongPressExcerpt(text, full, { top: y, bottom: y + h, left: x }),
       );
     }
   };

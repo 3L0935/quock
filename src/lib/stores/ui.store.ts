@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { timingsNamed } from "@/lib/design/tokens";
+import type { AnchorRect } from "@/lib/types/geometry";
 import type { MessageId } from "@/lib/types/ids";
 
 // "default" → the picker writes to settings.store.selectedModelName (persisted user preference).
@@ -22,14 +23,12 @@ interface UIState {
   // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Holds the message id; content is resolved from the query cache, never mirrored here.
   selectTextOpen: boolean;
   selectTextMessageId: MessageId | null;
-  // Excerpt pill — long-pressing a reply unit pops a floating pill (Deep dive / Web search) anchored to it. Owns the unit text and its on-screen bounds.
-  excerptPillOpen: boolean;
-  excerptPillText: string;
+  // Excerpt menu — long-pressing a reply unit pops a floating toolbar (Deep dive / Web search) anchored to it. Owns the unit text and its on-screen bounds.
+  excerptMenuOpen: boolean;
+  excerptMenuText: string;
   // Key of the highlighted unit (message-scoped) so the reply can tint exactly the acted-on section.
-  excerptPillKey: string;
-  // On-screen top/bottom of the highlighted unit so the pill anchors above or below it, never over the text.
-  excerptPillTop: number;
-  excerptPillBottom: number;
+  excerptMenuKey: string;
+  excerptMenuAnchor: AnchorRect;
   // Sheet toggles
   openChatHistory: () => void;
   closeChatHistory: () => void;
@@ -41,13 +40,8 @@ interface UIState {
   closeAttach: () => void;
   openSelectText: (messageId: MessageId) => void;
   closeSelectText: () => void;
-  openExcerptPill: (
-    text: string,
-    key: string,
-    top: number,
-    bottom: number,
-  ) => void;
-  closeExcerptPill: () => void;
+  openExcerptMenu: (text: string, key: string, anchor: AnchorRect) => void;
+  closeExcerptMenu: () => void;
   // Choreographed transitions: close the current sheet, then schedule the next after `timingsNamed.sheetCloseTail` so the two animations do not stack and stutter.
   switchToModelPickerFromAccount: () => void;
 }
@@ -61,11 +55,10 @@ export const useUIStore = create<UIState>((set) => ({
   openSheetCount: 0,
   selectTextOpen: false,
   selectTextMessageId: null,
-  excerptPillOpen: false,
-  excerptPillText: "",
-  excerptPillKey: "",
-  excerptPillTop: 0,
-  excerptPillBottom: 0,
+  excerptMenuOpen: false,
+  excerptMenuText: "",
+  excerptMenuKey: "",
+  excerptMenuAnchor: { top: 0, bottom: 0, left: 0 },
   openChatHistory: (): void => {
     set({ chatHistoryOpen: true });
   },
@@ -97,17 +90,16 @@ export const useUIStore = create<UIState>((set) => ({
   closeSelectText: (): void => {
     set({ selectTextOpen: false });
   },
-  openExcerptPill: (text, key, top, bottom): void => {
+  openExcerptMenu: (text, key, anchor): void => {
     set({
-      excerptPillOpen: true,
-      excerptPillText: text,
-      excerptPillKey: key,
-      excerptPillTop: top,
-      excerptPillBottom: bottom,
+      excerptMenuOpen: true,
+      excerptMenuText: text,
+      excerptMenuKey: key,
+      excerptMenuAnchor: anchor,
     });
   },
-  closeExcerptPill: (): void => {
-    set({ excerptPillOpen: false });
+  closeExcerptMenu: (): void => {
+    set({ excerptMenuOpen: false });
   },
   pushSheet: (): void => {
     set((s) => ({ openSheetCount: s.openSheetCount + 1 }));

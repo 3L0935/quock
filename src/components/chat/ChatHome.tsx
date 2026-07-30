@@ -24,14 +24,20 @@ import { useUIStore } from "@/lib/stores/ui.store";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import { Composer } from "@/components/chat/Composer";
 import { EmptyState } from "@/components/chat/EmptyState";
-import { MessageList, type MessageListHandle } from "@/components/chat/MessageList";
+import {
+  MessageList,
+  type MessageListHandle,
+} from "@/components/chat/MessageList";
 import type { UiAttachment } from "@/modules/chat/types";
 import { SelectTextSheet } from "@/components/chat/SelectTextSheet";
-import { ExcerptPill } from "@/components/chat/ExcerptPill";
+import { ExcerptMenu } from "@/components/chat/ExcerptMenu";
 import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { useHasToolsCapability } from "@/modules/models/hooks/useModelCapabilities";
-import { deepDivePrompt, webSearchPrompt } from "@/modules/chat/lib/selectionPrompts";
+import {
+  deepDivePrompt,
+  webSearchPrompt,
+} from "@/modules/chat/lib/selectionPrompts";
 
 export interface ChatHomeProps {
   chatId: ChatId;
@@ -47,9 +53,8 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const keyboardHeight = useKeyboardState((s) => s.height);
   // Measured composer height so the list inset tracks the bar as it grows (attachment/chip rows); seeded with
   // the static default for the first paint before onLayout reports the real size.
-  const [composerHeight, setComposerHeight] = useState<number>(
-    DEFAULT_BOTTOM_INSET,
-  );
+  const [composerHeight, setComposerHeight] =
+    useState<number>(DEFAULT_BOTTOM_INSET);
   const listBottomInset = isKeyboardVisible
     ? composerHeight + keyboardHeight
     : composerHeight;
@@ -69,7 +74,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const selectTextOpen = useUIStore((s) => s.selectTextOpen);
   const selectTextMessageId = useUIStore((s) => s.selectTextMessageId);
   const closeSelectText = useUIStore((s) => s.closeSelectText);
-  const closeExcerptPill = useUIStore((s) => s.closeExcerptPill);
+  const closeExcerptMenu = useUIStore((s) => s.closeExcerptMenu);
   // Attachment draft lives here because it is composer-scoped, not navigation state.
   const [attachments, setAttachments] = useState<UiAttachment[]>([]);
   // Scroll-to-latest button lives in the composer (rides its keyboard lift); the list reports visibility here and is driven via ref.
@@ -83,7 +88,8 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     if (chatGone) router.replace("/c");
   }, [chatGone, router]);
   const isStreaming = useIsStreaming(chatId);
-  const { regenerate, retry, editAndResend, abort, send } = useSendMessage(chatId);
+  const { regenerate, retry, editAndResend, abort, send } =
+    useSendMessage(chatId);
   const { model } = useChatModel(chatId);
   const canWebSearch = useHasToolsCapability(model?.name);
   const { setWebSearchEnabled } = useChatComposerModes(chatId);
@@ -136,18 +142,34 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleDeepDive = useCallback(
     (excerpt: string): void => {
-      closeExcerptPill();
+      closeExcerptMenu();
+      // A second send mid-stream would overwrite the chat's single AbortController and orphan the running stream,
+      // leaving it unabortable — the same guard regenerate and retry use.
+      if (isStreaming) {
+        toast({
+          title: "Already streaming",
+          description: "Stop the current response before asking for more.",
+        });
+        return;
+      }
       void send({ text: deepDivePrompt(excerpt) }).catch((err: unknown) => {
         console.warn("ChatHome: deep dive failed", err);
         toast({ title: "Couldn't send", tone: "error" });
       });
     },
-    [closeExcerptPill, send, toast],
+    [closeExcerptMenu, isStreaming, send, toast],
   );
   const handleWebSearch = useCallback(
     (excerpt: string): void => {
+      closeExcerptMenu();
+      if (isStreaming) {
+        toast({
+          title: "Already streaming",
+          description: "Stop the current response before asking for more.",
+        });
+        return;
+      }
       // Turn web search on for the chat (sticky, like the composer globe), then send with the flag so this turn is grounded.
-      closeExcerptPill();
       setWebSearchEnabled(true);
       void send({ text: webSearchPrompt(excerpt), webSearch: true }).catch(
         (err: unknown) => {
@@ -156,7 +178,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         },
       );
     },
-    [closeExcerptPill, send, setWebSearchEnabled, toast],
+    [closeExcerptMenu, isStreaming, send, setWebSearchEnabled, toast],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {
@@ -268,8 +290,10 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         content={selectTextContent}
         onClose={closeSelectText}
       />
-      <ExcerptPill
+      <ExcerptMenu
         canWebSearch={canWebSearch}
+        topInset={listTopInset}
+        bottomInset={listBottomInset}
         onDeepDive={handleDeepDive}
         onWebSearch={handleWebSearch}
       />
