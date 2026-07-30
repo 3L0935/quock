@@ -3,6 +3,7 @@
 
 import { excerptTextForKey } from "@/components/ui/markdown/excerptText";
 import type { DbMessage } from "@/lib/db/types";
+import { asMessageId } from "@/lib/types/ids";
 
 export function resolveExcerpt(
   messages: readonly Pick<DbMessage, "id" | "content">[],
@@ -10,10 +11,12 @@ export function resolveExcerpt(
 ): string {
   const separator = compositeKey.indexOf(":");
   if (separator < 0) return "";
-  const messageId = compositeKey.slice(0, separator);
-  const unitKey = compositeKey.slice(separator + 1);
-  const message = messages.find((m) => String(m.id) === messageId);
+  // The key travels as text, so the row id is branded back before the lookup instead of comparing stringified ids.
+  const parsedId = Number(compositeKey.slice(0, separator));
+  if (!Number.isInteger(parsedId)) return "";
+  const messageId = asMessageId(parsedId);
+  const message = messages.find((m) => m.id === messageId);
   return message === undefined
     ? ""
-    : excerptTextForKey(message.content, unitKey);
+    : excerptTextForKey(message.content, compositeKey.slice(separator + 1));
 }
