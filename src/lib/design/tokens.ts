@@ -373,6 +373,12 @@ export interface DesignComponentLayout {
   attachTile: {
     orbDiameter: number; // 64 — round orb size (icon + tappable area)
   };
+  // Excerpt menu: the dim spares the pressed block, so it is painted as a spread shadow around a rounded hole.
+  excerptMenu: {
+    spotlightRadius: number; // 14 — rounded cutout, a touch looser than the unit's own corner so it reads as a halo
+    spotlightPadding: number; // 2  — breathing room between the text and the dim
+    spotlightSpread: number; // 2000 — shadow spread; any value past the display diagonal covers the screen
+  };
   // Floating action bar shaped like the iOS text-selection menu: one capsule, actions inline, hairline between them.
   glassToolbar: {
     radius: number; // 999 — pill, the corner every other floating control already uses
@@ -466,6 +472,11 @@ export const componentLayout: DesignComponentLayout = {
     largePaddingX: 20,
   },
   attachTile: { orbDiameter: 64 },
+  excerptMenu: {
+    spotlightRadius: 14,
+    spotlightPadding: 2,
+    spotlightSpread: 2000,
+  },
   glassToolbar: {
     radius: 999,
     height: 44,

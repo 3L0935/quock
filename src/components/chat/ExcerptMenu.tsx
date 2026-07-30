@@ -29,6 +29,7 @@ import { componentLayout, motion, timings, zLayer } from "@/lib/design/tokens";
 import { useUIStore } from "@/lib/stores/ui.store";
 
 const TOOLBAR = componentLayout.glassToolbar;
+const SPOTLIGHT = componentLayout.excerptMenu;
 // The platter shares the gutter the floating header orbs keep off the display edge.
 const SIDE_GUTTER = componentLayout.floatingHeader.sidePad;
 
@@ -112,25 +113,19 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
     ],
     [canWebSearch, onDeepDive, onWebSearch, text],
   );
-  // The dim, minus the excerpt: bands above, below and to either side of it.
-  const dimBands = useMemo<ViewStyle[]>(
-    () => [
-      { top: 0, left: 0, right: 0, height: Math.max(0, anchor.top) },
-      { top: anchor.bottom, left: 0, right: 0, bottom: 0 },
-      {
-        top: anchor.top,
-        height: Math.max(0, anchor.bottom - anchor.top),
-        left: 0,
-        width: Math.max(0, anchor.left),
-      },
-      {
-        top: anchor.top,
-        height: Math.max(0, anchor.bottom - anchor.top),
-        left: anchor.left + anchor.width,
-        right: 0,
-      },
-    ],
-    [anchor],
+  // The dim as a spread shadow around a rounded hole: one transparent view over the excerpt, everything outside it
+  // darkened. Four bands would leave square corners, and iOS rounds the content it lifts above the dim.
+  const spotlight = useMemo<ViewStyle>(
+    () => ({
+      position: "absolute",
+      top: anchor.top - SPOTLIGHT.spotlightPadding,
+      left: anchor.left - SPOTLIGHT.spotlightPadding,
+      width: anchor.width + SPOTLIGHT.spotlightPadding * 2,
+      height: anchor.bottom - anchor.top + SPOTLIGHT.spotlightPadding * 2,
+      borderRadius: SPOTLIGHT.spotlightRadius,
+      boxShadow: `0 0 0 ${SPOTLIGHT.spotlightSpread}px ${colors.scrimSheet}`,
+    }),
+    [anchor, colors.scrimSheet],
   );
   // Both placements clamp into the same band, so neither the header orbs nor the composer can end up covered.
   const position = useMemo(() => {
@@ -146,10 +141,9 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
             Math.max(topInset, anchor.bottom + TOOLBAR.anchorGap),
             lowest,
           );
-    // Leading-aligned to the pressed block, like the kit — never centred on the display. The bar is content-sized, so
-    // the gutter is enforced with a max width instead of an upper bound on `left`.
-    const left = Math.max(SIDE_GUTTER, anchor.left);
-    return { top, left, maxWidth: screenWidth - left - SIDE_GUTTER };
+    // Centred on the display rather than leading-aligned to the block: the kit anchors to the content, but a centred
+    // bar reads better over a full-width reply. The bar is content-sized, so a full-width row centres it.
+    return { top, maxWidth: screenWidth - SIDE_GUTTER * 2 };
   }, [anchor, bottomInset, screenHeight, screenWidth, topInset]);
   if (!mounted) return null;
   return (
@@ -159,38 +153,32 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
       pointerEvents="box-none"
       accessibilityViewIsModal
     >
-      {/* Kit ships a "Context Menu - Dimming Overlay". Four bands around the excerpt instead of one full-screen wash:
-          iOS lifts the pressed content above the dim, so dimming it too would darken the very text the menu acts on. */}
+      {/* Kit ships a "Context Menu - Dimming Overlay", and iOS lifts the pressed content above it — so the dim stops at
+          the excerpt instead of covering it, and the whole surface stays the dismiss target. */}
       <RNPressable
         className="absolute inset-0"
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
         onPress={close}
       >
-        {dimBands.map((band, index) => (
-          <Animated.View
-            key={index}
-            pointerEvents="none"
-            style={[
-              { position: "absolute", backgroundColor: colors.scrim },
-              band,
-              scrimStyle,
-            ]}
-          />
-        ))}
+        <Animated.View pointerEvents="none" style={[spotlight, scrimStyle]} />
       </RNPressable>
       <Animated.View
+        pointerEvents="box-none"
         style={[
           {
             position: "absolute",
             top: position.top,
-            left: position.left,
-            maxWidth: position.maxWidth,
+            left: 0,
+            right: 0,
+            alignItems: "center",
           },
           toolbarStyle,
         ]}
       >
-        <GlassToolbar actions={actions} />
+        <View style={{ maxWidth: position.maxWidth }}>
+          <GlassToolbar actions={actions} />
+        </View>
       </Animated.View>
     </View>
   );
