@@ -32,6 +32,7 @@ import { useHaptics } from "@/lib/hooks/useHaptics";
 import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { springEasing, surfaceSpring } from "@/lib/design/motion";
 import { componentLayout, motion, timings, zLayer } from "@/lib/design/tokens";
+import { MASK_OPAQUE } from "@/lib/design/mask";
 import { useUIStore } from "@/lib/stores/ui.store";
 import { excerptMenuTop } from "@/modules/chat/lib/excerptMenuPlacement";
 
@@ -39,9 +40,6 @@ const TOOLBAR = componentLayout.glassToolbar;
 const SPOTLIGHT = componentLayout.excerptMenu;
 // The platter shares the gutter the floating header orbs keep off the display edge.
 const SIDE_GUTTER = componentLayout.floatingHeader.sidePad;
-
-// Mask paint, not design colour: MaskedView reads alpha, so this means "show".
-const MASK_SHOW = "#000000";
 
 // Everything except the excerpt: a screen-sized rect with the cutout punched out of it.
 function dimMaskPath(
@@ -211,7 +209,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
           style={StyleSheet.absoluteFill}
           maskElement={
             <Svg width={screenWidth} height={screenHeight}>
-              <Path d={dimMask} fill={MASK_SHOW} fillRule="evenodd" />
+              <Path d={dimMask} fill={MASK_OPAQUE} fillRule="evenodd" />
             </Svg>
           }
         >
@@ -239,11 +237,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
           style={[StyleSheet.absoluteFill, scrimStyle]}
         >
           <Svg width={screenWidth} height={screenHeight}>
-            <Path
-              d={dimMask}
-              fill={colors.scrimExcerpt}
-              fillRule="evenodd"
-            />
+            <Path d={dimMask} fill={colors.scrimExcerpt} fillRule="evenodd" />
           </Svg>
         </Animated.View>
       )}

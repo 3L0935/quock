@@ -24,6 +24,7 @@ import Svg, {
 } from "react-native-svg";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { boxShadow, componentLayout } from "@/lib/design/tokens";
+import { MASK_CLEAR, MASK_OPAQUE } from "@/lib/design/mask";
 import { EXCERPT_GLOW_LAP_MS } from "@/modules/chat/constants";
 import type { SpotlightRect } from "@/lib/types/geometry";
 
@@ -37,10 +38,6 @@ const MESH = [
   { x: 0.82, y: 0.18, color: 2 },
   { x: 0.51, y: 0.04, color: 1 },
 ] as const;
-
-// Mask paint, not design colour: MaskedView reads alpha, so these are "show" and "hide".
-const MASK_SHOW = "#000000";
-const MASK_HIDE = "rgba(0,0,0,0)";
 
 // Its edge-light cone is `black 2.5%, transparent 10%` mirrored: a narrow core with a fade, as three stacked wedges.
 const CONE = [
@@ -141,7 +138,7 @@ export function SpotlightGlow({
         maskElement={
           <Animated.View style={[squareStyle, spinStyle]}>
             <LinearGradient
-              colors={[MASK_SHOW, MASK_HIDE]}
+              colors={[MASK_OPAQUE, MASK_CLEAR]}
               locations={[0, 0.52]}
               style={StyleSheet.absoluteFill}
             />
@@ -203,7 +200,7 @@ export function SpotlightGlow({
                 <Path
                   key={`cone-${cone.spreadDeg}`}
                   d={wedgePath(centre, centre, cone.spreadDeg)}
-                  fill={MASK_SHOW}
+                  fill={MASK_OPAQUE}
                   fillOpacity={cone.alpha}
                 />
               ))}
