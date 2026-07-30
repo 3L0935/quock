@@ -101,7 +101,8 @@ export function TextField({
     ),
   }));
   // Border lives on the wrapper so Reanimated can animate its color without doubling the inner input's own line.
-  const baseClass = "bg-card rounded-lg text-foreground font-sans text-body px-3";
+  const baseClass =
+    "bg-card rounded-lg text-foreground font-sans text-body px-3";
   if (!multiline) {
     return (
       // iOS 27 grouped text field: capsule on the translucent system fill; the hairline rest-border is near-invisible on the wash and the focus crossfade paints the primary ring.
@@ -137,9 +138,16 @@ export function TextField({
           scrollEnabled
           testID={testID}
           accessibilityLabel={accessibilityLabel}
-          className={clsx("text-foreground font-sans text-body px-3", className)}
+          className={clsx(
+            "text-foreground font-sans text-body px-3",
+            className,
+          )}
           style={[
-            { flex: 1, width: "100%", paddingHorizontal: SINGLE_LINE_PADDING_X },
+            {
+              flex: 1,
+              width: "100%",
+              paddingHorizontal: SINGLE_LINE_PADDING_X,
+            },
             inputStyle,
           ]}
         />
@@ -166,11 +174,13 @@ export function TextField({
   return (
     <Animated.View
       className={wrapperClass}
+      // `overflow: hidden` is not cosmetic here: without it the rounded container does not clip the TextInput, so the
+      // native scroll indicator and the first/last glyphs of a wrapped line paint outside the corner curve.
       style={
         hasCustomContainer
-          ? containerStyle
+          ? [{ overflow: "hidden" }, containerStyle]
           : [
-              { borderWidth: StyleSheet.hairlineWidth },
+              { borderWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
               animatedBorderStyle,
               containerStyle,
             ]

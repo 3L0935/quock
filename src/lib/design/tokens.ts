@@ -341,7 +341,7 @@ export interface DesignComponentLayout {
     optionGap: number; // 4  — gap between options
     optionPaddingX: number; // 6  — label padding inside the option pill so long labels never touch the edge
   };
-  // iOS 27 inset-grouped list geometry (§15) — card rounding shares the alert text-field 26pt family.
+  // iOS 27 inset-grouped list geometry (§15).
   listSection: {
     cardRadius: number; // 26
     insetX: number; // 16 — horizontal inset of the card from the screen edge
@@ -366,7 +366,9 @@ export interface DesignComponentLayout {
   };
   // iOS 27 alert geometry — capsule-continuous 34pt card with full-width stacked buttons.
   alertDialog: {
-    width: number; // 300 The kit fixes its alert at 300pt, but ours also hosts an editable prompt, and 300 reads cramped for text you have to read and rewrite.
+    widthRatio: number; // 0.70 — share of the display width, clamped by the two below.
+    widthMin: number; // 260 — narrow Android/SE displays: 70% of 320 is 224, too tight for a sentence. Stays inside the 21pt screen padding.
+    widthMax: number; // 420 — on a tablet 70% would stretch the card past a comfortable reading measure. The kit fixes its alert at 300pt, but ours also hosts an editable prompt, and 300 reads cramped for text you have to read and rewrite.
     cornerRadius: number; // 34
     padding: number; // 14
     blockPaddingTop: number; // 8  — title/message block top pad (§11)
@@ -375,8 +377,8 @@ export interface DesignComponentLayout {
     blockGap: number; // 10 — title→message gap (§11); stock mt-* tiers miss it at the 14px rem
     buttonHeight: number; // 48
     buttonGap: number; // 8 — gap between the action pills (gap-2 renders 7px at the 14px rem, so exact pt lives here)
-    textFieldHeight: number; // 52
-    textFieldRadius: number; // 26
+    textAreaMinHeight: number; // 52 — a MINIMUM, not a height: the field grows to maxLines (3 x 22 + 2 x 8 = 82) before it scrolls
+    textAreaRadius: number; // 20 — concentric with the card (34 - padding 14). The kit's 26 is half of its fixed 52pt single-line field, i.e. a capsule; ours grows, and a radius that equals half the height at one line stops doing so at three, so the control would change identity mid-typing
   };
   // iOS 27 button control heights — consumed as numeric style values (Tailwind h-* tiers stay rem-derived).
   button: {
@@ -471,7 +473,9 @@ export const componentLayout: DesignComponentLayout = {
   },
   iconButton: { defaultIconSize: 22 },
   alertDialog: {
-    width: 300,
+    widthRatio: 0.7,
+    widthMin: 260,
+    widthMax: 420,
     cornerRadius: 34,
     padding: 14,
     blockPaddingTop: 8,
@@ -480,8 +484,8 @@ export const componentLayout: DesignComponentLayout = {
     blockGap: 10,
     buttonHeight: 48,
     buttonGap: 8,
-    textFieldHeight: 52,
-    textFieldRadius: 26,
+    textAreaMinHeight: 52,
+    textAreaRadius: 20,
   },
   button: {
     heightLarge: 50,
