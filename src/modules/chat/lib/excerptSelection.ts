@@ -15,8 +15,9 @@ export function resolveExcerpt(
   const parsedId = Number(compositeKey.slice(0, separator));
   if (!Number.isInteger(parsedId)) return "";
   const messageId = asMessageId(parsedId);
+  const unitKey = compositeKey.slice(separator + 1);
   const message = messages.find((m) => m.id === messageId);
   return message === undefined
     ? ""
-    : excerptTextForKey(message.content, compositeKey.slice(separator + 1));
+    : excerptTextForKey(message.content, unitKey);
 }
