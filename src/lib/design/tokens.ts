@@ -386,10 +386,10 @@ export interface DesignComponentLayout {
     spotlightRadius: number; // 14 — rounded cutout, a touch looser than the unit's own corner so it reads as a halo
     spotlightPadding: number; // 2  — breathing room between the text and the dim
     spotlightSpread: number; // 2000 — shadow spread; any value past the display diagonal covers the screen
-    glowRingWidth: number; // 1 — rim thickness; the travelling light rides this ring
+    glowRingWidth: number; // 2 — rim thickness; a hairline made the travelling light too faint to read
     glowSpinMs: number; // 3600 — one full turn, slow enough to read as a drift rather than a chase
-    glowRimAlpha: number; // 0.3 — constant accent rim under the travelling band
-    glowBandSpan: number; // 0.18 — share of the rotating square the band covers, so one arc lights at a time
+    glowRimAlpha: number; // 0.18 — constant rim under the band, kept quiet so the colours lead
+    glowBandSpan: number; // 0.34 — share of the rotating square the band covers: wide enough to show all three hues at once
   };
   // Floating action bar shaped like the iOS text-selection menu: one capsule, actions inline, hairline between them.
   glassToolbar: {
@@ -488,10 +488,10 @@ export const componentLayout: DesignComponentLayout = {
     spotlightRadius: 14,
     spotlightPadding: 2,
     spotlightSpread: 2000,
-    glowRingWidth: 1,
+    glowRingWidth: 2,
     glowSpinMs: 3600,
-    glowRimAlpha: 0.3,
-    glowBandSpan: 0.18,
+    glowRimAlpha: 0.18,
+    glowBandSpan: 0.34,
   },
   glassToolbar: {
     radius: 999,

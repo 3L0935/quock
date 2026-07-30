@@ -125,13 +125,22 @@ function SpotlightGlow({
             bandStyle,
           ]}
         >
+          {/* Three palette hues inside the band, so the light that travels the rim shifts colour as it goes. */}
           <LinearGradient
             colors={[
-              withAlpha(colors.primary, 0),
-              colors.primary,
-              withAlpha(colors.primary, 0),
+              withAlpha(colors.purple, 0),
+              colors.purple,
+              colors.pink,
+              colors.cyan,
+              withAlpha(colors.cyan, 0),
             ]}
-            locations={[0, SPOTLIGHT.glowBandSpan / 2, SPOTLIGHT.glowBandSpan]}
+            locations={[
+              0,
+              SPOTLIGHT.glowBandSpan * 0.25,
+              SPOTLIGHT.glowBandSpan * 0.5,
+              SPOTLIGHT.glowBandSpan * 0.75,
+              SPOTLIGHT.glowBandSpan,
+            ]}
             style={StyleSheet.absoluteFill}
           />
         </Animated.View>

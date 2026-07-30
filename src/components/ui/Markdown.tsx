@@ -99,6 +99,24 @@ const HEADING_CLASS = {
 // A wide table gives each column a readable min width and scrolls sideways; one that already fits fills the width instead.
 const TABLE_MIN_COLUMN_WIDTH = 112;
 
+// A unit's measured box contains its children's vertical margins, so a section that ends on a `mb-3` block reads
+// bottom-heavy when highlighted. These mirror the mb-*/mt-* classes the blocks above carry (NativeWind renders rem at
+// 14px, hence the halves) so the box can be balanced from the real values instead of a guess.
+const BLOCK_MARGIN_TOP: Partial<Record<BlockNode["type"], number>> = {
+  heading: 7,
+  rule: 14,
+};
+const BLOCK_MARGIN_BOTTOM: Partial<Record<BlockNode["type"], number>> = {
+  paragraph: 10.5,
+  list: 10.5,
+  orderedList: 10.5,
+  blockquote: 10.5,
+  code: 10.5,
+  table: 10.5,
+  heading: 7,
+  rule: 14,
+};
+
 // Renders a block; onLongPress (a no-arg trigger for this block's unit) is attached to the Text where iOS long-press fires.
 function renderBlock(
   node: BlockNode,
@@ -357,11 +375,18 @@ export function Markdown({
       grouped.push(renderBlock(blocks[i], i, (): void => open(text, key)));
       i += 1;
     }
+    // Pad the top by whatever the last block's bottom margin exceeds the first block's top margin, then pull the same
+    // amount back out — the box ends up vertically even without moving a single line of text.
+    const balance = Math.max(
+      0,
+      (BLOCK_MARGIN_BOTTOM[blocks[i - 1].type] ?? 0) -
+        (BLOCK_MARGIN_TOP[blocks[start].type] ?? 0),
+    );
     out.push(
       <View
         key={`u${start}`}
         ref={setRef(key)}
-        style={unitStyle(key)}
+        style={[unitStyle(key), { paddingTop: balance, marginTop: -balance }]}
         className="-mx-2 px-2 rounded-xl"
       >
         {grouped}
