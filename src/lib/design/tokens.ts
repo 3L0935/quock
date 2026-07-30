@@ -180,12 +180,14 @@ export const opacity: DesignOpacity = {
 export interface DesignZLayer {
   composer: number;  // 20 — sticky bottom input bar
   header: number;    // 30 — sticky top bar
+  menu: number;      // 40 — contextual menu over content; must clear the header and composer orbs, which declare their own zIndex
   toast: number;     // 50 — bottom-anchored notification
   dialog: number;    // 10000 — confirm dialog, must clear nested modals
 }
 export const zLayer: DesignZLayer = {
   composer: 20,
   header: 30,
+  menu: 40,
   toast: 50,
   dialog: 10000,
 };
@@ -371,6 +373,23 @@ export interface DesignComponentLayout {
   attachTile: {
     orbDiameter: number; // 64 — round orb size (icon + tappable area)
   };
+  // iOS 27 contextual-menu control group (the quick-action strip at the top of a context menu), from the kit.
+  glassToolbar: {
+    radius: number;         // 34 — container corner, the same capsule-continuous family as the alert card and sheet top
+    padX: number;           // 10 — container horizontal padding
+    padY: number;           // 10 — container vertical padding
+    itemGap: number;        // 6  — space between two actions
+    itemHeight: number;     // 56 — action height (icon row + label)
+    itemRadius: number;     // 20 — action corner, nested inside the 34pt container
+    itemPadX: number;       // 4  — action horizontal padding
+    itemPadY: number;       // 6  — action vertical padding (kit sets top and bottom alike)
+    iconLabelGap: number;   // 5  — icon-to-label gap inside an action
+    iconRowHeight: number;  // 22 — fixed icon row so labels align across actions of different glyph heights
+    anchorGap: number;      // 8  — gap between the toolbar and the content it points at (not a kit value; iOS leaves the source visible)
+    containerWidth: number; // 250 — kit menu width; actions divide it evenly so one or two of them keep the same platter
+    // Kit fills the menu at 0.70 where the orb sits at 0.90, so the backdrop reads through; same bases as glassOrb.
+    tint: Record<"light" | "dark", string>;
+  };
   // GlassOrb tint + blur recipes per variant — component-specific, not semantic surfaces.
   glassOrb: {
     tint: Record<"light" | "dark", Record<"clear" | "regular" | "thick", string>>;
@@ -447,6 +466,24 @@ export const componentLayout: DesignComponentLayout = {
     largePaddingX: 20,
   },
   attachTile: { orbDiameter: 64 },
+  glassToolbar: {
+    radius: 34,
+    padX: 10,
+    padY: 10,
+    itemGap: 6,
+    itemHeight: 56,
+    itemRadius: 20,
+    itemPadX: 4,
+    itemPadY: 6,
+    iconLabelGap: 5,
+    iconRowHeight: 22,
+    anchorGap: 8,
+    containerWidth: 250,
+    tint: {
+      light: "rgba(255,255,255,0.70)",
+      dark: "rgba(58,58,60,0.70)",
+    },
+  },
   glassOrb: {
     tint: {
       light: {
