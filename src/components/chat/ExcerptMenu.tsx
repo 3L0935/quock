@@ -1,21 +1,27 @@
 // Contextual menu for a long-pressed reply unit — Deep dive / Web search on that excerpt. RN cannot extend iOS's own
 // selection menu, so the platter is <GlassToolbar> and this file owns anchoring, the dim behind it, and the transitions.
 
+import { LinearGradient } from "expo-linear-gradient";
+import MaskedView from "@react-native-masked-view/masked-view";
 import { Globe, Sparkles } from "lucide-react-native";
 import React, { useCallback, useMemo } from "react";
 import {
   Keyboard,
   Pressable as RNPressable,
+  StyleSheet,
   useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
 import Animated, {
+  Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSpring,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import {
   GlassToolbar,
@@ -23,15 +29,116 @@ import {
   type GlassToolbarAction,
 } from "@/components/ui/GlassToolbar";
 import { useHaptics } from "@/lib/hooks/useHaptics";
-import { useThemeColors } from "@/lib/theme/ThemeContext";
+import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
+import { withAlpha } from "@/lib/design/color";
 import { springEasing, surfaceSpring } from "@/lib/design/motion";
-import { componentLayout, motion, timings, zLayer } from "@/lib/design/tokens";
+import {
+  boxShadow,
+  componentLayout,
+  motion,
+  timings,
+  zLayer,
+} from "@/lib/design/tokens";
 import { useUIStore } from "@/lib/stores/ui.store";
 
 const TOOLBAR = componentLayout.glassToolbar;
 const SPOTLIGHT = componentLayout.excerptMenu;
 // The platter shares the gutter the floating header orbs keep off the display edge.
 const SIDE_GUTTER = componentLayout.floatingHeader.sidePad;
+
+interface SpotlightRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+interface SpotlightGlowProps {
+  rect: SpotlightRect;
+  /** The menu's own open progress, so the rim fades in with the dim rather than snapping on. */
+  progress: SharedValue<number>;
+}
+
+// Accent hairline on the spotlight with a light drifting around it. A conic-gradient mask driven by the pointer is the
+// web recipe; RN has neither conic gradients nor CSS masks, so a rotating band read through a ring mask stands in, and
+// the bloom is the same descending alpha ladder expressed as one Fabric multi-layer boxShadow.
+function SpotlightGlow({
+  rect,
+  progress,
+}: SpotlightGlowProps): React.ReactElement {
+  const { resolved } = useTheme();
+  const colors = useThemeColors();
+  const spin = useSharedValue(0);
+  React.useEffect(() => {
+    spin.value = withRepeat(
+      withTiming(1, { duration: SPOTLIGHT.glowSpinMs, easing: Easing.linear }),
+      -1,
+      false,
+    );
+  }, [spin]);
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const bandStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value * 360}deg` }],
+  }));
+  // Square sized to the diagonal, so the band still spans the rim whatever the excerpt's proportions.
+  const side = Math.hypot(rect.width, rect.height);
+  const ring: ViewStyle = {
+    borderRadius: SPOTLIGHT.spotlightRadius,
+    borderWidth: SPOTLIGHT.glowRingWidth,
+  };
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{ position: "absolute", ...rect }, fadeStyle]}
+    >
+      <View
+        style={[
+          StyleSheet.absoluteFillObject,
+          ring,
+          {
+            borderColor: withAlpha(colors.primary, SPOTLIGHT.glowRimAlpha),
+            boxShadow: boxShadow.excerptGlow[resolved],
+          },
+        ]}
+      />
+      <MaskedView
+        style={StyleSheet.absoluteFill}
+        maskElement={
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              ring,
+              { borderColor: "black" },
+            ]}
+          />
+        }
+      >
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              width: side,
+              height: side,
+              left: (rect.width - side) / 2,
+              top: (rect.height - side) / 2,
+            },
+            bandStyle,
+          ]}
+        >
+          <LinearGradient
+            colors={[
+              withAlpha(colors.primary, 0),
+              colors.primary,
+              withAlpha(colors.primary, 0),
+            ]}
+            locations={[0, SPOTLIGHT.glowBandSpan / 2, SPOTLIGHT.glowBandSpan]}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      </MaskedView>
+    </Animated.View>
+  );
+}
 
 export interface ExcerptMenuProps {
   canWebSearch: boolean;
@@ -113,19 +220,25 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
     ],
     [canWebSearch, onDeepDive, onWebSearch, text],
   );
-  // The dim as a spread shadow around a rounded hole: one transparent view over the excerpt, everything outside it
-  // darkened. Four bands would leave square corners, and iOS rounds the content it lifts above the dim.
-  const spotlight = useMemo<ViewStyle>(
+  const spotlightRect = useMemo<SpotlightRect>(
     () => ({
-      position: "absolute",
       top: anchor.top - SPOTLIGHT.spotlightPadding,
       left: anchor.left - SPOTLIGHT.spotlightPadding,
       width: anchor.width + SPOTLIGHT.spotlightPadding * 2,
       height: anchor.bottom - anchor.top + SPOTLIGHT.spotlightPadding * 2,
+    }),
+    [anchor],
+  );
+  // The dim as a spread shadow around a rounded hole: one transparent view over the excerpt, everything outside it
+  // darkened. Four bands would leave square corners, and iOS rounds the content it lifts above the dim.
+  const dimStyle = useMemo<ViewStyle>(
+    () => ({
+      position: "absolute",
+      ...spotlightRect,
       borderRadius: SPOTLIGHT.spotlightRadius,
       boxShadow: `0 0 0 ${SPOTLIGHT.spotlightSpread}px ${colors.scrimSheet}`,
     }),
-    [anchor, colors.scrimSheet],
+    [spotlightRect, colors.scrimSheet],
   );
   // Both placements clamp into the same band, so neither the header orbs nor the composer can end up covered.
   const position = useMemo(() => {
@@ -161,8 +274,9 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
         accessibilityLabel="Dismiss"
         onPress={close}
       >
-        <Animated.View pointerEvents="none" style={[spotlight, scrimStyle]} />
+        <Animated.View pointerEvents="none" style={[dimStyle, scrimStyle]} />
       </RNPressable>
+      <SpotlightGlow rect={spotlightRect} progress={progress} />
       <Animated.View
         pointerEvents="box-none"
         style={[

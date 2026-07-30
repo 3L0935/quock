@@ -265,6 +265,9 @@ export interface DesignBoxShadow {
   sheet: Record<"light" | "dark", string>;
   // SegmentedControl selected-pill lift — kit CSS blur rendered verbatim by Fabric (legacy shadowRadius would halve it).
   control: string;
+  // Excerpt spotlight rim bloom in the accent: the web original's descending alpha/blur ladder, cut to four layers
+  // (three outward, one bleeding inward) because the effect has to stay a whisper.
+  excerptGlow: Record<"light" | "dark", string>;
 }
 export const boxShadow: DesignBoxShadow = {
   glass: {
@@ -285,6 +288,11 @@ export const boxShadow: DesignBoxShadow = {
     dark: "0 0 0 0.5px rgba(255,255,255,0.15), 0 8px 48px rgba(0,0,0,0.5)",
   },
   control: "0 2px 10px rgba(0,0,0,0.06)",
+  excerptGlow: {
+    light:
+      "0 0 2px rgba(0,136,255,0.35), 0 0 8px rgba(0,136,255,0.20), 0 0 18px rgba(0,136,255,0.10), inset 0 0 6px rgba(0,136,255,0.12)",
+    dark: "0 0 2px rgba(0,145,255,0.45), 0 0 8px rgba(0,145,255,0.28), 0 0 18px rgba(0,145,255,0.14), inset 0 0 6px rgba(0,145,255,0.16)",
+  },
 };
 // Per-component layout constants. Shape `{ component: { key: number } }` keeps the call sites unambiguous.
 export interface DesignComponentLayout {
@@ -378,6 +386,10 @@ export interface DesignComponentLayout {
     spotlightRadius: number; // 14 — rounded cutout, a touch looser than the unit's own corner so it reads as a halo
     spotlightPadding: number; // 2  — breathing room between the text and the dim
     spotlightSpread: number; // 2000 — shadow spread; any value past the display diagonal covers the screen
+    glowRingWidth: number; // 1 — rim thickness; the travelling light rides this ring
+    glowSpinMs: number; // 3600 — one full turn, slow enough to read as a drift rather than a chase
+    glowRimAlpha: number; // 0.3 — constant accent rim under the travelling band
+    glowBandSpan: number; // 0.18 — share of the rotating square the band covers, so one arc lights at a time
   };
   // Floating action bar shaped like the iOS text-selection menu: one capsule, actions inline, hairline between them.
   glassToolbar: {
@@ -476,6 +488,10 @@ export const componentLayout: DesignComponentLayout = {
     spotlightRadius: 14,
     spotlightPadding: 2,
     spotlightSpread: 2000,
+    glowRingWidth: 1,
+    glowSpinMs: 3600,
+    glowRimAlpha: 0.3,
+    glowBandSpan: 0.18,
   },
   glassToolbar: {
     radius: 999,
