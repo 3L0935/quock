@@ -5,6 +5,7 @@ import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDb } from "@/lib/contexts/DbContext";
 import { queryKeys } from "@/lib/hooks/queryKeys";
+import { WEB_SEARCH_DEFAULT_ON } from "@/modules/chat/constants";
 import type { ChatId } from "@/lib/types/ids";
 
 interface ComposerModes {
@@ -17,10 +18,10 @@ export interface UseChatComposerModesResult extends ComposerModes {
   setWebSearchEnabled: (enabled: boolean) => void;
 }
 
-// Web search is the app-wide default, so it reads as on before the chat row resolves and for a chat that has no row.
+// Mirrors the row default, so the globe reads right before the chat row resolves and for a chat that has no row.
 const MODES_DEFAULT: ComposerModes = {
   thinkEnabled: false,
-  webSearchEnabled: true,
+  webSearchEnabled: WEB_SEARCH_DEFAULT_ON,
 };
 
 export function useChatComposerModes(
@@ -36,7 +37,7 @@ export function useChatComposerModes(
       const chat = await chats.get(chatId);
       return {
         thinkEnabled: chat?.thinkEnabled ?? false,
-        webSearchEnabled: chat?.webSearchEnabled ?? true,
+        webSearchEnabled: chat?.webSearchEnabled ?? WEB_SEARCH_DEFAULT_ON,
       };
     },
     staleTime: Infinity,

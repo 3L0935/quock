@@ -3,6 +3,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { asChatId, type ChatId, newChatId } from "@/lib/types/ids";
 import { EXCERPT_LENGTH } from "@/lib/constants/magic-numbers";
+import { WEB_SEARCH_DEFAULT_ON } from "@/modules/chat/constants";
 import type { ChatSummary, DbChat } from "@/lib/db/types";
 
 interface ChatRow {
@@ -150,11 +151,11 @@ export class ChatRepository {
     const now = Date.now();
     const resolvedTitle = title ?? "";
     const userId = this.getUserId();
-    // model NULL follows the user's global default; think off lets the model's own default apply; web search on is the
-    // app-wide default, capability-gated downstream. user_id scopes the chat to the signed-in account.
+    // model NULL follows the user's global default; think off lets the model's own default apply.
+    // user_id scopes the chat to the signed-in account.
     await this.db.runAsync(
-      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, 1)",
-      [id, userId, resolvedTitle, now, now],
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, ?)",
+      [id, userId, resolvedTitle, now, now, WEB_SEARCH_DEFAULT_ON ? 1 : 0],
     );
     return {
       id,
