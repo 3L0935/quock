@@ -31,6 +31,7 @@ export interface TextFieldProps {
   autoComplete?: TextInputProps["autoComplete"];
   keyboardType?: TextInputProps["keyboardType"];
   multiline?: boolean;
+  maxLength?: number;
   /** Max number of lines the multi-line field grows to. Default 8. */
   maxLines?: number;
   /** Override the multi-line row height when the caller's typography differs from the default (22 = IBM Plex Sans 16pt). */
@@ -60,6 +61,7 @@ export function TextField({
   autoComplete,
   keyboardType,
   multiline = false,
+  maxLength,
   maxLines = 8,
   // 22 = IBM Plex Sans 16pt rendered line-height; callers (e.g. Composer) override.
   lineHeight = componentLayout.composer.inputLineHeight,
@@ -189,6 +191,7 @@ export function TextField({
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        {...(maxLength !== undefined ? { maxLength } : {})}
         placeholder={placeholder}
         autoCapitalize={autoCapitalize}
         autoComplete={autoComplete}

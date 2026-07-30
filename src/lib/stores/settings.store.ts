@@ -30,7 +30,7 @@ const DEFAULT_THEME: ThemeMode = "system";
 const DEFAULT_HAPTICS = true;
 
 // An instruction the user has blanked is not a valid prompt, so it collapses back to null = the shipped default.
-function normaliseInstruction(instruction: string | null): string | null {
+export function normaliseInstruction(instruction: string | null): string | null {
   const trimmed = instruction?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
 }

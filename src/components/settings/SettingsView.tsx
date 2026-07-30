@@ -33,6 +33,7 @@ import {
   DEFAULT_DEEP_DIVE_INSTRUCTION,
   DEFAULT_WEB_SEARCH_INSTRUCTION,
 } from "@/modules/chat/lib/selectionPrompts";
+import { EXCERPT_INSTRUCTION_MAX_CHARS } from "@/modules/chat/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
 // The two excerpt-menu actions whose wording is editable.
@@ -150,6 +151,7 @@ export function SettingsView({
           onChangeInput={setDraft}
           // Short on purpose: an empty multiline field is pinned to one line, so a long placeholder would be clipped.
           inputPlaceholder="Default wording"
+          inputMaxLength={EXCERPT_INSTRUCTION_MAX_CHARS}
           onConfirm={saveEditor}
           onCancel={closeEditor}
         />

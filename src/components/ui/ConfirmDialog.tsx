@@ -40,6 +40,7 @@ export interface ConfirmDialogProps {
   inputValue?: string;
   onChangeInput?: (value: string) => void;
   inputPlaceholder?: string;
+  inputMaxLength?: number;
   confirmDisabled?: boolean;
   testID?: string;
 }
@@ -91,6 +92,7 @@ export function ConfirmDialog({
   inputValue,
   onChangeInput,
   inputPlaceholder,
+  inputMaxLength,
   confirmDisabled = false,
   testID,
 }: ConfirmDialogProps): React.ReactElement | null {
@@ -120,6 +122,8 @@ export function ConfirmDialog({
       className="absolute inset-0 items-center justify-center px-6"
       style={{ zIndex: zLayer.dialog }}
       pointerEvents="auto"
+      // On the card this only hid the scrim; the sheet behind stayed in the VoiceOver tree.
+      accessibilityViewIsModal
       testID={testID}
     >
       <RNPressable
@@ -146,8 +150,6 @@ export function ConfirmDialog({
           cardAnimatedStyle,
         ]}
         pointerEvents="box-none"
-        accessibilityViewIsModal
-        accessibilityLiveRegion="polite"
       >
         {/* Near-opaque card material — iOS 27 alerts stay readable over any underlying content (sheets, screens, photos); a frosted blur inside a Modal added weight without payoff. */}
         <View
@@ -195,6 +197,9 @@ export function ConfirmDialog({
                   value={inputValue ?? ""}
                   onChangeText={onChangeInput}
                   placeholder={inputPlaceholder}
+                  {...(inputMaxLength !== undefined
+                    ? { maxLength: inputMaxLength }
+                    : {})}
                   autoCapitalize="sentences"
                   multiline
                   maxLines={3}
