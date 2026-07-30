@@ -1,44 +1,37 @@
 // Contextual menu for a long-pressed reply unit — Deep dive / Web search on that excerpt. RN cannot extend iOS's own
 // selection menu, so the platter is <GlassToolbar> and this file owns anchoring, the dim behind it, and the transitions.
 
-import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { Globe, Sparkles } from "lucide-react-native";
 import React, { useCallback, useMemo } from "react";
 import {
   Keyboard,
+  Platform,
   Pressable as RNPressable,
   StyleSheet,
   useWindowDimensions,
   View,
-  type ViewStyle,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import Animated, {
-  Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
   withSpring,
   withTiming,
-  type SharedValue,
 } from "react-native-reanimated";
 import {
   GlassToolbar,
   glassToolbarHeight,
   type GlassToolbarAction,
 } from "@/components/ui/GlassToolbar";
+import { SpotlightGlow } from "@/components/chat/SpotlightGlow";
+import type { SpotlightRect } from "@/lib/types/geometry";
 import { useHaptics } from "@/lib/hooks/useHaptics";
 import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
-import { withAlpha } from "@/lib/design/color";
 import { springEasing, surfaceSpring } from "@/lib/design/motion";
-import {
-  boxShadow,
-  componentLayout,
-  motion,
-  timings,
-  zLayer,
-} from "@/lib/design/tokens";
+import { componentLayout, motion, timings, zLayer } from "@/lib/design/tokens";
 import { useUIStore } from "@/lib/stores/ui.store";
 
 const TOOLBAR = componentLayout.glassToolbar;
@@ -46,106 +39,27 @@ const SPOTLIGHT = componentLayout.excerptMenu;
 // The platter shares the gutter the floating header orbs keep off the display edge.
 const SIDE_GUTTER = componentLayout.floatingHeader.sidePad;
 
-interface SpotlightRect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
+// Mask paint, not design colour: MaskedView reads alpha, so this means "show".
+const MASK_SHOW = "#000000";
 
-interface SpotlightGlowProps {
-  rect: SpotlightRect;
-  /** The menu's own open progress, so the rim fades in with the dim rather than snapping on. */
-  progress: SharedValue<number>;
-}
-
-// Accent hairline on the spotlight with a light drifting around it. A conic-gradient mask driven by the pointer is the
-// web recipe; RN has neither conic gradients nor CSS masks, so a rotating band read through a ring mask stands in, and
-// the bloom is the same descending alpha ladder expressed as one Fabric multi-layer boxShadow.
-function SpotlightGlow({
-  rect,
-  progress,
-}: SpotlightGlowProps): React.ReactElement {
-  const { resolved } = useTheme();
-  const colors = useThemeColors();
-  const spin = useSharedValue(0);
-  React.useEffect(() => {
-    spin.value = withRepeat(
-      withTiming(1, { duration: SPOTLIGHT.glowSpinMs, easing: Easing.linear }),
-      -1,
-      false,
-    );
-  }, [spin]);
-  const fadeStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
-  const bandStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value * 360}deg` }],
-  }));
-  // Square sized to the diagonal, so the band still spans the rim whatever the excerpt's proportions.
-  const side = Math.hypot(rect.width, rect.height);
-  const ring: ViewStyle = {
-    borderRadius: SPOTLIGHT.spotlightRadius,
-    borderWidth: SPOTLIGHT.glowRingWidth,
-  };
+// Everything except the excerpt: a screen-sized rect with the cutout punched out of it.
+function dimMaskPath(
+  screenWidth: number,
+  screenHeight: number,
+  rect: SpotlightRect,
+  radius: number,
+): string {
+  const { top, left, width, height } = rect;
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[{ position: "absolute", ...rect }, fadeStyle]}
-    >
-      <View
-        style={[
-          StyleSheet.absoluteFillObject,
-          ring,
-          {
-            borderColor: withAlpha(colors.primary, SPOTLIGHT.glowRimAlpha),
-            boxShadow: boxShadow.excerptGlow[resolved],
-          },
-        ]}
-      />
-      <MaskedView
-        style={StyleSheet.absoluteFill}
-        maskElement={
-          <View
-            style={[
-              StyleSheet.absoluteFillObject,
-              ring,
-              { borderColor: "black" },
-            ]}
-          />
-        }
-      >
-        <Animated.View
-          style={[
-            {
-              position: "absolute",
-              width: side,
-              height: side,
-              left: (rect.width - side) / 2,
-              top: (rect.height - side) / 2,
-            },
-            bandStyle,
-          ]}
-        >
-          {/* Three palette hues inside the band, so the light that travels the rim shifts colour as it goes. */}
-          <LinearGradient
-            colors={[
-              withAlpha(colors.purple, 0),
-              colors.purple,
-              colors.pink,
-              colors.cyan,
-              withAlpha(colors.cyan, 0),
-            ]}
-            locations={[
-              0,
-              SPOTLIGHT.glowBandSpan * 0.25,
-              SPOTLIGHT.glowBandSpan * 0.5,
-              SPOTLIGHT.glowBandSpan * 0.75,
-              SPOTLIGHT.glowBandSpan,
-            ]}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
-      </MaskedView>
-    </Animated.View>
+    `M 0 0 H ${screenWidth} V ${screenHeight} H 0 Z ` +
+    `M ${left + radius} ${top} H ${left + width - radius} ` +
+    `A ${radius} ${radius} 0 0 1 ${left + width} ${top + radius} ` +
+    `V ${top + height - radius} ` +
+    `A ${radius} ${radius} 0 0 1 ${left + width - radius} ${top + height} ` +
+    `H ${left + radius} ` +
+    `A ${radius} ${radius} 0 0 1 ${left} ${top + height - radius} ` +
+    `V ${top + radius} ` +
+    `A ${radius} ${radius} 0 0 1 ${left + radius} ${top} Z`
   );
 }
 
@@ -166,6 +80,7 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
   onDeepDive,
   onWebSearch,
 }: ExcerptMenuProps): React.ReactElement | null {
+  const { resolved } = useTheme();
   const colors = useThemeColors();
   const haptics = useHaptics();
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
@@ -238,16 +153,15 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
     }),
     [anchor],
   );
-  // The dim as a spread shadow around a rounded hole: one transparent view over the excerpt, everything outside it
-  // darkened. Four bands would leave square corners, and iOS rounds the content it lifts above the dim.
-  const dimStyle = useMemo<ViewStyle>(
-    () => ({
-      position: "absolute",
-      ...spotlightRect,
-      borderRadius: SPOTLIGHT.spotlightRadius,
-      boxShadow: `0 0 0 ${SPOTLIGHT.spotlightSpread}px ${colors.scrimSheet}`,
-    }),
-    [spotlightRect, colors.scrimSheet],
+  const dimMask = useMemo(
+    () =>
+      dimMaskPath(
+        screenWidth,
+        screenHeight,
+        spotlightRect,
+        SPOTLIGHT.spotlightRadius,
+      ),
+    [screenWidth, screenHeight, spotlightRect],
   );
   // Both placements clamp into the same band, so neither the header orbs nor the composer can end up covered.
   const position = useMemo(() => {
@@ -275,16 +189,41 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
       pointerEvents="box-none"
       accessibilityViewIsModal
     >
-      {/* Kit ships a "Context Menu - Dimming Overlay", and iOS lifts the pressed content above it — so the dim stops at
-          the excerpt instead of covering it, and the whole surface stays the dismiss target. */}
+      {/* Kit ships a "Context Menu - Dimming Overlay", and iOS lifts the pressed content above it — so the dim and its
+          blur stop at the excerpt, which stays sharp and unshaded. The whole surface is the dismiss target. */}
       <RNPressable
-        className="absolute inset-0"
+        style={StyleSheet.absoluteFill}
         accessibilityRole="button"
         accessibilityLabel="Dismiss"
         onPress={close}
+      />
+      <MaskedView
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        maskElement={
+          <Svg width={screenWidth} height={screenHeight}>
+            <Path d={dimMask} fill={MASK_SHOW} fillRule="evenodd" />
+          </Svg>
+        }
       >
-        <Animated.View pointerEvents="none" style={[dimStyle, scrimStyle]} />
-      </RNPressable>
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: colors.scrimExcerpt },
+            scrimStyle,
+          ]}
+        >
+          {/* iOS only, as the sheet scrim does — Android's blur fallback is too uneven to dim with. */}
+          {Platform.OS === "ios" ? (
+            <BlurView
+              tint={resolved === "dark" ? "dark" : "light"}
+              intensity={SPOTLIGHT.dimBlurIntensity}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+          ) : null}
+        </Animated.View>
+      </MaskedView>
       <SpotlightGlow rect={spotlightRect} progress={progress} />
       <Animated.View
         pointerEvents="box-none"

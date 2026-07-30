@@ -8,3 +8,11 @@ export interface AnchorRect {
   left: number;
   width: number;
 }
+
+// The spotlight the excerpt menu cuts out of its dim: the anchor plus its padding, resolved to a drawable box.
+export interface SpotlightRect {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
