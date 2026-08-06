@@ -4,7 +4,7 @@
 
 **Pre-condition**: `/commit` ran successfully — branch is ahead of `develop`.
 
-**Base branch is `develop`.** `main` is release-only; PRs never target `main` directly.
+**Base branch is `develop`**, or the long-lived version branch this work is stacked on (`feat/X.Y`) when that is where it belongs. `main` is release-only; PRs never target `main` directly.
 
 ## The loop (iterative)
 
@@ -59,9 +59,26 @@ AI-made PR → end the body with the assisting tool's attribution footer (e.g. `
 
 ### Step 7 — Open the PR
 
+Every PR carries an **assignee** and exactly **one type label**. The assignee is the person accountable for the work, never the tool that helped — that credit lives in the body footer. The label is what makes the PR list readable at a glance, so it is set at creation, not later.
+
+| Branch prefix | Label |
+| --- | --- |
+| `feat/` | `feature` |
+| `fix/` | `bug` |
+| `hotfix/` | `hotfix` |
+| `chore/` · `refactor/` · `docs/` | `chore` |
+| `release/X.Y.Z` | `release` |
+
+Add `needs-device` **on top of** the type label whenever CI cannot prove the change: anything native, anything only a device or simulator pass can exercise. Green checks on such a PR mean the code compiles, not that it works.
+
 ```bash
-gh pr create --base develop --head "$(git branch --show-current)" --title "..." --body "..."
+gh pr create --base develop --head "$(git branch --show-current)" \
+  --title "..." --body "..." \
+  --assignee @me \
+  --label feature
 ```
+
+`@me` resolves to the authenticated account — the human whose token opened the PR, which is the human who owns the work. Never invent a label that does not exist in the repo: stop and ask, as AGENTS.md §"When the docs and the code disagree" requires.
 
 ### Step 8 — Announce the URL and STOP
 
@@ -82,6 +99,7 @@ git remote prune origin
 - Force-push without `--force-with-lease`.
 - Merge own PR.
 - Title-only PRs (body required).
+- Open a PR with no assignee, or without its type label.
 - Use any language other than English in the PR body.
 - Mix scopes (one PR = one logical concern).
-- Target `main` directly — PRs go into `develop`.
+- Target `main` directly — `main` moves on release only.
