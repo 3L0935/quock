@@ -61,25 +61,28 @@ AI-made PR → end the body with the assisting tool's attribution footer (e.g. `
 
 A maintainer-opened PR carries an **assignee** and exactly **one type label**, both set here and not remembered later. The assignee is the human accountable for the work; the tool that helped is credited in the body footer instead.
 
+First match wins:
+
 | Branch | Label |
 | --- | --- |
+| `chore/release-*` | `release` |
 | `feat/` | `feature` |
 | `fix/` | `bug` |
-| `hotfix/` | `hotfix` |
-| `release/X.Y.Z` · `chore/release-*` | `release` |
 | `chore/` · `refactor/` · `docs/` | `chore` |
-| no prefix (e.g. a back-merge) | from the title's Conventional Commit type |
+| anything else | from the title's type: `feat` → `feature`, `fix` → `bug`, otherwise `chore` |
+
+Shipping a release line is not this procedure's job — `release/X.Y.Z` targets `main` and belongs to [`release.md`](./release.md).
 
 Add `needs-device` **alongside** the type label when the change is one CI cannot judge — anything native, anything only a device or simulator can exercise. CI here runs lint, typecheck and Jest; it never builds the app, so green says nothing about whether the thing runs.
 
 ```bash
 gh pr create --base develop --head "$(git branch --show-current)" \
   --title "..." --body "..." \
-  --assignee "$(gh api user --jq .login)" \
+  --assignee @me \
   --label "<type-label>"            # --label "<type-label>,needs-device" when it applies
 ```
 
-Check the login the token resolves to before trusting it: on a bot or CI token it is not the human. A label missing from the repo is not invented on the spot — **STOP** and ask the human to create it. From a fork neither flag is permitted, so a contributor PR is exempt and the maintainer labels it on arrival.
+`@me` is whoever owns the token, which on a CI or agent token is not the human — check it, and pass the maintainer's login instead when it is not. A label missing from the repo is not invented on the spot: **STOP** and ask for it. From a fork GitHub allows neither flag, so a contributor PR is exempt and gets labelled on arrival.
 
 ### Step 8 — Announce the URL and STOP
 
