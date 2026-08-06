@@ -4,7 +4,7 @@
 
 **Pre-condition**: `/commit` ran successfully — branch is ahead of `develop`.
 
-**Base branch is `develop`**, or the long-lived version branch this work is stacked on (`feat/X.Y`) when that is where it belongs. `main` is release-only; PRs never target `main` directly.
+**Base branch is `develop`.** `main` is release-only; PRs never target `main` directly.
 
 ## The loop (iterative)
 
@@ -59,26 +59,27 @@ AI-made PR → end the body with the assisting tool's attribution footer (e.g. `
 
 ### Step 7 — Open the PR
 
-Every PR carries an **assignee** and exactly **one type label**. The assignee is the person accountable for the work, never the tool that helped — that credit lives in the body footer. The label is what makes the PR list readable at a glance, so it is set at creation, not later.
+A maintainer-opened PR carries an **assignee** and exactly **one type label**, both set here and not remembered later. The assignee is the human accountable for the work; the tool that helped is credited in the body footer instead.
 
-| Branch prefix | Label |
+| Branch | Label |
 | --- | --- |
 | `feat/` | `feature` |
 | `fix/` | `bug` |
 | `hotfix/` | `hotfix` |
+| `release/X.Y.Z` · `chore/release-*` | `release` |
 | `chore/` · `refactor/` · `docs/` | `chore` |
-| `release/X.Y.Z` | `release` |
+| no prefix (e.g. a back-merge) | from the title's Conventional Commit type |
 
-Add `needs-device` **on top of** the type label whenever CI cannot prove the change: anything native, anything only a device or simulator pass can exercise. Green checks on such a PR mean the code compiles, not that it works.
+Add `needs-device` **alongside** the type label when the change is one CI cannot judge — anything native, anything only a device or simulator can exercise. CI here runs lint, typecheck and Jest; it never builds the app, so green says nothing about whether the thing runs.
 
 ```bash
 gh pr create --base develop --head "$(git branch --show-current)" \
   --title "..." --body "..." \
-  --assignee @me \
-  --label feature
+  --assignee "$(gh api user --jq .login)" \
+  --label "<type-label>"            # --label "<type-label>,needs-device" when it applies
 ```
 
-`@me` resolves to the authenticated account — the human whose token opened the PR, which is the human who owns the work. Never invent a label that does not exist in the repo: stop and ask, as AGENTS.md §"When the docs and the code disagree" requires.
+Check the login the token resolves to before trusting it: on a bot or CI token it is not the human. A label missing from the repo is not invented on the spot — **STOP** and ask the human to create it. From a fork neither flag is permitted, so a contributor PR is exempt and the maintainer labels it on arrival.
 
 ### Step 8 — Announce the URL and STOP
 
@@ -99,7 +100,7 @@ git remote prune origin
 - Force-push without `--force-with-lease`.
 - Merge own PR.
 - Title-only PRs (body required).
-- Open a PR with no assignee, or without its type label.
+- Open a maintainer PR with no assignee, or without its type label.
 - Use any language other than English in the PR body.
 - Mix scopes (one PR = one logical concern).
-- Target `main` directly — `main` moves on release only.
+- Target `main` directly — PRs go into `develop`.
