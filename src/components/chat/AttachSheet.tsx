@@ -16,6 +16,7 @@ import type {
   UiAttachmentInvalidReason,
 } from "@/modules/chat/types";
 import { isImageMime, isTextDocument } from "@/modules/chat/lib/documentText";
+import { isPdf } from "@/modules/chat/lib/pdfDocument";
 import { readUriAsBytes } from "@/modules/chat/lib/imageUpload";
 import { useToast } from "@/lib/hooks/useToast";
 import { componentLayout } from "@/lib/design/tokens";
@@ -65,8 +66,14 @@ function validateAttachment(
   filename: string,
 ): UiAttachmentInvalidReason | null {
   if (sizeBytes > ATTACHMENT_MAX_BYTES) return "too_large";
-  // Images ride the vision path; text/code docs are inlined on send. Everything else (pdf/docx/binary) is unsupported.
-  if (isImageMime(mimeType) || isTextDocument(mimeType, filename)) return null;
+  // Images ride the vision path; text/code docs are inlined on send; a PDF does both (text layer for every model,
+  // rendered pages for vision ones). Everything else (docx/binary) is unsupported.
+  if (
+    isImageMime(mimeType) ||
+    isTextDocument(mimeType, filename) ||
+    isPdf(mimeType, filename)
+  )
+    return null;
   return "unsupported_type";
 }
 // Monotonic per-session counter for unique attachment ids — survives duplicate-file picks (same uri).
@@ -224,9 +231,12 @@ export function AttachSheet({
     }
   }, [currentCount, onAttach, onClose, onReopen, toast]);
   const handleFile = useCallback(async (): Promise<void> => {
-    if (currentCount >= ATTACHMENT_SELECTION_LIMIT) {
+    // Same running-total guard the photo picker uses: the OS limit only bounds one trip, so reopening the sheet would
+    // otherwise stack past the cap.
+    const remaining = ATTACHMENT_SELECTION_LIMIT - currentCount;
+    if (remaining <= 0) {
       toast({
-        title: `You can attach up to ${ATTACHMENT_SELECTION_LIMIT} images`,
+        title: `You can attach up to ${ATTACHMENT_SELECTION_LIMIT} files`,
         tone: "error",
       });
       return;
@@ -234,30 +244,65 @@ export function AttachSheet({
     onClose();
     await delay(ATTACH_PICKER_PRESENT_DELAY_MS);
     try {
-      // Accept any type; the chip itself flags unsupported mimes and Composer disables Send.
+      // Accept any type; the chip itself flags unsupported mimes and Composer disables Send. Several at once, because
+      // a question is often about two documents — a bill and the one before it, a contract and its annex.
       const result = await DocumentPicker.getDocumentAsync({
         copyToCacheDirectory: true,
+        multiple: true,
       });
       if (result.canceled) {
         onReopen?.();
         return;
       }
-      const asset = result.assets[0];
-      if (!asset) return;
-      const bytes = await readUriAsBytes(asset.uri);
-      onAttach(
-        buildAttachment(
-          {
-            filename: asset.name,
-            uri: asset.uri,
-            data: bytes,
-            ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
-          },
-          bytes.byteLength,
-        ),
-      );
+      // The OS picker has no per-trip limit for documents, so the slots left are enforced here.
+      const attempted = Math.min(result.assets.length, remaining);
+      let unread = 0;
+      for (const asset of result.assets.slice(0, attempted)) {
+        // Per file, not per trip: one unreadable pick used to abort the loop and drop every file chosen after it.
+        try {
+          const bytes = await readUriAsBytes(asset.uri);
+          onAttach(
+            buildAttachment(
+              {
+                filename: asset.name,
+                uri: asset.uri,
+                data: bytes,
+                ...(asset.mimeType !== undefined
+                  ? { mimeType: asset.mimeType }
+                  : {}),
+              },
+              bytes.byteLength,
+            ),
+          );
+        } catch (err) {
+          console.warn("AttachSheet: could not read a picked file", err);
+          unread += 1;
+        }
+      }
+      // One toast, because the store keeps only the last: two calls here meant the dropped file was announced and then
+      // instantly overwritten by the softer cap warning, which is the silence this branch exists to remove.
+      // Counted, not assumed: a pick can lose files two ways at once — unreadable, and past the slots left — and the
+      // description has to hold for both, since the store shows one toast and this is the only account of the pick.
+      const attached = attempted - unread;
+      const overCap = result.assets.length - attempted;
+      const capNote = ` ${overCap} more didn't fit — a message carries up to ${ATTACHMENT_SELECTION_LIMIT}.`;
+      if (unread > 0) {
+        toast({
+          title: `${unread} file${unread > 1 ? "s" : ""} couldn't be read`,
+          description: `${
+            attached > 0 ? `${attached} attached.` : "Nothing was attached."
+          }${overCap > 0 ? capNote : ""}`,
+          tone: "error",
+        });
+      } else if (overCap > 0) {
+        toast({
+          title: `Only ${remaining} more file${remaining > 1 ? "s" : ""} fit`,
+          description: `A message carries up to ${ATTACHMENT_SELECTION_LIMIT} attachments.`,
+          tone: "warning",
+        });
+      }
     } catch (err) {
-      console.error("AttachSheet: document picker failed", err);
+      console.warn("AttachSheet: document picker failed", err);
     }
   }, [currentCount, onAttach, onClose, onReopen, toast]);
   return (

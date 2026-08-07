@@ -75,6 +75,18 @@ const ADD_CHAT_USER = `
   ALTER TABLE chats ADD COLUMN user_id TEXT;
   CREATE INDEX IF NOT EXISTS idx_chats_user_updated ON chats(user_id, updated_at DESC);
 `;
+// A PDF's extracted text (JSON, so the per-page structure survives), stored once so every later turn can replay it without a native pass. NULL for anything re-decodable from `data`. The index serves the per-chat attachment read.
+// Numbered 10 because a build carrying a DIFFERENT migration 9 stamped user_version = 9 on a device: an id is spent the moment any install runs it, even if the migration is deleted before merge.
+const ADD_ATTACHMENT_TEXT = `
+  ALTER TABLE attachments ADD COLUMN text_content TEXT;
+  CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
+`;
+
+// Marks a row the app derived from another attachment (a PDF page rendered for a vision model). The UI hides these —
+// you attached one document, you should see one document — while the wire still needs them on every replayed turn.
+const ADD_ATTACHMENT_DERIVED = `
+  ALTER TABLE attachments ADD COLUMN derived_from INTEGER;
+`;
 
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
@@ -85,6 +97,8 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 6, up: ADD_CHAT_COMPOSER_MODES },
   { id: 7, up: ADD_MESSAGE_SENT_MODES },
   { id: 8, up: ADD_CHAT_USER },
+  { id: 10, up: ADD_ATTACHMENT_TEXT },
+  { id: 11, up: ADD_ATTACHMENT_DERIVED },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0

@@ -36,13 +36,6 @@ import type {
   ToolActivity,
 } from "@/modules/chat/stores/streaming.store";
 
-// API-side narrowed attachment shape (no `uri`). Used by both `send` and `regenerate` paths.
-export interface ApiAttachment {
-  filename: string;
-  data: Uint8Array;
-  mimeType?: string;
-}
-
 // Per-call mutable buffer held in a closure so it survives every flush micro-task.
 interface StreamBuffers {
   // Visible answer (inline <think> stripped out); derived from `rawContent` on each chat event.
@@ -152,7 +145,6 @@ export async function runStream(
   modelName: string,
   assistantId: MessageId,
   wireMessages: WireChatMessage[],
-  apiAttachments: ApiAttachment[],
   think: boolean | undefined,
   tools: readonly ToolDefinition[] | undefined,
 ): Promise<void> {
@@ -333,8 +325,6 @@ export async function runStream(
         chatId,
         messages: turnMessages,
         model: modelName,
-        // Images ride only on the first turn's user message; later turns end in tool results.
-        attachments: round === 0 ? apiAttachments : undefined,
         think,
         tools,
         signal: controller.signal,

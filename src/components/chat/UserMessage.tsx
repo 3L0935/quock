@@ -3,7 +3,7 @@
 import { Brain, Check, Copy, Globe, Pencil } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -60,7 +60,13 @@ function UserMessageImpl({
   onEdit,
 }: UserMessageProps): React.ReactElement {
   const colors = useThemeColors();
-  const hasAttachments = attachments !== undefined && attachments.length > 0;
+  // Pages the app rendered from a PDF are hidden here: you attached one document, you see one document. They still
+  // travel to the model, which is where they earn their keep.
+  const picked = useMemo(
+    () => attachments?.filter((a) => a.derivedFrom === null) ?? [],
+    [attachments],
+  );
+  const hasAttachments = picked.length > 0;
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [draft, setDraft] = useState<string>(message.content);
   // Gate the entrance to the just-sent turn so recycled cells don't re-fire when scrolling.
@@ -123,13 +129,16 @@ function UserMessageImpl({
     return (
       <Animated.View style={animatedStyle}>
         {hasAttachments ? (
-          <View className="px-4 pt-2 items-end">
-            <View className="flex-row flex-wrap gap-2 justify-end">
-              {attachments?.map((a) => (
-                <PersistedAttachmentChip key={String(a.id)} attachment={a} />
-              ))}
-            </View>
-          </View>
+          <ScrollView
+            key={String(message.id)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="grow justify-end px-4 pt-2 gap-2"
+          >
+            {picked.map((a) => (
+              <PersistedAttachmentChip key={String(a.id)} attachment={a} />
+            ))}
+          </ScrollView>
         ) : null}
         <View className="px-4 py-2">
           <TextField
@@ -162,13 +171,18 @@ function UserMessageImpl({
   return (
     <Animated.View style={animatedStyle}>
       {hasAttachments ? (
-        <View className="px-4 pt-2 items-end">
-          <View className="flex-row flex-wrap gap-2 justify-end">
-            {attachments?.map((a) => (
-              <PersistedAttachmentChip key={String(a.id)} attachment={a} />
-            ))}
-          </View>
-        </View>
+        /* One scrolling band instead of a wrap, which turned six attachments into a ragged staircase. Its gutter is the
+           bubble's own `px-4`, and it is keyed by message so a recycled row cannot inherit another's scroll offset. */
+        <ScrollView
+          key={String(message.id)}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="grow justify-end px-4 pt-2 gap-2"
+        >
+          {picked.map((a) => (
+            <PersistedAttachmentChip key={String(a.id)} attachment={a} />
+          ))}
+        </ScrollView>
       ) : null}
       <MessageBubble role="user">
         <Text className="font-sans text-body text-primary-foreground">
