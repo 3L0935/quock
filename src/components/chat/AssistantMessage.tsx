@@ -19,7 +19,10 @@ import { iconSize, strokeWidth } from "@/lib/design/tokens";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { StreamingCursor } from "@/components/chat/StreamingCursor";
 import { ThinkingBlock } from "@/components/chat/ThinkingBlock";
-import { ThinkingDots } from "@/components/chat/ThinkingDots";
+import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
+import { useIsReasoning } from "@/modules/chat/hooks/useIsReasoning";
+import { useIsStreamSilent } from "@/modules/chat/hooks/useIsStreamSilent";
+import { useRevealedContent } from "@/modules/chat/hooks/useRevealedContent";
 import type { DbMessage, MessageErrorCode } from "@/lib/db/types";
 import { useToast } from "@/lib/hooks/useToast";
 import {
@@ -164,6 +167,17 @@ function AssistantMessageImpl({
     [openExcerptMenu],
   );
   const isPending = message.status === "pending";
+  const isReasoning = useIsReasoning(message.chatId);
+  // Reasoning is the exact signal; silence covers everything it cannot see — the wait before a tool call, the
+  // round-trip, the pause before the model commits. Together they leave no dead air unexplained.
+  const isSilent = useIsStreamSilent(
+    isStreaming,
+    message.content.length + (message.thinking?.length ?? 0),
+  );
+  const isWorking = isStreaming && (isReasoning || isSilent);
+  // Only the painted source is paced; every gate below still reads the real content, so the cursor and the working
+  // indicator never flicker because the screen is a few characters behind.
+  const revealedContent = useRevealedContent(message.content, isStreaming);
   const isError = message.status === "error";
   const isInterrupted = message.status === "interrupted";
   // Has the model produced any reasoning yet (think: true models stream `<think>` tokens before the answer).
@@ -172,8 +186,8 @@ function AssistantMessageImpl({
   // A web tool is running right now — only on the live streaming row, never on older bubbles that share the chat's transient activity.
   const isSearching = isStreaming && toolActivity !== undefined;
   const showCursor = !isPending && isStreaming && !hasContent;
-  // Spinner only when there is genuinely nothing to show yet: no reasoning, no answer, no active tool. Everything else stacks, so think + search no longer fight for the same slot.
-  const showThinkingDots =
+  // Only before anything exists. Once there is reasoning text the block owns the signal and shimmers its own header.
+  const showThinkingIndicator =
     isPending && !hasThinking && !hasContent && !isSearching;
   // Non-fatal note: the search failed but the model still answered (hard failures take the error branch instead).
   const showWebSearchFailed =
@@ -189,13 +203,14 @@ function AssistantMessageImpl({
             thinking={message.thinking ?? ""}
             isStreaming={isStreaming}
             hasContent={hasContent}
+            isWorking={isWorking}
           />
         ) : null}
         {hasContent || showCursor ? (
           <View className="flex-row items-end flex-wrap">
             {/* Excerpt actions only on a landed reply: mid-stream the list follows the tail, so a menu anchored to a moving unit would drift off it. */}
             <Markdown
-              source={message.content}
+              source={revealedContent}
               className="flex-1"
               {...(showActionRow
                 ? { onLongPressExcerpt: handleLongPressExcerpt }
@@ -211,7 +226,7 @@ function AssistantMessageImpl({
             <SearchingIndicator activity={toolActivity} />
           </View>
         ) : null}
-        {showThinkingDots ? <ThinkingDots /> : null}
+        {showThinkingIndicator ? <ThinkingIndicator /> : null}
         {showWebSearchFailed ? <WebSearchFailedNote /> : null}
         {isError ? (
           <View className="mt-2 flex-row items-center self-start rounded-full bg-destructive-soft pl-3.5 pr-1.5 py-1.5">
