@@ -361,6 +361,14 @@ Workarounds for known New-Architecture quirks. Apply categorically:
 
 ---
 
+## Platform notes (Android)
+
+- **`measureInWindow` carries the viewport offset** (minus the status bar; zero on iOS) — anchor against the overlay's own ancestor, both reads in one press (`anchorRelativeTo`); `measureLayout` also drops scroll offset.
+- **Hardware back skips absolute overlays** — `<Modal>` catches it via `onRequestClose`; `ExcerptMenu` registers its own `BackHandler`.
+- **Scrims go blur-free here**, so a tone tuned beside a blur has to be replaced — the excerpt dim takes `scrim`.
+
+---
+
 ## Environment & secrets
 
 Quock has no runtime `.env` — the device Ed25519 seed is generated on first launch and lives in `expo-secure-store`, never on disk in plain form. **Never paste tokens, API keys, or seed material in chat, commits, logs, or screenshots** — redact in summaries.

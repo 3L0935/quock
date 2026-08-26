@@ -140,11 +140,13 @@ const light = {
   // Sheet scrim is lighter than the dialog scrim — iOS 27 kit overlay value.
   scrimSheet: "rgba(0,0,0,0.2)",
   scrimPage: "rgba(0,0,0,0.07)",
-  // Excerpt menu dims less than a sheet because it also blurs, and the blur separates the surround on its own.
+  // Excerpt menu dims less than a sheet because it also blurs, and the blur separates the surround on its own. iOS only:
+  // without that blur the tone barely marks the surround, so the Android path takes `scrim` instead.
   scrimExcerpt: "rgba(0,0,0,0.08)",
   // Excerpt spotlight rim ONLY — the ported BorderGlow mesh hues. Never an app accent: they live outside the Apple HIG
   // set on purpose and must not leak into general use. The rim's warm edge light lives in boxShadow.excerptRim.
-  excerptRimMesh: ["#c084fc", "#f472b6", "#38bdf8"],
+  // A step deeper than dark's: here the scrim leaves the surround near 223, where mid-tone hues read as washed out.
+  excerptRimMesh: ["#a855f7", "#ec4899", "#0ea5e9"],
   shadow: "#000000",
   // Theme-stable: iOS UISwitch thumb is white on both themes (Apple system convention).
   thumbFill: "#FFFFFF",
@@ -189,7 +191,7 @@ const dark = {
   scrimPage: "rgba(0,0,0,0.16)",
   // Deeper than light: over a near-black body a 0.08 wash does not separate the surround at all.
   scrimExcerpt: "rgba(0,0,0,0.16)",
-  // Same rim palette as light — the effect sits on the dimmed surround, which is neutral in both themes.
+  // Lighter than light's: over a surround the scrim takes to near-black, these carry without deepening.
   excerptRimMesh: ["#c084fc", "#f472b6", "#38bdf8"],
   shadow: "#000000",
   // Same as light — Apple system convention.

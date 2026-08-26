@@ -11,6 +11,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { anchorRelativeTo } from "@/components/ui/markdown/anchorRect";
 import type { AnchorRect } from "@/lib/types/geometry";
 import {
   type BlockNode,
@@ -27,6 +28,9 @@ export interface MarkdownProps {
   className?: string;
   testID?: string;
   onLongPressExcerpt?: OnLongPressExcerpt;
+  // The view a long-press anchor is measured against, which is the one the excerpt overlay fills. Required, not
+  // optional: an anchor measured against nothing lands in the wrong space, which is the bug this whole path fixes.
+  anchorSpace: React.RefObject<View | null>;
   // Namespace prepended to unit keys so highlights never collide across messages.
   highlightPrefix?: string;
   // Full key (prefix:unitKey) of the unit to tint while its menu is open.
@@ -284,6 +288,7 @@ export function Markdown({
   className,
   testID,
   onLongPressExcerpt,
+  anchorSpace,
   highlightPrefix,
   activeHighlightKey,
 }: MarkdownProps): React.ReactElement {
@@ -292,20 +297,27 @@ export function Markdown({
   // Reparsing on every render would run the whole reply through the parser twice per menu open/close.
   const blocks = React.useMemo(() => parseMarkdown(source), [source]);
   const units = React.useMemo(() => groupIntoUnits(blocks), [blocks]);
-  // Measure the unit's container in-window and hand its top/bottom to the pill so it anchors above/below, not over the text.
+  // Measure the unit's container and hand its top/bottom to the pill so it anchors above/below, not over the text.
   const open = (unitKey: string): void => {
     if (!onLongPressExcerpt) return;
+    const space = anchorSpace.current;
+    if (!space) return;
     const full = `${prefix}:${unitKey}`;
     const node = unitRefs.current.get(full);
     if (node) {
       node.measureInWindow((x, y, w, h) => {
         // A recycled or detached FlashList node measures as zeros; anchoring to that would park the menu at the top edge.
         if (w === 0 && h === 0) return;
-        onLongPressExcerpt(full, {
-          top: y,
-          bottom: y + h,
-          left: x,
-          width: w,
+        // Read here rather than cached on layout: an origin sampled at another moment carries whatever transform was
+        // on screen then — a chat opened from the drawer lays out while the panel still covers it.
+        space.measureInWindow((originX, originY) => {
+          onLongPressExcerpt(
+            full,
+            anchorRelativeTo(
+              { x, y, width: w, height: h },
+              { x: originX, y: originY },
+            ),
+          );
         });
       });
     }

@@ -34,6 +34,7 @@ import type { MessageId } from "@/lib/types/ids";
 export interface AssistantMessageProps {
   message: DbMessage;
   isStreaming: boolean;
+  anchorSpace: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
 }
@@ -122,6 +123,7 @@ function WebSearchFailedNote(): React.ReactElement {
 function AssistantMessageImpl({
   message,
   isStreaming,
+  anchorSpace,
   onRegenerate,
   onRetry,
 }: AssistantMessageProps): React.ReactElement {
@@ -210,6 +212,7 @@ function AssistantMessageImpl({
             <Markdown
               source={revealedContent}
               className="flex-1"
+              anchorSpace={anchorSpace}
               {...(showActionRow
                 ? { onLongPressExcerpt: handleLongPressExcerpt }
                 : {})}
