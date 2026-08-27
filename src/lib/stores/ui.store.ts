@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { timingsNamed } from "@/lib/design/tokens";
+import type { AnchorRect } from "@/lib/types/geometry";
 import type { MessageId } from "@/lib/types/ids";
 
 // "default" → the picker writes to settings.store.selectedModelName (persisted user preference).
@@ -22,10 +23,17 @@ interface UIState {
   // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Holds the message id; content is resolved from the query cache, never mirrored here.
   selectTextOpen: boolean;
   selectTextMessageId: MessageId | null;
+  // Excerpt menu — long-pressing a reply unit pops a floating toolbar (Deep dive / Web search) anchored to it.
+  excerptMenuOpen: boolean;
+  // Key of the highlighted unit (`messageId:unitKey`): the reply tints exactly the acted-on section, and the text is
+  // resolved from the chat cache when an action fires — never mirrored here, as the select-text sheet above.
+  excerptMenuKey: string;
+  excerptMenuAnchor: AnchorRect;
   // Sheet toggles
   openChatHistory: () => void;
   closeChatHistory: () => void;
   openModelPicker: () => void;
+  openModelPickerAsDefault: () => void;
   closeModelPicker: () => void;
   openAccount: () => void;
   closeAccount: () => void;
@@ -33,6 +41,10 @@ interface UIState {
   closeAttach: () => void;
   openSelectText: (messageId: MessageId) => void;
   closeSelectText: () => void;
+  openExcerptMenu: (key: string, anchor: AnchorRect) => void;
+  closeExcerptMenu: () => void;
+  /** Drops the highlight once the menu's exit animation has finished, not when it starts. */
+  clearExcerptHighlight: () => void;
   // Choreographed transitions: close the current sheet, then schedule the next after `timingsNamed.sheetCloseTail` so the two animations do not stack and stutter.
   switchToModelPickerFromAccount: () => void;
 }
@@ -46,6 +58,9 @@ export const useUIStore = create<UIState>((set) => ({
   openSheetCount: 0,
   selectTextOpen: false,
   selectTextMessageId: null,
+  excerptMenuOpen: false,
+  excerptMenuKey: "",
+  excerptMenuAnchor: { top: 0, bottom: 0, left: 0, width: 0 },
   openChatHistory: (): void => {
     set({ chatHistoryOpen: true });
   },
@@ -55,6 +70,11 @@ export const useUIStore = create<UIState>((set) => ({
   // Header tap → current-chat override.
   openModelPicker: (): void => {
     set({ modelPickerOpen: true, modelPickerMode: "current" });
+  },
+  // Picked from the chats page, where no conversation is on screen: there is nothing to pin to, so the choice moves the
+  // global default — which is what the next new chat is born with, since a fresh row carries no model of its own.
+  openModelPickerAsDefault: (): void => {
+    set({ modelPickerOpen: true, modelPickerMode: "default" });
   },
   closeModelPicker: (): void => {
     set({ modelPickerOpen: false });
@@ -76,6 +96,15 @@ export const useUIStore = create<UIState>((set) => ({
   },
   closeSelectText: (): void => {
     set({ selectTextOpen: false });
+  },
+  openExcerptMenu: (key, anchor): void => {
+    set({ excerptMenuOpen: true, excerptMenuKey: key, excerptMenuAnchor: anchor });
+  },
+  closeExcerptMenu: (): void => {
+    set({ excerptMenuOpen: false });
+  },
+  clearExcerptHighlight: (): void => {
+    set({ excerptMenuKey: "" });
   },
   pushSheet: (): void => {
     set((s) => ({ openSheetCount: s.openSheetCount + 1 }));

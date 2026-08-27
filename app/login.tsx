@@ -180,7 +180,7 @@ export default function Login(): React.ReactElement {
             style={errorAnimatedStyle}
             className="mt-4 rounded-lg border border-destructive/40 bg-destructive-soft px-4 py-3"
           >
-            <Text className="font-sans text-sm text-destructive">
+            <Text className="font-sans text-footnote text-destructive">
               {error.message || "Sign-in failed. Please try again."}
             </Text>
           </Animated.View>
@@ -196,7 +196,7 @@ export default function Login(): React.ReactElement {
             />
           </Animated.View>
           <Animated.Text
-            className="mb-8 text-center font-sans text-foreground font-semibold text-xl max-w-title"
+            className="mb-8 text-center font-sans text-foreground font-bold text-title-2 max-w-title"
             style={titleAnimatedStyle}
           >
             Sign in to your Ollama account
@@ -225,7 +225,7 @@ export default function Login(): React.ReactElement {
               onPress={() => openExternal(LEGAL_URLS.privacy)}
               haptic={false}
             >
-              <Text className="font-sans text-muted-foreground text-sm">
+              <Text className="font-sans text-footnote text-muted-foreground">
                 Privacy
               </Text>
             </Pressable>
@@ -234,12 +234,12 @@ export default function Login(): React.ReactElement {
               onPress={() => openExternal(LEGAL_URLS.terms)}
               haptic={false}
             >
-              <Text className="font-sans text-muted-foreground text-sm">
+              <Text className="font-sans text-footnote text-muted-foreground">
                 Terms of Service
               </Text>
             </Pressable>
           </View>
-          <Text className="mt-3.5 text-center font-mono text-xs tracking-wide text-muted-foreground">
+          <Text className="mt-3.5 text-center font-mono text-caption-2 tracking-wide text-muted-foreground">
             {formatVersion()}
           </Text>
           {__DEV__ ? (
@@ -252,7 +252,7 @@ export default function Login(): React.ReactElement {
               accessibilityLabel="Wipe SecureStore and reload (dev only)"
               testID="dev-wipe"
             >
-              <Text className="font-mono text-muted-foreground text-xs tracking-wide underline">
+              <Text className="font-mono text-caption-2 text-muted-foreground tracking-wide underline">
                 DEV: wipe keypair &amp; reload
               </Text>
             </Pressable>

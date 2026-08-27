@@ -12,7 +12,8 @@ import React, {
 import { ScrollView, Text, View } from "react-native";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, timingsNamed } from "@/lib/design/tokens";
-import { Check, Copy } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import Copy from "lucide-react-native/icons/copy";
 import { highlightCode } from "@/components/ui/markdown/highlight";
 import { Pressable } from "@/components/ui/Pressable";
 
@@ -72,7 +73,7 @@ export function CodeBlock({
       )}
     >
       <View className="flex-row items-center justify-between px-3 py-2 border-b border-border">
-        <Text className="font-mono text-xs text-muted-foreground uppercase tracking-wider">
+        <Text className="font-mono text-caption-2 text-muted-foreground uppercase tracking-wider">
           {lang ?? "text"}
         </Text>
         <Pressable
@@ -95,7 +96,7 @@ export function CodeBlock({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: CODE_BODY_PADDING_X, paddingVertical: CODE_BODY_PADDING_Y }}
       >
-        <Text className="font-mono text-foreground text-xs">
+        <Text className="font-mono text-footnote text-foreground">
           {segments.map((segment, index) => (
             <Text key={index} style={{ color: colors.syntax[segment.kind] }}>
               {segment.text}

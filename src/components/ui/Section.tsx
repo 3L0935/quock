@@ -1,8 +1,9 @@
-// Grouped list block with an optional uppercase eyebrow label.
+// Grouped list block with an optional sentence-case header label.
 
 import React, { type ReactNode } from "react";
 import { Text, View } from "react-native";
 import clsx from "clsx";
+import { componentLayout } from "@/lib/design/tokens";
 
 export interface SectionProps {
   label?: string;
@@ -22,12 +23,20 @@ function SectionImpl({
   return (
     <View className={clsx("mb-6", className)} testID={testID}>
       {label ? (
-        <Text className="font-mono uppercase text-muted-foreground font-medium text-xs mb-2 ml-4.5 tracking-widest">
+        // iOS 27 grouped-list header: Body semibold sentence case in the secondary tint (the uppercase footnote eyebrow was the classic style). 16pt inset flows from the token — ml-4.5 renders 18.
+        <Text
+          className="font-sans font-semibold text-body text-muted-foreground mb-2"
+          style={{ marginLeft: componentLayout.listSection.insetX }}
+        >
           {label}
         </Text>
       ) : null}
       {card ? (
-        <View className="bg-card rounded-xl overflow-hidden">
+        // 26pt iOS 27 inset-grouped rounding — exact pt lives in tokens (rounded-* tiers are rem-derived).
+        <View
+          className="bg-card overflow-hidden"
+          style={{ borderRadius: componentLayout.listSection.cardRadius }}
+        >
           {children}
         </View>
       ) : (

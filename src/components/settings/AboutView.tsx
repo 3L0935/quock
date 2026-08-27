@@ -2,24 +2,22 @@
 
 import React from "react";
 import { ScrollView, Text } from "react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import ExternalLink from "lucide-react-native/icons/external-link";
+import FileText from "lucide-react-native/icons/file-text";
+import Info from "lucide-react-native/icons/info";
+import LifeBuoy from "lucide-react-native/icons/life-buoy";
+import ShieldCheck from "lucide-react-native/icons/shield-check";
 import {
-  ChevronRight,
-  ExternalLink,
-  FileText,
-  Info,
-  LifeBuoy,
-  ShieldCheck,
-} from "lucide-react-native";
+  SETTINGS_SCROLL_PAD_TOP,
+  SETTINGS_SCROLL_PAD_BOTTOM,
+} from "@/modules/settings/constants";
 import OllamaSvg from "@/assets/icons/Ollama.svg";
-import { SettingsGroup } from "@/components/settings/SettingsGroup";
+import { Section } from "@/components/ui/Section";
 import { ListRow } from "@/components/ui/ListRow";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, size } from "@/lib/design/tokens";
 import { useAbout } from "@/modules/settings/hooks/useAbout";
-
-// Visual rhythm shared with SettingsView: breathing space after the sheet header, generous bottom inset.
-const SCROLL_PAD_TOP = 14;
-const SCROLL_PAD_BOTTOM = 40;
 
 export interface AboutViewProps {
   onOpenAiData: () => void;
@@ -36,20 +34,20 @@ export function AboutView({
     <ScrollView
       className="flex-1"
       contentContainerStyle={{
-        paddingTop: SCROLL_PAD_TOP,
-        paddingBottom: SCROLL_PAD_BOTTOM,
+        paddingTop: SETTINGS_SCROLL_PAD_TOP,
+        paddingBottom: SETTINGS_SCROLL_PAD_BOTTOM,
       }}
       showsVerticalScrollIndicator={false}
       bounces
       decelerationRate="normal"
     >
-      <SettingsGroup label="ABOUT">
+      <Section label="About">
         <ListRow
           icon={ShieldCheck}
           label="AI data sharing"
           onPress={onOpenAiData}
           trailing={
-            <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+            <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
           }
           testID="about-ai-consent"
         />
@@ -81,15 +79,15 @@ export function AboutView({
           icon={Info}
           label="Version"
           trailing={
-            <Text className="font-mono text-muted-foreground text-sm">
+            <Text className="font-mono text-body text-muted-foreground">
               {versionLabel}
             </Text>
           }
           showDivider={false}
         />
-      </SettingsGroup>
+      </Section>
       {/* `OLLAMA` eyebrow names the brand once; the row label is the descriptive content. The drill panel re-states the full disclaimer at the top for legal prominence. */}
-      <SettingsGroup label="OLLAMA">
+      <Section label="Ollama">
         <ListRow
           leading={
             <OllamaSvg
@@ -101,12 +99,12 @@ export function AboutView({
           label="Official channels — not affiliated"
           onPress={onOpenOllama}
           trailing={
-            <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+            <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
           }
           showDivider={false}
           testID="about-open-ollama"
         />
-      </SettingsGroup>
+      </Section>
     </ScrollView>
   );
 }

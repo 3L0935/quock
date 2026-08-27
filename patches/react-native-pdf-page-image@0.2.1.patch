@@ -1,0 +1,81 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 9719c815b73db70b545dd9d740320a2c9cbb5fec..b13f9431ac32df6e10f0a4033ec1e06e54a6da77 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -61,7 +61,8 @@ android {
+ repositories {
+   mavenCentral()
+   google()
+-  jcenter()  // Add this line to include JCenter repository
++  // Quock: dropped jcenter() — Gradle 9 removed the method itself, so this file could not be evaluated at all.
++  // Everything it once served is on mavenCentral(), declared two lines above.
+ 
+   def found = false
+   def defaultDir = null
+diff --git a/ios/PdfFlyweight.swift b/ios/PdfFlyweight.swift
+index c17614935aec755587f5bd1ae7be4cf7fce3aea0..da317df2949c27671f450040ab6eff3523e5cf73 100644
+--- a/ios/PdfFlyweight.swift
++++ b/ios/PdfFlyweight.swift
+@@ -101,8 +101,11 @@ class PdfFlyweight {
+             width: pageRect.width * scale,
+             height: pageRect.height * scale)
+         
+-        // Utilizar UIGraphicsImageRenderer para manejar el escalado y la creación de la imagen
+-        let renderer = UIGraphicsImageRenderer(size: scaledSize)
++        // Quock: the default format takes UIScreen.main.scale, so on a 3x iPhone the bitmap came out three times
++        // scaledSize on each axis — nine times the pixels, every one of them thrown away by the caller's downscale.
++        let format = UIGraphicsImageRendererFormat.default()
++        format.scale = 1
++        let renderer = UIGraphicsImageRenderer(size: scaledSize, format: format)
+         
+         // Renderizar la imagen utilizando el bloque de UIGraphicsImageRenderer
+         let scaledImage = renderer.image { context in
+@@ -115,7 +118,9 @@ class PdfFlyweight {
+             // Dibujar la página en el contexto
+             context.cgContext.saveGState()
+             context.cgContext.translateBy(x: 0, y: scaledSize.height)
+-            context.cgContext.scaleBy(x: 1.0, y: -1.0) // Invertir la imagen en el eje y
++            // Quock: `scale` has to reach the drawing too — PDFPage.draw applies only the page's own transform, so the
++            // page landed at original size in the corner of a larger white canvas (40% of each axis at scale 2.5).
++            context.cgContext.scaleBy(x: scale, y: -scale)
+             
+             // Especificar claramente cómo debe manejarse el renderizado del PDF
+             pdfPage.draw(with: .mediaBox, to: context.cgContext)
+@@ -180,8 +185,10 @@ class PdfFlyweight {
+         let uuidString = UUID().uuidString
+         
+         // Obtener el directorio de documentos de la aplicación
+-        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+-            fatalError("Error obteniendo el directorio de documentos.")
++        // Quock: caches, not documents. These are temporary renders; in Documents they are user-visible, backed up to
++        // iCloud, and never reclaimed by the OS when a crash strands them. Android already uses its cache dir.
++        guard let documentsDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
++            fatalError("Could not resolve the caches directory.")
+         }
+         
+         // Construir el nombre del archivo con el UUID y una extensión
+diff --git a/react-native-pdf-page-image.podspec b/react-native-pdf-page-image.podspec
+index 9182f3eb35e90a2f754ecdbe7491ad5bba283ad9..e8beb8dc4c5c49aefe2894c0f8b4bf4bfa659e2f 100644
+--- a/react-native-pdf-page-image.podspec
++++ b/react-native-pdf-page-image.podspec
+@@ -18,18 +18,6 @@ Pod::Spec.new do |s|
+ 
+   s.dependency "React-Core"
+ 
+-  # Don't install the dependencies when we run `pod install` in the old architecture.
+-  if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
+-    s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
+-    s.pod_target_xcconfig    = {
+-        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
+-        "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
+-    }
+-
+-    s.dependency "React-Codegen"
+-    s.dependency "RCT-Folly"
+-    s.dependency "RCTRequired"
+-    s.dependency "RCTTypeSafety"
+-    s.dependency "ReactCommon/turbomodule/core"
+-  end
++  # Quock: dropped the RCT_NEW_ARCH_ENABLED block — it wanted React-Codegen and RCT-Folly, pods RN 0.83 no longer
++  # ships, so `pod install` could not resolve. This is a legacy bridge module (RCTBridgeModule), not a TurboModule.
+ end

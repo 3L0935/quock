@@ -1,4 +1,4 @@
-// Pill orb — BlurView + tint + press feedback. Blur reveals scroll content; opaque surfaces show tint only.
+// Liquid Glass pill orb — BlurView + layered tint + specular ring/highlights + press feedback. Glass lives ONLY on floating controls over content (AGENTS.md §Surface primitives); solid surfaces never adopt it.
 
 import { BlurView } from "expo-blur";
 import React, { useCallback } from "react";
@@ -17,13 +17,15 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { pressSpring } from "@/lib/design/motion";
-import { componentLayout, motion, opacity, shadow } from "@/lib/design/tokens";
+import { boxShadow, componentLayout, motion, opacity, shadow } from "@/lib/design/tokens";
 
 export type GlassVariant = "clear" | "regular" | "thick";
 
 export interface GlassOrbProps {
   children?: React.ReactNode;
   variant?: GlassVariant;
+  /** `contained` shortens the ambient lift so the orb can sit inside a list row without shadowing its neighbours. */
+  lift?: "floating" | "contained";
   /** Adds the press-down feedback (scale + brightness boost). Default false. */
   interactive?: boolean;
   /** Suppresses the press handler + dims children + flags accessibility. */
@@ -43,6 +45,7 @@ export interface GlassOrbProps {
 export function GlassOrb({
   children,
   variant = "regular",
+  lift = "floating",
   interactive = false,
   disabled = false,
   tintColor,
@@ -58,15 +61,20 @@ export function GlassOrb({
   const themeColors = useThemeColors();
   const resolvedTint = tintColor ?? componentLayout.glassOrb.tint[resolved][variant];
   const isIOS = Platform.OS === "ios";
-  // Soft drop shadow lifts the orb off the surface. Android elevation needs an opaque base + radius on the wrapper (a transparent view casts nothing), so we paint the card surface under the blur; iOS honours shadow* on a transparent view untouched.
-  const shadowStyle: ViewStyle = {
-    shadowColor: themeColors.shadow,
-    shadowOpacity: shadow.orb.opacity,
-    shadowRadius: shadow.orb.radius,
-    shadowOffset: { width: 0, height: shadow.orb.offsetY },
-    elevation: shadow.orb.elevation,
-    ...(isIOS ? {} : { backgroundColor: themeColors.card, borderRadius }),
-  };
+  // iOS draws the glass ring + ambient lift via Fabric boxShadow on this unclipped wrapper (outset shadows escape the inner overflow-hidden). Android falls back to the solid recipe — dimezis blur + boxShadow insets misrender there, and elevation needs an opaque base + radius (a transparent view casts nothing).
+  const glassRecipe =
+    lift === "contained" ? boxShadow.glassContained : boxShadow.glass;
+  const shadowStyle: ViewStyle = isIOS
+    ? { borderRadius, boxShadow: glassRecipe[resolved].ring }
+    : {
+        shadowColor: themeColors.shadow,
+        shadowOpacity: shadow.orb.opacity,
+        shadowRadius: shadow.orb.radius,
+        shadowOffset: { width: 0, height: shadow.orb.offsetY },
+        elevation: shadow.orb.elevation,
+        backgroundColor: themeColors.card,
+        borderRadius,
+      };
   // Press feedback driven by one shared value so brightness boost + scale stay in sync.
   const pressed = useSharedValue(0);
   const handlePressIn = useCallback((): void => {
@@ -103,6 +111,16 @@ export function GlassOrb({
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: resolvedTint }]}
       />
+      {isIOS ? (
+        // Inset speculars need their own layer above the tint: Fabric paints inset box-shadows under children, so on the wrapper they would hide behind blur + tint.
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { borderRadius, boxShadow: glassRecipe[resolved].highlight },
+          ]}
+        />
+      ) : null}
       {interactive ? (
         <Animated.View
           pointerEvents="none"
@@ -114,8 +132,12 @@ export function GlassOrb({
   );
   if (interactive && onPress !== undefined) {
     return (
-      // dimStyle on the OUTER wrapper so the disabled fade also covers the Android opaque base + shadow (both live on this view); on the inner Pressable it would leave a full-opacity card pill on Android.
-      <Animated.View style={[shadowStyle, scaleStyle, dimStyle, style]}>
+      // dimStyle and className both belong on the OUTER wrapper: the disabled fade has to cover the Android opaque base
+      // + shadow that live here, and a caller's `flex-1` would flatten the orb to zero height on the inner column node.
+      <Animated.View
+        style={[shadowStyle, scaleStyle, dimStyle, style]}
+        className={className}
+      >
         <RNPressable
           onPress={disabled ? undefined : onPress}
           onPressIn={disabled ? undefined : handlePressIn}
@@ -125,7 +147,6 @@ export function GlassOrb({
           accessibilityState={{ disabled }}
           testID={testID}
           style={wrapperStyle}
-          className={className}
         >
           {stack}
           {children}
@@ -134,16 +155,19 @@ export function GlassOrb({
     );
   }
   return (
+    // Same two-view split as the interactive branch: the outset glass ring dies under overflow:hidden on Fabric, so the clip lives one level in.
     <View
-      style={[shadowStyle, wrapperStyle, dimStyle, style]}
+      style={[shadowStyle, dimStyle, style]}
       className={className}
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
       accessibilityState={{ disabled }}
     >
-      {stack}
-      {children}
+      <View style={wrapperStyle}>
+        {stack}
+        {children}
+      </View>
     </View>
   );
 }

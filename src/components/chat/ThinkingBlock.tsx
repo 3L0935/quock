@@ -7,7 +7,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Brain, ChevronDown, ChevronRight } from "lucide-react-native";
+import Brain from "lucide-react-native/icons/brain";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import { ShimmerText } from "@/components/ui/ShimmerText";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth, timings } from "@/lib/design/tokens";
 import { springEasing } from "@/lib/design/motion";
@@ -17,12 +20,15 @@ export interface ThinkingBlockProps {
   // This row is the live-streaming turn, and whether its answer has begun.
   isStreaming: boolean;
   hasContent: boolean;
+  // The model is busy and showing nothing for it: the header shimmers so a pause mid-answer reads as work, not a freeze.
+  isWorking: boolean;
 }
 
 function ThinkingBlockImpl({
   thinking,
   isStreaming,
   hasContent,
+  isWorking,
 }: ThinkingBlockProps): React.ReactElement {
   const colors = useThemeColors();
   // Open derived from the live state every render (no stored flag to desync and stick open on a finished turn):
@@ -57,7 +63,14 @@ function ThinkingBlockImpl({
           color={colors.mutedForeground}
           strokeWidth={strokeWidth.bold}
         />
-        <Text className="flex-1 font-sans text-xs text-muted-foreground">Thinking</Text>
+        <View className="flex-1">
+          <ShimmerText
+            text="Thinking"
+            isActive={isWorking}
+            className="font-sans text-footnote"
+            baseColor={colors.mutedForeground}
+          />
+        </View>
         {open ? (
           <ChevronDown
             size={iconSize.sm}
@@ -75,7 +88,7 @@ function ThinkingBlockImpl({
       {open ? (
         <Animated.View className="py-1" style={bodyAnimStyle}>
           <Text
-            className="font-sans text-sm text-muted-foreground italic"
+            className="font-sans text-footnote text-muted-foreground italic"
             selectable
             testID="thinking-block-body"
           >

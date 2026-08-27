@@ -1,4 +1,4 @@
-// Single row in ChatHistorySheet — ListRow + ReanimatedSwipeable revealing Rename + Delete.
+// Single row in ChatHistoryPanel — ListRow + ReanimatedSwipeable revealing Rename + Delete.
 
 import React, { useCallback, useRef, useState } from "react";
 import ReanimatedSwipeable, {
@@ -8,7 +8,8 @@ import Reanimated, {
   type SharedValue,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import { Pencil, Trash2 } from "lucide-react-native";
+import Pencil from "lucide-react-native/icons/pencil";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { GlassOrb } from "@/components/ui/GlassOrb";
@@ -66,6 +67,7 @@ function RightActions({
     >
       <GlassOrb
         variant="regular"
+        lift="contained"
         interactive
         onPress={onRename}
         tintColor={withAlpha(colors.primary, opacity.tint)}
@@ -80,6 +82,7 @@ function RightActions({
       </GlassOrb>
       <GlassOrb
         variant="regular"
+        lift="contained"
         interactive
         onPress={onDelete}
         tintColor={withAlpha(colors.destructive, opacity.tint)}

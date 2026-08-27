@@ -1,13 +1,8 @@
 // Bottom input bar — attach + multi-line field + send-morphs-into-stop while streaming.
 
-import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
-import MaskedView from "@react-native-masked-view/masked-view";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Platform,
   ScrollView,
-  StyleSheet,
   Text,
   View,
   type LayoutChangeEvent,
@@ -23,8 +18,13 @@ import {
   useKeyboardState,
 } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowUp, ChevronDown, Globe, Plus, Square } from "lucide-react-native";
+import ArrowUp from "lucide-react-native/icons/arrow-up";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import Globe from "lucide-react-native/icons/globe";
+import Plus from "lucide-react-native/icons/plus";
+import Square from "lucide-react-native/icons/square";
 import { GlassOrb } from "@/components/ui/GlassOrb";
+import { ScrollEdgeBlur } from "@/components/ui/ScrollEdgeBlur";
 import { TextField } from "@/components/ui/TextField";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { useHaptics } from "@/lib/hooks/useHaptics";
@@ -52,7 +52,6 @@ import {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_TOTAL_BYTES,
   BYTES_PER_MB,
-  COMPOSER_LINE_HEIGHT,
   COMPOSER_MAX_LINES,
   COMPOSER_SEND_MORPH_DURATION_MS,
 } from "@/modules/chat/constants";
@@ -93,12 +92,6 @@ export function Composer({
   onJumpToLatest,
 }: ComposerProps): React.ReactElement {
   const colors = useThemeColors();
-  // `default` is a transparent-wash tint — pure blur with no light/dark colour overlay, which keeps chat text legible inside the gradient transition zone instead of fading it to white-on-white.
-  const blurTint = "default" as const;
-  const blurAndroidFallback =
-    Platform.OS === "ios"
-      ? {}
-      : { experimentalBlurMethod: "dimezisBlurView" as const };
   const [text, setText] = useState<string>("");
   const insets = useSafeAreaInsets();
   // Cover bottom edge → top of orbs so the gradient's 0% mark lands exactly on the orb seam. insets.bottom adapts per device; the orb sums come from the design system.
@@ -280,33 +273,14 @@ export function Composer({
         -(restingBottomPad - componentLayout.composer.minBottomPad)
       }
     >
-      {/* Linear gradient blur sitting INSIDE the safe-area-bottom + the orb row's vertical padding — under the orbs, never covering them. 100% blur at the screen edge, fading to 0% just before the orbs start. The mask is a black→transparent LinearGradient; MaskedView clamps the BlurView's visibility to the mask's alpha. Hidden when the keyboard is up so it does not overlap the keyboard surface. */}
-      {!isKeyboardVisible && composerBlurHeight > 0 ? (
-        <MaskedView
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: composerBlurHeight,
-          }}
-          maskElement={
-            <LinearGradient
-              colors={["transparent", "black"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-          }
-        >
-          <BlurView
-            tint={blurTint}
-            intensity={componentLayout.composer.blurBaseIntensity}
-            {...blurAndroidFallback}
-            style={StyleSheet.absoluteFill}
-          />
-        </MaskedView>
+      {/* Total blur at the screen edge, gone exactly at the orb seam. Hidden with the keyboard up: it would sit on the
+          keyboard surface, which has its own material. */}
+      {!isKeyboardVisible ? (
+        <ScrollEdgeBlur
+          edge="bottom"
+          height={composerBlurHeight}
+          intensity={componentLayout.scrollEdgeBlur.intensity}
+        />
       ) : null}
       {/* Background-less surface: the orbs + TextField float over MessageList directly (Apple HIG iOS 26 topmost-layer pattern). Each control owns its own surface (GlassOrb shadow on the orbs, bg-card on the TextField) so they read cleanly without a strip behind them. */}
       <View
@@ -339,19 +313,23 @@ export function Composer({
         ) : null}
         {invalidReasonText !== null ? (
           <Text
-            className="font-sans text-destructive text-xs px-3 pb-1.5"
+            className="font-sans text-caption-1 text-destructive px-3 pb-1.5"
             numberOfLines={1}
           >
             {invalidReasonText}
           </Text>
         ) : null}
         {isAttachmentTotalTooLarge ? (
-          <Text className="font-sans text-xs text-destructive px-3 pb-1">
+          <Text className="font-sans text-caption-1 text-destructive px-3 pb-1">
             Attachments too large —{" "}
             {Math.floor(ATTACHMENT_MAX_TOTAL_BYTES / BYTES_PER_MB)} MB max total
           </Text>
         ) : null}
-        <View className="flex-row items-end px-3 py-2.5 gap-2">
+        {/* Orb-row vertical padding is exact pt from the token (py-2.5 renders 8.75 under the 14px rem) so the blur height and jump-arrow anchor math stay true. */}
+        <View
+          className="flex-row items-end px-3 gap-2"
+          style={{ paddingVertical: componentLayout.composer.orbRowPaddingY }}
+        >
           <GlassOrb
             variant="regular"
             interactive
@@ -407,15 +385,15 @@ export function Composer({
             placeholder="Type a message..."
             multiline
             maxLines={COMPOSER_MAX_LINES}
-            lineHeight={COMPOSER_LINE_HEIGHT}
+            lineHeight={componentLayout.composer.inputLineHeight}
             // Always editable: the user can compose their next message while the assistant is still streaming. The send orb stays in STOP mode mid-stream, so this only enables typing — not sending (a send queue comes later).
             editable
             testID="composer-input"
             containerClassName="flex-1 bg-card border border-border rounded-3xl px-3.5"
-            // Line-height locked to COMPOSER_LINE_HEIGHT so the maxLines computation stays accurate.
+            // Line-height locked to the shared token (iOS body 17/22) so the maxLines computation stays accurate.
             inputStyle={{
               fontSize: componentLayout.composer.inputFontSize,
-              lineHeight: COMPOSER_LINE_HEIGHT,
+              lineHeight: componentLayout.composer.inputLineHeight,
               letterSpacing: componentLayout.composer.inputAccentLetterSpacing,
               color: colors.foreground,
             }}

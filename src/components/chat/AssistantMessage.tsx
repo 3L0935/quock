@@ -4,7 +4,11 @@ import clsx from "clsx";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
-import { Copy, Globe, Highlighter, RotateCw, type LucideIcon } from "lucide-react-native";
+import Copy from "lucide-react-native/icons/copy";
+import Globe from "lucide-react-native/icons/globe";
+import Highlighter from "lucide-react-native/icons/highlighter";
+import RotateCw from "lucide-react-native/icons/rotate-cw";
+import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
@@ -13,7 +17,10 @@ import { iconSize, strokeWidth } from "@/lib/design/tokens";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { StreamingCursor } from "@/components/chat/StreamingCursor";
 import { ThinkingBlock } from "@/components/chat/ThinkingBlock";
-import { ThinkingDots } from "@/components/chat/ThinkingDots";
+import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
+import { useIsReasoning } from "@/modules/chat/hooks/useIsReasoning";
+import { useIsStreamSilent } from "@/modules/chat/hooks/useIsStreamSilent";
+import { useRevealedContent } from "@/modules/chat/hooks/useRevealedContent";
 import type { DbMessage, MessageErrorCode } from "@/lib/db/types";
 import { useToast } from "@/lib/hooks/useToast";
 import {
@@ -21,11 +28,13 @@ import {
   type ToolActivity,
 } from "@/modules/chat/stores/streaming.store";
 import { useUIStore } from "@/lib/stores/ui.store";
+import type { AnchorRect } from "@/lib/types/geometry";
 import type { MessageId } from "@/lib/types/ids";
 
 export interface AssistantMessageProps {
   message: DbMessage;
   isStreaming: boolean;
+  anchorSpace: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
 }
@@ -85,7 +94,7 @@ function SearchingIndicator({
         strokeWidth={strokeWidth.regular}
       />
       <Text
-        className="flex-1 font-sans text-sm text-muted-foreground"
+        className="flex-1 font-sans text-footnote text-muted-foreground"
         numberOfLines={1}
       >
         {verb} {activity.query}…
@@ -104,7 +113,7 @@ function WebSearchFailedNote(): React.ReactElement {
         color={colors.destructive}
         strokeWidth={strokeWidth.regular}
       />
-      <Text className="ml-1.5 font-sans text-xs text-destructive">
+      <Text className="ml-1.5 font-sans text-caption-1 text-destructive">
         Web search unavailable
       </Text>
     </View>
@@ -114,15 +123,24 @@ function WebSearchFailedNote(): React.ReactElement {
 function AssistantMessageImpl({
   message,
   isStreaming,
+  anchorSpace,
   onRegenerate,
   onRetry,
 }: AssistantMessageProps): React.ReactElement {
+  const colors = useThemeColors();
   const toast = useToast();
   // Mid-stream web-tool status for this chat (cleared between rounds); shown only on the streaming row.
   const toolActivity = useStreamingStore((s) =>
     s.toolActivity.get(message.chatId),
   );
   const openSelectText = useUIStore((s) => s.openSelectText);
+  const openExcerptMenu = useUIStore((s) => s.openExcerptMenu);
+  // Scoped so only THIS message re-renders when its own unit is highlighted (others get a stable undefined).
+  const activeHighlightKey = useUIStore((s) =>
+    s.excerptMenuKey.startsWith(`${message.id}:`)
+      ? s.excerptMenuKey
+      : undefined,
+  );
   const handleCopy = useCallback((): void => {
     Clipboard.setStringAsync(message.content)
       .then(() => {
@@ -142,18 +160,34 @@ function AssistantMessageImpl({
   const handleSelectText = useCallback((): void => {
     openSelectText(message.id);
   }, [openSelectText, message.id]);
+  const handleLongPressExcerpt = useCallback(
+    (unitKey: string, anchor: AnchorRect): void => {
+      openExcerptMenu(unitKey, anchor);
+    },
+    [openExcerptMenu],
+  );
   const isPending = message.status === "pending";
+  const isReasoning = useIsReasoning(message.chatId);
+  // Reasoning is the exact signal; silence covers everything it cannot see — the wait before a tool call, the
+  // round-trip, the pause before the model commits. Together they leave no dead air unexplained.
+  const isSilent = useIsStreamSilent(
+    isStreaming,
+    message.content.length + (message.thinking?.length ?? 0),
+  );
+  const isWorking = isStreaming && (isReasoning || isSilent);
+  // Only the painted source is paced; every gate below still reads the real content, so the cursor and the working
+  // indicator never flicker because the screen is a few characters behind.
+  const revealedContent = useRevealedContent(message.content, isStreaming);
   const isError = message.status === "error";
   const isInterrupted = message.status === "interrupted";
   // Has the model produced any reasoning yet (think: true models stream `<think>` tokens before the answer).
-  const hasThinking =
-    message.thinking !== null && message.thinking.length > 0;
+  const hasThinking = message.thinking !== null && message.thinking.length > 0;
   const hasContent = message.content.length > 0;
   // A web tool is running right now — only on the live streaming row, never on older bubbles that share the chat's transient activity.
   const isSearching = isStreaming && toolActivity !== undefined;
   const showCursor = !isPending && isStreaming && !hasContent;
-  // Spinner only when there is genuinely nothing to show yet: no reasoning, no answer, no active tool. Everything else stacks, so think + search no longer fight for the same slot.
-  const showThinkingDots =
+  // Only before anything exists. Once there is reasoning text the block owns the signal and shimmers its own header.
+  const showThinkingIndicator =
     isPending && !hasThinking && !hasContent && !isSearching;
   // Non-fatal note: the search failed but the model still answered (hard failures take the error branch instead).
   const showWebSearchFailed =
@@ -169,11 +203,22 @@ function AssistantMessageImpl({
             thinking={message.thinking ?? ""}
             isStreaming={isStreaming}
             hasContent={hasContent}
+            isWorking={isWorking}
           />
         ) : null}
         {hasContent || showCursor ? (
           <View className="flex-row items-end flex-wrap">
-            <Markdown source={message.content} className="flex-1" />
+            {/* Excerpt actions only on a landed reply: mid-stream the list follows the tail, so a menu anchored to a moving unit would drift off it. */}
+            <Markdown
+              source={revealedContent}
+              className="flex-1"
+              anchorSpace={anchorSpace}
+              {...(showActionRow
+                ? { onLongPressExcerpt: handleLongPressExcerpt }
+                : {})}
+              highlightPrefix={String(message.id)}
+              activeHighlightKey={activeHighlightKey}
+            />
             {showCursor ? <StreamingCursor /> : null}
           </View>
         ) : null}
@@ -182,30 +227,35 @@ function AssistantMessageImpl({
             <SearchingIndicator activity={toolActivity} />
           </View>
         ) : null}
-        {showThinkingDots ? <ThinkingDots /> : null}
+        {showThinkingIndicator ? <ThinkingIndicator /> : null}
         {showWebSearchFailed ? <WebSearchFailedNote /> : null}
         {isError ? (
           <View className="mt-2 flex-row items-center self-start rounded-full bg-destructive-soft pl-3.5 pr-1.5 py-1.5">
-            <Text className="font-sans text-sm text-destructive mr-2">
+            <Text className="font-sans text-footnote text-destructive mr-2">
               {ERROR_COPY[message.errorCode ?? "unknown"]}
             </Text>
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
-                <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-xs text-secondary-foreground">Retry</Text>
+                {/* Explicit color: lucide defaults to currentColor, which react-native-svg resolves to black in both themes. */}
+                <RotateCw size={iconSize.xs} color={colors.label} />
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">
+                  Retry
+                </Text>
               </Button>
             ) : null}
           </View>
         ) : null}
         {isInterrupted ? (
           <View className="mt-2 flex-row items-center self-start">
-            <Text className="font-sans italic text-sm text-muted-foreground mr-2">
+            <Text className="font-sans italic text-footnote text-muted-foreground mr-2">
               Interrupted
             </Text>
             {onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
-                <RotateCw size={iconSize.xs} />
-                <Text className="ml-1 font-sans text-xs text-secondary-foreground">Retry</Text>
+                <RotateCw size={iconSize.xs} color={colors.label} />
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">
+                  Retry
+                </Text>
               </Button>
             ) : null}
           </View>
