@@ -38,11 +38,14 @@ The honest answer is *almost none*. The categories below are the complete list. 
 | Data | Where it lives | Why | Sent to Ollama? | Sent to Author? |
 |---|---|---|---|---|
 | **Ed25519 device keypair** (public + secret) | `expo-secure-store` (iOS Keychain / Android Keystore), on-device | To authenticate Your requests to Ollama Cloud without passwords | Public key only, during request signing | Never |
-| **Chat history** (messages, attachments) | Local SQLite database, on-device | To let You scroll past conversations | No (each new send replays from device-side history) | Never |
+| **Chat history** (messages, attachments) | Local SQLite database, on-device | To let You scroll past conversations | Not as a database — but each send replays the earlier turns from it, so their text and attachments travel again | Never |
+| **Text read from a document** (its PDF text layer, or on-device OCR when it has none) | Local SQLite, beside the attachment | To let the model read a document You attached | Yes — and replayed with every later message in that chat. On a vision-capable model the rendered pages travel as images too, within a byte budget | Never |
 | **App preferences** (theme, default model, haptics) | MMKV, on-device | To remember Your settings | No | Never |
 | **The message You're currently sending** | RAM, then HTTPS body to Ollama | To get an AI response | **Yes — that's the point** | Never |
 | **The AI response** | RAM, then SQLite once committed | To show You the answer and let You scroll back | No (Ollama already has it; Quock receives, does not echo) | Never |
 | **Account email + name** (returned by `/api/me`) | RAM + SQLite (cached) | To show You who is signed in | Already known by Ollama (You created the account with them) | Never |
+
+Reading a document happens entirely on Your device: its text layer is parsed locally, and OCR runs locally when there is no text layer. What travels is the result, as message content, on the terms in the table above.
 
 Quock collects **no** advertising identifier, **no** crash reporting telemetry (today; see Section 8 on potential future inclusions), **no** behavioral analytics, **no** location data, **no** contacts, **no** photos beyond what You explicitly attach to a single message.
 
