@@ -4,7 +4,6 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
-import Brain from "lucide-react-native/icons/brain";
 import FileText from "lucide-react-native/icons/file-text";
 import Globe from "lucide-react-native/icons/globe";
 import ImageIcon from "lucide-react-native/icons/image";
@@ -24,7 +23,6 @@ import { SheetHeader } from "@/components/ui/SheetHeader";
 import { AttachTile, ToolRow } from "@/components/chat/AttachSheetRows";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import {
-  useHasThinkingCapability,
   useHasToolsCapability,
 } from "@/modules/models/hooks/useModelCapabilities";
 import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
@@ -121,15 +119,9 @@ export function AttachSheet({
 }: AttachSheetProps): React.ReactElement {
   const toast = useToast();
   const { model } = useChatModel(chatId);
-  const hasThinking = useHasThinkingCapability(model?.name);
   const hasWebSearch = useHasToolsCapability(model?.name);
-  const hasTools = hasThinking || hasWebSearch;
-  const {
-    thinkEnabled,
-    webSearchEnabled,
-    setThinkEnabled,
-    setWebSearchEnabled,
-  } = useChatComposerModes(chatId);
+  const { webSearchEnabled, setWebSearchEnabled } =
+    useChatComposerModes(chatId);
   // Close the sheet, wait out its native-modal dismiss, THEN present the OS picker — iOS silently drops a present that overlaps a dismiss, so the picker must open after the sheet is gone. A real pick then lands straight in the chat (no flap); a cancel reopens the sheet.
   const handleCamera = useCallback(async (): Promise<void> => {
     if (currentCount >= ATTACHMENT_SELECTION_LIMIT) {
@@ -315,7 +307,7 @@ export function AttachSheet({
       visible={visible}
       onClose={onClose}
       snapPoints={[
-        hasThinking ? ATTACH_SHEET_SNAP_WITH_TOOLS : ATTACH_SHEET_SNAP,
+        hasWebSearch ? ATTACH_SHEET_SNAP_WITH_TOOLS : ATTACH_SHEET_SNAP,
       ]}
       enableDynamicSizing={false}
     >
@@ -359,7 +351,7 @@ export function AttachSheet({
           }}
         />
       </View>
-      {hasTools ? (
+      {hasWebSearch ? (
         <View className="pt-1">
           <Text
             className="font-sans font-semibold text-body text-muted-foreground mb-2"
@@ -368,22 +360,12 @@ export function AttachSheet({
           >
             Tools
           </Text>
-          {hasWebSearch ? (
-            <ToolRow
-              icon={Globe}
-              label="Web search"
-              selected={webSearchEnabled}
-              onToggle={(): void => setWebSearchEnabled(!webSearchEnabled)}
-            />
-          ) : null}
-          {hasThinking ? (
-            <ToolRow
-              icon={Brain}
-              label="Thinking"
-              selected={thinkEnabled}
-              onToggle={(): void => setThinkEnabled(!thinkEnabled)}
-            />
-          ) : null}
+          <ToolRow
+            icon={Globe}
+            label="Web search"
+            selected={webSearchEnabled}
+            onToggle={(): void => setWebSearchEnabled(!webSearchEnabled)}
+          />
         </View>
       ) : null}
     </Sheet>
