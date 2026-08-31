@@ -5,7 +5,6 @@ import * as ImagePicker from "expo-image-picker";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
 import Brain from "lucide-react-native/icons/brain";
-import Bot from "lucide-react-native/icons/bot";
 import FileText from "lucide-react-native/icons/file-text";
 import Globe from "lucide-react-native/icons/globe";
 import ImageIcon from "lucide-react-native/icons/image";
@@ -33,7 +32,6 @@ import type { ChatId } from "@/lib/types/ids";
 import {
   ATTACH_PICKER_PRESENT_DELAY_MS,
   ATTACH_SHEET_SNAP,
-  ATTACH_SHEET_SNAP_WITH_AGENT,
   ATTACH_SHEET_SNAP_WITH_TOOLS,
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_SELECTION_LIMIT,
@@ -126,8 +124,12 @@ export function AttachSheet({
   const hasThinking = useHasThinkingCapability(model?.name);
   const hasWebSearch = useHasToolsCapability(model?.name);
   const hasTools = hasThinking || hasWebSearch;
-  const { thinkEnabled, webSearchEnabled, agentEnabled, setThinkEnabled, setWebSearchEnabled, setAgentEnabled } =
-    useChatComposerModes(chatId);
+  const {
+    thinkEnabled,
+    webSearchEnabled,
+    setThinkEnabled,
+    setWebSearchEnabled,
+  } = useChatComposerModes(chatId);
   // Close the sheet, wait out its native-modal dismiss, THEN present the OS picker — iOS silently drops a present that overlaps a dismiss, so the picker must open after the sheet is gone. A real pick then lands straight in the chat (no flap); a cancel reopens the sheet.
   const handleCamera = useCallback(async (): Promise<void> => {
     if (currentCount >= ATTACHMENT_SELECTION_LIMIT) {
@@ -164,7 +166,9 @@ export function AttachSheet({
             uri: asset.uri,
             originalWidth: asset.width,
             originalHeight: asset.height,
-            ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
+            ...(asset.mimeType !== undefined
+              ? { mimeType: asset.mimeType }
+              : {}),
           },
           asset.fileSize ?? 0,
         ),
@@ -214,7 +218,8 @@ export function AttachSheet({
         onAttach(
           buildAttachment(
             {
-              filename: asset.fileName ?? deriveFilename(asset.uri, "photo.jpg"),
+              filename:
+                asset.fileName ?? deriveFilename(asset.uri, "photo.jpg"),
               uri: asset.uri,
               originalWidth: asset.width,
               originalHeight: asset.height,
@@ -310,11 +315,7 @@ export function AttachSheet({
       visible={visible}
       onClose={onClose}
       snapPoints={[
-        hasTools && hasWebSearch
-          ? ATTACH_SHEET_SNAP_WITH_AGENT
-          : hasTools
-            ? ATTACH_SHEET_SNAP_WITH_TOOLS
-            : ATTACH_SHEET_SNAP,
+        hasThinking ? ATTACH_SHEET_SNAP_WITH_TOOLS : ATTACH_SHEET_SNAP,
       ]}
       enableDynamicSizing={false}
     >
@@ -381,14 +382,6 @@ export function AttachSheet({
               label="Thinking"
               selected={thinkEnabled}
               onToggle={(): void => setThinkEnabled(!thinkEnabled)}
-            />
-          ) : null}
-          {hasWebSearch ? (
-            <ToolRow
-              icon={Bot}
-              label="Agent mode"
-              selected={agentEnabled}
-              onToggle={(): void => setAgentEnabled(!agentEnabled)}
             />
           ) : null}
         </View>

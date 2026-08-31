@@ -20,6 +20,7 @@ import { useUIStore } from "@/lib/stores/ui.store";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import { Composer } from "@/components/chat/Composer";
 import { EmptyState } from "@/components/chat/EmptyState";
+import { NewChatModeSwitch } from "@/components/chat/NewChatModeSwitch";
 import {
   MessageList,
   type MessageListHandle,
@@ -84,7 +85,10 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     useSendMessage(chatId);
   const { model } = useChatModel(chatId);
   const canWebSearch = useHasToolsCapability(model?.name);
-  const { webSearchEnabled } = useChatComposerModes(chatId);
+  // The Chat/Agent pill owns the agent flag on a NEW conversation: visible while the thread is empty, once the
+  // first message lands the mode is committed (the flag stops being editable here).
+  const { webSearchEnabled, agentEnabled, setAgentEnabled } =
+    useChatComposerModes(chatId);
   // Null means the user never reworded it, so the shipped default applies.
   const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
   const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
@@ -281,6 +285,13 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         onHeightChange={setComposerHeight}
         isJumpToLatestVisible={isScrolledUp}
         onJumpToLatest={() => messageListRef.current?.scrollToLatest()}
+      />
+      {/* New-conversation mode pill: floats above the composer while the thread is empty, gone once committed. */}
+      <NewChatModeSwitch
+        agentEnabled={agentEnabled}
+        onChange={setAgentEnabled}
+        visible={showEmpty}
+        testID="new-chat-mode-switch"
       />
       {/* Sheets render unconditionally so their mount cost is paid once at
           screen-mount rather than on first open. */}
