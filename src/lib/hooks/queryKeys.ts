@@ -1,6 +1,6 @@
 // Centralised TanStack Query keys. Use these accessors instead of literal arrays so renames and typos are caught at compile time.
 
-import type { ChatId } from "@/lib/types/ids";
+import type { ChatId, MessageId } from "@/lib/types/ids";
 
 export const queryKeys = {
   user: () => ["user"] as const,
@@ -19,4 +19,8 @@ export const queryKeys = {
   cloudModels: () => ["models", "cloud"] as const,
   modelCapabilities: (name: string | null) =>
     ["modelCapabilities", name] as const,
+  // Persisted tool calls of one assistant turn, read on demand by the bubble's expandable step list.
+  messageToolCalls: (id: MessageId) => ["chat", "toolCalls", id] as const,
+  // The signed-in account's agent memories (long-term store), read by the Settings management sheet.
+  agentMemories: () => ["agentMemories"] as const,
 } as const;

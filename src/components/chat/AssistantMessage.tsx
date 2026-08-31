@@ -12,6 +12,7 @@ import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
+import { ToolCallsBlock } from "@/components/chat/ToolCallsBlock";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth } from "@/lib/design/tokens";
 import { MessageBubble } from "@/components/chat/MessageBubble";
@@ -227,6 +228,8 @@ function AssistantMessageImpl({
             <SearchingIndicator activity={toolActivity} />
           </View>
         ) : null}
+        {/* Persisted tool steps: rendered on every row (old turns read from SQLite), expanding to args + result. */}
+        <ToolCallsBlock messageId={message.id} />
         {showThinkingIndicator ? <ThinkingIndicator /> : null}
         {showWebSearchFailed ? <WebSearchFailedNote /> : null}
         {isError ? (

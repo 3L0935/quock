@@ -156,6 +156,13 @@ describe("MIGRATIONS", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("creates the tool_calls table in the latest migration", () => {
+    const last = MIGRATIONS[MIGRATIONS.length - 1];
+    expect(last.up).toContain("CREATE TABLE IF NOT EXISTS tool_calls");
+    // The add-column guard only understands bare identifiers; a CREATE TABLE has none to half-read.
+    expect(planMigration(last.up, () => false).unreadable).toEqual([]);
+  });
+
   it("never adds the same column twice across migrations", () => {
     const seen = new Set<string>();
     for (const migration of MIGRATIONS) {

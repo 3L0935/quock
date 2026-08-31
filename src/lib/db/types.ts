@@ -88,3 +88,21 @@ export interface ChatSummary {
   /** Approximate on-device bytes used by this chat (message content + thinking + attachment blobs). */
   sizeBytes: number;
 }
+
+// Lifecycle of one executed tool call, mirrored from the pipeline: failed tools surface in history as a
+// "Tool X unavailable" row rather than being retried or hidden.
+export type ToolCallStatus = "complete" | "failed";
+
+export interface DbToolCall {
+  messageId: MessageId;
+  chatId: ChatId;
+  name: string;
+  // JSON-encoded arguments exactly as the model requested them.
+  arguments: string;
+  // Serialized tool output fed back to the model; null only when the process died mid-execution.
+  result: string | null;
+  status: ToolCallStatus;
+  // Tool-loop round this call belonged to (0-based), so the UI can group sequential steps.
+  round: number;
+  createdAt: number;
+}
