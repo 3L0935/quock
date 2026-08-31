@@ -162,14 +162,14 @@ describe("executeToolCall", () => {
   it("memory_read clamps the model-provided limit to the injection budget", async () => {
     (memories.listRecent as jest.Mock).mockResolvedValue([]);
     await executeToolCall(
-      { client, memories },
+      ctxWith({ memories }),
       call("memory_read", { limit: 1e9 }),
     );
     const capped = (memories.listRecent as jest.Mock).mock.calls[0][0];
     expect(capped).toBe(MEMORY_READ_MAX);
     expect(capped).toBeLessThan(1e9);
 
-    await executeToolCall({ client, memories }, call("memory_read", {}));
+    await executeToolCall(ctxWith({ memories }), call("memory_read", {}));
     const defaulted = (memories.listRecent as jest.Mock).mock.calls[1][0];
     expect(defaulted).toBe(MEMORY_READ_MAX);
   });

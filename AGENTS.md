@@ -91,7 +91,7 @@ src/
   lib/                    Infra shared by 2+ modules: api/, db/, design/, contexts/, theme/, stores/, hooks/, constants/, types/.
 ```
 
-Features today: `chat`, `auth`, `models`, `settings` — plus `agent` (per-chat agent mode: on-device memory tools, device/utility tools, injected system context; registry in `src/modules/chat/lib/tools.ts`, memory in `src/lib/db/memoryRepository.ts`).
+Features today: `chat`, `auth`, `models`, `settings` — plus `agent` (per-chat agent mode: on-device memory tools, device/utility tools, chat-history search, injected system context; registry in `src/modules/chat/lib/tools.ts`, memory in `src/lib/db/memoryRepository.ts`, history search in `src/lib/db/chatHistorySearch.ts`).
 
 **Placement rule.** Used by 2+ modules → `src/lib/` (or `components/ui/` for a primitive). Used by one module → inside that module. Used by one file → named constant at top of that file. When a module-local unit gets a second consumer, promote it in the same PR.
 
@@ -109,6 +109,8 @@ Features today: `chat`, `auth`, `models`, `settings` — plus `agent` (per-chat 
 | Streaming pipeline (buffers, abort) | `src/modules/chat/lib/streamPipeline.ts` |
 | Repository pattern | `src/lib/db/chatRepository.ts` · `messageRepository.ts` · `attachmentRepository.ts` |
 | Memory repository (agent) | `src/lib/db/memoryRepository.ts` |
+| Chat-history search (agent) | `src/lib/db/chatHistorySearch.ts` |
+| Persisted tool-call rows | `src/lib/db/toolCallRepository.ts` |
 | DB schema | `src/lib/db/schema.ts` |
 | Branded ID types | `src/lib/types/ids.ts` |
 | Design tokens (numeric) | `src/lib/design/tokens.ts` |
@@ -292,7 +294,15 @@ Non-server hooks (theme, haptics, keyboard state) keep plain `useX` names.
 - JSONL parsing via `parseJsonlFromResponse` from `@/modules/chat/api/jsonl`.
 - Message lifecycle: `pending` → `streaming` → `complete` | `error` | `interrupted`. The `status` column is the source of truth. Never smuggle state inside `content`.
 - Retry mutates the same row id — never delete + recreate.
-- **Thinking is opt-in; the `think` flag is omitted unless forced.** It rides as `think: true` only when the user has turned thinking on for the chat (a sticky per-chat toggle in the + hub) AND the model is thinking-capable; otherwise the flag is absent and the server applies the model's own default (thinking-capable models reason, others don't), so the user never has to manage it. `think: true` 400s on a non-thinking model, so the toggle is capability-gated. Detection being unreliable (`/api/show` sometimes omits `thinking` for a model that reasons, e.g. minimax-m3) is fine here: omitting lets such a model fall back to its own reasoning default rather than being suppressed.
+- **Thinking has no user control; the `think` flag is always omitted.** The old per-chat + -hub toggle could only ever FORCE think on (OFF omitted the flag, which means "model decides" — so a reasoning-default model like GLM thought with the toggle OFF). With no reliable per-model capability detection, the toggle read as broken and was removed: every send path now omits the flag and the model follows its own default. Do not reintroduce a think control without solving capability detection first. The `sent_with_think` column survives for old rows but its bubble chip never lights anymore.
+
+### Agent mode
+
+- Agent is a **conversation-level contract**, not a per-message toggle: the Chat/Agent pill lives in the empty-state hero (`NewChatModeSwitch`), shows only while the thread is empty, and the first send commits the mode. No mid-thread switching. The + hub keeps only web search (and thinking never had a home there anymore).
+- Every tool the model may call is one `ToolDefinition` + one `executeToolCall` branch in `src/modules/chat/lib/tools.ts`. Local tools never throw: they return a plain "unavailable" string while the DB is closed.
+- Tool steps persist to `tool_calls` (name, JSON arguments, result, status, round) and render on the assistant bubble as collapsible rows; keep display label/icon maps beside `ToolCallsBlock` (lib files run under Jest, lucide's ESM icons do not transform).
+- Long-term memory (`memory_save/read/forget`) is separate from the conversation archive: memories are injected as system context each agent send (hottest first); past conversations are reachable only through `search_chats` (LIKE over all messages, snippet) and `read_chat` (windowed turns with before/after paging). The read window exists to bound the tool-result budget — never widen it to "the whole chat".
+- History-drawer ergonomics are part of the agent contract: conversations badge their mode (Bot vs chat bubble in the leading slot), and named folders (`chat_folders`, migration 16) give the user manual triage — the swipe Move action files a chat, folder removal (SET NULL) returns members to the timeline, delete stays reachable from the same rail.
 
 ### Markdown rendering (LLM-defensive)
 
