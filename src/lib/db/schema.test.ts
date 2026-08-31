@@ -156,11 +156,25 @@ describe("MIGRATIONS", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("creates the tool_calls table in the latest migration", () => {
-    const last = MIGRATIONS[MIGRATIONS.length - 1];
-    expect(last.up).toContain("CREATE TABLE IF NOT EXISTS tool_calls");
+  it("creates the tool_calls table in its migration", () => {
+    const migration = MIGRATIONS.find((m) => m.id === 15);
+    expect(migration).toBeDefined();
+    expect(migration?.up).toContain("CREATE TABLE IF NOT EXISTS tool_calls");
     // The add-column guard only understands bare identifiers; a CREATE TABLE has none to half-read.
-    expect(planMigration(last.up, () => false).unreadable).toEqual([]);
+    expect(planMigration(migration?.up ?? "", () => false).unreadable).toEqual(
+      [],
+    );
+  });
+
+  it("adds the tool_calls content offset in migration 16", () => {
+    const migration = MIGRATIONS.find((m) => m.id === 16);
+    expect(migration).toBeDefined();
+    expect(migration?.up).toContain(
+      "ALTER TABLE tool_calls ADD COLUMN content_offset",
+    );
+    expect(planMigration(migration?.up ?? "", () => false).unreadable).toEqual(
+      [],
+    );
   });
 
   it("never adds the same column twice across migrations", () => {

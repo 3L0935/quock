@@ -462,8 +462,8 @@ export async function runStream(
           result = `Tool ${call.function.name} failed.`;
         }
         // Persist the step for the bubble's history (best-effort inside the repo): name + args + how it ended.
-        // The per-turn cache is invalidated on success so an open bubble re-reads; the pipeline has no React
-        // subscription, this invalidation is the only signal the step list ever gets mid-stream.
+        // contentOffset anchors the row where the visible answer stood at call time, so the bubble interleaves
+        // steps between text segments; the cache invalidation is the only signal the step list gets mid-stream.
         const recordPromise = toolCalls
           ?.record({
             messageId: assistantId,
@@ -473,6 +473,7 @@ export async function runStream(
             result,
             status: toolFailed ? "failed" : "complete",
             round,
+            contentOffset: buffers.content.length,
           })
           .catch((err: unknown) => {
             console.warn("[chat] tool-call persist failed:", err);

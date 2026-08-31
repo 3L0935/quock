@@ -1,6 +1,7 @@
-// Expandable tool-step block for an agent turn: collapsed it shows one pretty line per tool used (label + term),
-// the chevron expands to the raw arguments and result each step fed back to the model. Mirrors ThinkingBlock's
-// border-left visual so the two meta blocks read as one family.
+// Tool-step block for an agent turn. The pure splitter (splitContentAroundCalls) returns text segments separated
+// by the steps that interrupted them; AssistantMessage owns the interleaved render: [Markdown][steps][Markdown]…
+// exactly where the calls happened. Collapsed step = icon + label + term, chevron expands to raw arguments +
+// result. Border-left visual mirrors ThinkingBlock.
 
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -15,16 +16,10 @@ import Share2 from "lucide-react-native/icons/share-2";
 import Smartphone from "lucide-react-native/icons/smartphone";
 import Wrench from "lucide-react-native/icons/wrench";
 import type { LucideIcon } from "lucide-react-native";
-import { useMessageToolCalls } from "@/modules/chat/hooks/useMessageToolCalls";
 import { toolCallTerm } from "@/modules/chat/lib/toolCallDisplay";
 import type { DbToolCall } from "@/lib/db/types";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth } from "@/lib/design/tokens";
-import type { MessageId } from "@/lib/types/ids";
-
-export interface ToolCallsBlockProps {
-  messageId: MessageId;
-}
 
 // Result bodies can be huge (a fetched page); the expanded panel clamps rather than printing a novel.
 const TOOL_RESULT_DISPLAY_MAX_CHARS = 400;
@@ -72,6 +67,13 @@ function toolIcon(name: string): LucideIcon {
 
 function toolLabel(name: string): string {
   return TOOL_LABELS[name] ?? name;
+}
+
+function formatTerm(raw: string): string {
+  const singleLine = raw.replace(/\s+/g, " ").trim();
+  return singleLine.length > TOOL_TERM_PREVIEW_CHARS
+    ? `${singleLine.slice(0, TOOL_TERM_PREVIEW_CHARS)}…`
+    : singleLine;
 }
 
 function ToolStep({ call }: { call: DbToolCall }): React.ReactElement {
@@ -171,20 +173,14 @@ function ToolStep({ call }: { call: DbToolCall }): React.ReactElement {
   );
 }
 
-function formatTerm(raw: string): string {
-  const singleLine = raw.replace(/\s+/g, " ").trim();
-  return singleLine.length > TOOL_TERM_PREVIEW_CHARS
-    ? `${singleLine.slice(0, TOOL_TERM_PREVIEW_CHARS)}…`
-    : singleLine;
-}
-
-function ToolCallsBlockImpl({
-  messageId,
-}: ToolCallsBlockProps): React.ReactElement | null {
-  const { data: calls } = useMessageToolCalls(messageId);
-  if (!calls || calls.length === 0) return null;
+// Collapsed steps for one interleave point; the border-left visual marks the pipeline break.
+export function StepsGroup({
+  calls,
+}: {
+  calls: DbToolCall[];
+}): React.ReactElement {
   return (
-    <View className="mt-2 border-l-2 border-border pl-2.5">
+    <View className="my-1 border-l-2 border-border pl-2.5">
       {calls.map((call) => (
         <ToolStep
           key={`${call.round}:${call.createdAt}:${call.name}`}
@@ -195,5 +191,27 @@ function ToolCallsBlockImpl({
   );
 }
 
-// Memoized on message identity: expanded state lives inside each row, so parent re-renders don't collapse it.
-export const ToolCallsBlock = React.memo(ToolCallsBlockImpl);
+export interface ToolSegment {
+  // Markdown source slice of the assistant answer. Empty at pure step boundaries.
+  text: string;
+  // Steps that interrupted the answer at this boundary; render between the segments.
+  calls: DbToolCall[];
+}
+
+// Splits the content around the persisted offsets: segment k spans [prevEnd, offset_k). Steps recorded at or past
+// the content end (round cap, interrupted stream) group after the last segment.
+export function splitContentAroundCalls(
+  content: string,
+  calls: readonly DbToolCall[],
+): ToolSegment[] {
+  const sorted = [...calls].sort((a, b) => a.contentOffset - b.contentOffset);
+  const segments: ToolSegment[] = [];
+  let cursor = 0;
+  for (const call of sorted) {
+    const offset = Math.min(Math.max(0, call.contentOffset), content.length);
+    segments.push({ text: content.slice(cursor, offset), calls: [call] });
+    cursor = offset;
+  }
+  segments.push({ text: content.slice(cursor), calls: [] });
+  return segments;
+}

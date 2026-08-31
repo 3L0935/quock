@@ -117,8 +117,8 @@ const ADD_MESSAGE_SENT_WITH_AGENT = `
 `;
 
 // One row per tool the model invoked during an agent turn (the pipeline used to keep these wire-only). arguments is
-// JSON-encoded; status records how the execution ended so history shows failures, not just successes. FK cascades with
-// chat deletion, like messages/attachments.
+// JSON-encoded; status records how the execution ended so history shows failures, not just successes. FK cascades
+// with chat deletion, like messages/attachments.
 const ADD_TOOL_CALLS_TABLE = `
   CREATE TABLE IF NOT EXISTS tool_calls (
     message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
@@ -132,6 +132,12 @@ const ADD_TOOL_CALLS_TABLE = `
   );
   CREATE INDEX IF NOT EXISTS idx_tool_calls_message
     ON tool_calls(message_id);
+`;
+
+// Where in the visible answer this call happened (character offset into the assistant content at call time), so the
+// bubble can interleave the step rows BETWEEN text segments instead of stacking every step at the end.
+const ADD_TOOL_CALLS_OFFSET = `
+  ALTER TABLE tool_calls ADD COLUMN content_offset INTEGER NOT NULL DEFAULT 0;
 `;
 
 export const MIGRATIONS: readonly Migration[] = [
@@ -149,6 +155,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 13, up: ADD_CHAT_AGENT_MODE },
   { id: 14, up: ADD_MESSAGE_SENT_WITH_AGENT },
   { id: 15, up: ADD_TOOL_CALLS_TABLE },
+  { id: 16, up: ADD_TOOL_CALLS_OFFSET },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
