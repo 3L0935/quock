@@ -13,6 +13,8 @@ export function useMessageToolCalls(
   return useQuery<DbToolCall[], Error>({
     queryKey: queryKeys.messageToolCalls(messageId),
     queryFn: (): Promise<DbToolCall[]> => toolCalls.listByMessage(messageId),
-    staleTime: Infinity,
+    // Persistence happens mid-stream; the pipeline invalidates this key after each insert, and a remount (list
+    // virtualization) must re-read rather than show a stale empty list. staleTime 0 keeps every read fresh.
+    staleTime: 0,
   });
 }
