@@ -63,6 +63,16 @@ export class MemoryRepository {
     return rows.map(rowToMemory);
   }
 
+  // Every memory for the account, for the management UI (which has no injection budget to respect).
+  async list(): Promise<DbMemory[]> {
+    const userId = this.getUserId();
+    const rows = await this.db.getAllAsync<MemoryRow>(
+      "SELECT id, user_id, content, created_at, updated_at, last_accessed_at, source FROM memories WHERE user_id = ? ORDER BY last_accessed_at DESC, id DESC",
+      [userId],
+    );
+    return rows.map(rowToMemory);
+  }
+
   // Marks a memory as used now, keeping injected facts hot in the ordering.
   async touch(id: MemoryId): Promise<void> {
     await this.db.runAsync(

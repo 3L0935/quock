@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { AboutView } from "@/components/settings/AboutView";
 import { AccountView } from "@/components/settings/AccountView";
+import { AgentMemoryView } from "@/components/settings/AgentMemoryView";
 import { AiDataView } from "@/components/settings/AiDataView";
 import { OllamaView } from "@/components/settings/OllamaView";
 import { SettingsView } from "@/components/settings/SettingsView";
@@ -95,7 +96,13 @@ export interface AccountSheetProps {
   onChangeModel?: () => void;
 }
 
-type AccountSheetView = "account" | "settings" | "about" | "ollama" | "aiData";
+type AccountSheetView =
+  | "account"
+  | "settings"
+  | "about"
+  | "ollama"
+  | "aiData"
+  | "agentMemory";
 
 export function AccountSheet({
   visible,
@@ -110,6 +117,9 @@ export function AccountSheet({
     useState<React.ReactNode>(null);
   // The AI-data pane publishes its revoke-confirmation dialog here for the same full-display centering.
   const [aiDataOverlays, setAiDataOverlays] = useState<React.ReactNode>(null);
+  // The agent-memory pane publishes its delete/forget-all confirmations here too.
+  const [agentMemoryOverlays, setAgentMemoryOverlays] =
+    useState<React.ReactNode>(null);
   const { user } = useAuth();
   const { signOut } = useSignOut();
   const toast = useToast();
@@ -121,12 +131,15 @@ export function AccountSheet({
   const [isSettlingAbout, setIsSettlingAbout] = useState<boolean>(false);
   const [isSettlingOllama, setIsSettlingOllama] = useState<boolean>(false);
   const [isSettlingAiData, setIsSettlingAiData] = useState<boolean>(false);
+  const [isSettlingAgentMemory, setIsSettlingAgentMemory] =
+    useState<boolean>(false);
   // Shared values drive the crossfade. Each view animates its own progress to 1 while the others animate to 0.
   const accountProgress = useSharedValue(1);
   const settingsProgress = useSharedValue(0);
   const aboutProgress = useSharedValue(0);
   const ollamaProgress = useSharedValue(0);
   const aiDataProgress = useSharedValue(0);
+  const agentMemoryProgress = useSharedValue(0);
   useEffect(() => {
     if (prevViewRef.current === view) return;
     prevViewRef.current = view;
@@ -135,11 +148,17 @@ export function AccountSheet({
     setIsSettlingAbout(true);
     setIsSettlingOllama(true);
     setIsSettlingAiData(true);
+    setIsSettlingAgentMemory(true);
     animatePane(settingsProgress, view === "settings", setIsSettlingSettings);
     animatePane(accountProgress, view === "account", setIsSettlingAccount);
     animatePane(aboutProgress, view === "about", setIsSettlingAbout);
     animatePane(ollamaProgress, view === "ollama", setIsSettlingOllama);
     animatePane(aiDataProgress, view === "aiData", setIsSettlingAiData);
+    animatePane(
+      agentMemoryProgress,
+      view === "agentMemory",
+      setIsSettlingAgentMemory,
+    );
   }, [
     view,
     settingsProgress,
@@ -147,6 +166,7 @@ export function AccountSheet({
     aboutProgress,
     ollamaProgress,
     aiDataProgress,
+    agentMemoryProgress,
   ]);
   const settingsAnimatedStyle = useDrillStyle(
     settingsProgress,
@@ -170,6 +190,11 @@ export function AccountSheet({
   );
   const aiDataAnimatedStyle = useDrillStyle(
     aiDataProgress,
+    SETTINGS_DRILL_SCALE_FROM,
+    SETTINGS_DRILL_SCALE_TO,
+  );
+  const agentMemoryAnimatedStyle = useDrillStyle(
+    agentMemoryProgress,
     SETTINGS_DRILL_SCALE_FROM,
     SETTINGS_DRILL_SCALE_TO,
   );
@@ -216,7 +241,9 @@ export function AccountSheet({
           ? settingsOverlays
           : view === "aiData"
             ? aiDataOverlays
-            : null
+            : view === "agentMemory"
+              ? agentMemoryOverlays
+              : null
       }
     >
       {view === "settings" ? (
@@ -230,6 +257,12 @@ export function AccountSheet({
       ) : null}
       {view === "aiData" ? (
         <SheetHeader title="AI data" left={renderBackChevron("about")} />
+      ) : null}
+      {view === "agentMemory" ? (
+        <SheetHeader
+          title="Agent memory"
+          left={renderBackChevron("settings")}
+        />
       ) : null}
       <View className="flex-1">
         {view === "account" ? (
@@ -257,6 +290,7 @@ export function AccountSheet({
             <SettingsView
               onChangeModel={onChangeModel}
               onRenderOverlays={setSettingsOverlays}
+              onOpenAgentMemory={(): void => setView("agentMemory")}
             />
           </DrillFrame>
         ) : view === "about" ? (
@@ -277,6 +311,14 @@ export function AccountSheet({
             animatedKey="ollama-view"
           >
             <OllamaView />
+          </DrillFrame>
+        ) : view === "agentMemory" ? (
+          <DrillFrame
+            isAnimating={isSettlingAgentMemory}
+            animatedStyle={agentMemoryAnimatedStyle}
+            animatedKey="agent-memory-view"
+          >
+            <AgentMemoryView onRenderOverlays={setAgentMemoryOverlays} />
           </DrillFrame>
         ) : (
           <DrillFrame

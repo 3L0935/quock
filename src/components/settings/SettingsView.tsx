@@ -37,10 +37,8 @@ import {
   SETTINGS_SCROLL_PAD_TOP,
 } from "@/modules/settings/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
-import {
-  AGENT_MAX_TOOL_ROUNDS_CHOICES,
-} from "@/modules/chat/constants";
-import { useDb } from "@/lib/contexts/DbContext";
+import { useAgentMemories } from "@/modules/settings/hooks/useAgentMemories";
+import { AGENT_MAX_TOOL_ROUNDS_CHOICES } from "@/modules/chat/constants";
 import Bot from "lucide-react-native/icons/bot";
 
 // The two excerpt-menu actions whose wording is editable.
@@ -57,11 +55,14 @@ export interface SettingsViewProps {
   // Publishes the centered overlay (the clear-chats chooser) up to AccountSheet so it renders in the Sheet's
   // `overlays` slot — full-display centering, not inside the settings card. Null clears it.
   onRenderOverlays?: (overlays: React.ReactNode) => void;
+  // Opens the agent-memory drill pane (long-term store listing + per-entry delete).
+  onOpenAgentMemory?: () => void;
 }
 
 export function SettingsView({
   onChangeModel,
   onRenderOverlays,
+  onOpenAgentMemory,
 }: SettingsViewProps): React.ReactElement {
   const colors = useThemeColors();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -95,7 +96,12 @@ export function SettingsView({
   const setAgentMaxToolRounds = useSettingsStore(
     (st) => st.setAgentMaxToolRounds,
   );
-  const { memories } = useDb();
+  // Count-only read for the drill-in row's trailingMeta; the pane itself owns the full list.
+  const agentMemories = useAgentMemories();
+  const memoryCount = agentMemories.data?.length;
+  const handleOpenAgentMemory = useCallback((): void => {
+    onOpenAgentMemory?.();
+  }, [onOpenAgentMemory]);
   // Which excerpt action is being reworded, and the live draft. Null = the editor is closed.
   const [editingAction, setEditingAction] = useState<ExcerptAction | null>(
     null,
@@ -128,7 +134,13 @@ export function SettingsView({
     if (editingAction === "webSearch") setWebSearchInstruction(draft);
     if (editingAction === "agent") setAgentInstructions(draft);
     setEditingAction(null);
-  }, [draft, editingAction, setDeepDiveInstruction, setWebSearchInstruction, setAgentInstructions]);
+  }, [
+    draft,
+    editingAction,
+    setDeepDiveInstruction,
+    setWebSearchInstruction,
+    setAgentInstructions,
+  ]);
   const handleEditAgent = useCallback((): void => {
     openEditor("agent");
   }, [openEditor]);
@@ -294,6 +306,26 @@ export function SettingsView({
           />
           <ListRow
             icon={Bot}
+            label="Memories"
+            subtitle="What the agent remembers about you across chats"
+            trailingMeta={
+              memoryCount === undefined
+                ? undefined
+                : memoryCount === 0
+                  ? "Empty"
+                  : String(memoryCount)
+            }
+            onPress={handleOpenAgentMemory}
+            trailing={
+              <ChevronRight
+                size={iconSize.md}
+                color={colors.labelTertiary}
+                strokeWidth={strokeWidth.bold}
+              />
+            }
+          />
+          <ListRow
+            icon={Bot}
             label="Max tool rounds"
             subtitle="How many tool steps the agent may chain before it must answer"
             trailing={
@@ -309,15 +341,6 @@ export function SettingsView({
                 />
               </View>
             }
-          />
-          <ListRow
-            icon={Trash2}
-            label="Clear agent memory"
-            destructive
-            onPress={async (): Promise<void> => {
-              await memories.clearAll();
-            }}
-            showDivider={false}
           />
         </Section>
         <Section label="Chat">
