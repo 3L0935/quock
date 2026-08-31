@@ -94,6 +94,7 @@ function makeCtx() {
     messages: { update } as unknown as MessageRepository,
     memories: null,
     toolCalls: { record } as never,
+    chatHistory: null,
     queryClient,
     startStream: jest.fn(),
     endStream,
@@ -179,7 +180,7 @@ describe("runStream tool-round loop", () => {
     expect(mockSendChat).toHaveBeenCalledTimes(2);
     expect(mockExecuteTool).toHaveBeenCalledTimes(1);
     expect(mockExecuteTool).toHaveBeenCalledWith(
-      { client: ctx.client, memories: null },
+      { client: ctx.client, memories: null, chatHistory: null },
       wsCall("ollama news"),
     );
 

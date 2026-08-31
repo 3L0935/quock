@@ -13,6 +13,7 @@ import type { MessageErrorCode, MessageStatus } from "@/lib/db/types";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
 import type { ToolCallRepository } from "@/lib/db/toolCallRepository";
+import type { ChatHistorySearch } from "@/lib/db/chatHistorySearch";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import {
   type ChatEventUnion,
@@ -68,6 +69,8 @@ export interface RunStreamContext {
   memories: MemoryRepository | null;
   // Persists one row per executed tool call so history can show them; failures to write are logged inside the repo, never fatal.
   toolCalls: ToolCallRepository | null;
+  // Past-conversation search for the agent; null while the DB opens, the search tools then degrade.
+  chatHistory: ChatHistorySearch | null;
   queryClient: QueryClient;
   startStream: (chatId: ChatId, controller: AbortController) => void;
   endStream: (chatId: ChatId) => void;
@@ -174,6 +177,7 @@ export async function runStream(
     messages,
     memories,
     toolCalls,
+    chatHistory,
     queryClient,
     startStream,
     endStream,
@@ -453,7 +457,10 @@ export async function runStream(
         let result: string;
         let toolFailed = false;
         try {
-          result = await executeToolCall({ client, memories }, call);
+          result = await executeToolCall(
+            { client, memories, chatHistory },
+            call,
+          );
         } catch (err) {
           console.warn("[chat] tool call failed:", err);
           // Surface a non-fatal note on the finished bubble; the model still answers from the failed tool result.

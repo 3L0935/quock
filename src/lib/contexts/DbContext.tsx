@@ -3,6 +3,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import React from "react";
 import { AttachmentRepository } from "@/lib/db/attachmentRepository";
+import { ChatHistorySearch } from "@/lib/db/chatHistorySearch";
 import { ChatRepository } from "@/lib/db/chatRepository";
 import { openDb } from "@/lib/db/client";
 import { MemoryRepository } from "@/lib/db/memoryRepository";
@@ -15,6 +16,7 @@ export interface DbContextValue {
   attachments: AttachmentRepository;
   memories: MemoryRepository;
   toolCalls: ToolCallRepository;
+  chatHistory: ChatHistorySearch;
 }
 
 interface DbContextState {
@@ -44,6 +46,7 @@ function buildRepositories(
     attachments: new AttachmentRepository(db),
     memories: new MemoryRepository(db, getUserId),
     toolCalls: new ToolCallRepository(db),
+    chatHistory: new ChatHistorySearch(db, getUserId),
   };
 }
 
