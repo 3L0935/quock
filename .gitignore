@@ -4,6 +4,7 @@ dist/
 web-build/
 .env
 .env.local
+.hermes/
 
 # Native build artifacts
 /ios/
