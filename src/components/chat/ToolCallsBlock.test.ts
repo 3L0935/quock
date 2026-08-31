@@ -1,9 +1,9 @@
-import { splitContentAroundCalls } from "@/components/chat/ToolCallsBlock";
+import { splitContentAroundCalls } from "@/modules/chat/lib/toolCallDisplay";
 import type { DbToolCall } from "@/lib/db/types";
 import { asChatId, asMessageId } from "@/lib/types/ids";
 
-// expo-sqlite is native (no Jest surface) and components are Maestro-covered, so the unit coverage concentrates on
-// the pure segment splitter — the piece where an ordering or clamping regression would hide.
+// The segment splitter is pure (lives in toolCallDisplay so lucide-importing components stay out of Jest): the unit
+// coverage concentrates here, where an ordering or clamping regression would hide.
 
 function call(
   name: string,

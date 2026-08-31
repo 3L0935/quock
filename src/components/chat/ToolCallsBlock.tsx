@@ -1,7 +1,5 @@
-// Tool-step block for an agent turn. The pure splitter (splitContentAroundCalls) returns text segments separated
-// by the steps that interrupted them; AssistantMessage owns the interleaved render: [Markdown][steps][Markdown]…
-// exactly where the calls happened. Collapsed step = icon + label + term, chevron expands to raw arguments +
-// result. Border-left visual mirrors ThinkingBlock.
+// Tool-step rows for one interleave point and the imports AssistantMessage needs to interleave them. All icon maps
+// live here (not in toolCallDisplay) because lib files run under Jest, which cannot transform lucide's ESM modules.
 
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -27,8 +25,6 @@ const TOOL_RESULT_DISPLAY_MAX_CHARS = 400;
 // One-line term preview on the collapsed row.
 const TOOL_TERM_PREVIEW_CHARS = 48;
 
-// Icon mapping lives beside the component (not in toolCallDisplay) because lib files run under Jest, which
-// cannot transform lucide's ESM icon modules.
 const TOOL_ICONS: Record<string, LucideIcon> = {
   web_search: Globe,
   web_fetch: Globe,
@@ -194,29 +190,4 @@ export function StepsGroup({
       ))}
     </View>
   );
-}
-
-export interface ToolSegment {
-  // Markdown source slice of the assistant answer. Empty at pure step boundaries.
-  text: string;
-  // Steps that interrupted the answer at this boundary; render between the segments.
-  calls: DbToolCall[];
-}
-
-// Splits the content around the persisted offsets: segment k spans [prevEnd, offset_k). Steps recorded at or past
-// the content end (round cap, interrupted stream) group after the last segment.
-export function splitContentAroundCalls(
-  content: string,
-  calls: readonly DbToolCall[],
-): ToolSegment[] {
-  const sorted = [...calls].sort((a, b) => a.contentOffset - b.contentOffset);
-  const segments: ToolSegment[] = [];
-  let cursor = 0;
-  for (const call of sorted) {
-    const offset = Math.min(Math.max(0, call.contentOffset), content.length);
-    segments.push({ text: content.slice(cursor, offset), calls: [call] });
-    cursor = offset;
-  }
-  segments.push({ text: content.slice(cursor), calls: [] });
-  return segments;
 }

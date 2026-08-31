@@ -166,8 +166,8 @@ describe("MIGRATIONS", () => {
     );
   });
 
-  it("adds the tool_calls content offset in migration 16", () => {
-    const migration = MIGRATIONS.find((m) => m.id === 16);
+  it("adds the tool_calls content offset on a FRESH id (16 was spent on chat_folders)", () => {
+    const migration = MIGRATIONS.find((m) => m.id === 18);
     expect(migration).toBeDefined();
     expect(migration?.up).toContain(
       "ALTER TABLE tool_calls ADD COLUMN content_offset",
@@ -177,12 +177,14 @@ describe("MIGRATIONS", () => {
     );
   });
 
-  it("creates the chat_folders table and chats.folder_id in the latest migration", () => {
-    const last = MIGRATIONS[MIGRATIONS.length - 1];
-    expect(last.id).toBe(17);
-    expect(last.up).toContain("CREATE TABLE IF NOT EXISTS chat_folders");
-    expect(last.up).toContain("ALTER TABLE chats ADD COLUMN folder_id");
-    expect(planMigration(last.up, () => false).unreadable).toEqual([]);
+  it("creates the chat_folders table and chats.folder_id in migration 16", () => {
+    const migration = MIGRATIONS.find((m) => m.id === 16);
+    expect(migration).toBeDefined();
+    expect(migration?.up).toContain("CREATE TABLE IF NOT EXISTS chat_folders");
+    expect(migration?.up).toContain("ALTER TABLE chats ADD COLUMN folder_id");
+    expect(planMigration(migration?.up ?? "", () => false).unreadable).toEqual(
+      [],
+    );
   });
 
   it("never adds the same column twice across migrations", () => {

@@ -169,8 +169,10 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 13, up: ADD_CHAT_AGENT_MODE },
   { id: 14, up: ADD_MESSAGE_SENT_WITH_AGENT },
   { id: 15, up: ADD_TOOL_CALLS_TABLE },
-  { id: 16, up: ADD_TOOL_CALLS_OFFSET },
-  { id: 17, up: ADD_CHAT_FOLDERS },
+  { id: 16, up: ADD_CHAT_FOLDERS },
+  // 18, never 16: the folder migration SHIPPED as id 16 on a device before the offset column existed. An id is
+  // spent the moment any install runs it (see planMigration), so the offset must take the next free id to ever run.
+  { id: 18, up: ADD_TOOL_CALLS_OFFSET },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
