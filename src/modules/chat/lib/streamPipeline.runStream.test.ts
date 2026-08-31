@@ -267,6 +267,8 @@ describe("runStream tool-round loop", () => {
       result: '{"results":[]}',
       status: "complete",
       round: 0,
+      // The tool fired after "searching" streamed, so the offset is the visible length at call time.
+      contentOffset: "searching".length,
     });
   });
 

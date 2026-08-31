@@ -41,6 +41,7 @@ function recordedCall(
     result: "[1] result",
     status: "complete",
     round: 0,
+    contentOffset: 0,
     ...args,
   });
 }
@@ -60,6 +61,7 @@ describe("ToolCallRepository", () => {
       "[1] result",
       "complete",
       0,
+      0,
       expect.any(Number),
     ]);
   });
@@ -75,6 +77,7 @@ describe("ToolCallRepository", () => {
         result: "r",
         status: "complete",
         round: 1,
+        content_offset: 20,
         created_at: 20,
       },
       {
@@ -85,6 +88,7 @@ describe("ToolCallRepository", () => {
         result: "r",
         status: "failed",
         round: 0,
+        content_offset: 10,
         created_at: 10,
       },
     );
@@ -103,7 +107,9 @@ describe("ToolCallRepository", () => {
     await repo.listByMessage(asMessageId(7));
     const select = fake.statements.find((s) => s.sql.startsWith("SELECT"));
     expect(select?.sql).toContain("WHERE message_id = ?");
-    expect(select?.sql).toContain("ORDER BY created_at ASC");
+    expect(select?.sql).toContain(
+      "ORDER BY content_offset ASC, created_at ASC",
+    );
   });
 
   it("logs and swallows a write failure so the tool round the model awaits never rejects", async () => {

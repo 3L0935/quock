@@ -117,5 +117,8 @@ export interface DbToolCall {
   status: ToolCallStatus;
   // Tool-loop round this call belonged to (0-based), so the UI can group sequential steps.
   round: number;
+  // Character offset into the assistant's visible content at call time: the bubble interleaves the step rows
+  // between text segments at this position instead of stacking them at the end.
+  contentOffset: number;
   createdAt: number;
 }

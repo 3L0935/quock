@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import * as Clipboard from "expo-clipboard";
-import React, { useCallback } from "react";
+import React, { Fragment, useCallback } from "react";
 import { Text, View } from "react-native";
 import Copy from "lucide-react-native/icons/copy";
 import Globe from "lucide-react-native/icons/globe";
@@ -12,7 +12,11 @@ import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
-import { ToolCallsBlock } from "@/components/chat/ToolCallsBlock";
+import {
+  splitContentAroundCalls,
+  StepsGroup,
+} from "@/components/chat/ToolCallsBlock";
+import { useMessageToolCalls } from "@/modules/chat/hooks/useMessageToolCalls";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth } from "@/lib/design/tokens";
 import { MessageBubble } from "@/components/chat/MessageBubble";
@@ -195,6 +199,13 @@ function AssistantMessageImpl({
     message.webSearchFailed && !isError && !isInterrupted;
   // Action row visible only once the response is fully landed — hide during pending / streaming / error / interrupted so the icons never offer regenerate over an in-flight answer.
   const showActionRow = message.status === "complete" && hasContent;
+  // Interleaved tool steps only make sense once there is text to interleave into; the pure splitter is memoized
+  // with the same deps as the content reveal.
+  const toolCallsQuery = useMessageToolCalls(message.id);
+  const interleaved =
+    toolCallsQuery.data && toolCallsQuery.data.length > 0
+      ? splitContentAroundCalls(revealedContent, toolCallsQuery.data)
+      : null;
   return (
     <View>
       <MessageBubble role="assistant" isStreaming={isStreaming}>
@@ -209,18 +220,55 @@ function AssistantMessageImpl({
         ) : null}
         {hasContent || showCursor ? (
           <View className="flex-row items-end flex-wrap">
-            {/* Excerpt actions only on a landed reply: mid-stream the list follows the tail, so a menu anchored to a moving unit would drift off it. */}
-            <Markdown
-              source={revealedContent}
-              className="flex-1"
-              anchorSpace={anchorSpace}
-              {...(showActionRow
-                ? { onLongPressExcerpt: handleLongPressExcerpt }
-                : {})}
-              highlightPrefix={String(message.id)}
-              activeHighlightKey={activeHighlightKey}
-            />
-            {showCursor ? <StreamingCursor /> : null}
+            {interleaved ? (
+              // Steps render INLINE at the offsets where the model interrupted its own answer.
+              interleaved.map((segment, i) => (
+                <Fragment key={`seg-${message.id}:${i}`}>
+                  {segment.calls.length > 0 ? (
+                    <View className="w-full">
+                      <StepsGroup calls={segment.calls} />
+                    </View>
+                  ) : null}
+                  {segment.text.length > 0 ? (
+                    <View className="flex-1 flex-row items-end flex-wrap">
+                      <Markdown
+                        source={segment.text}
+                        className="flex-1"
+                        anchorSpace={anchorSpace}
+                        {...(showActionRow
+                          ? { onLongPressExcerpt: handleLongPressExcerpt }
+                          : {})}
+                        highlightPrefix={String(message.id)}
+                        activeHighlightKey={activeHighlightKey}
+                      />
+                      {/* Cursor rides the LAST segment only (live text tail). */}
+                      {showCursor && i === interleaved.length - 1 ? (
+                        <StreamingCursor />
+                      ) : null}
+                    </View>
+                  ) : showCursor && i === interleaved.length - 1 ? (
+                    <View>
+                      <StreamingCursor />
+                    </View>
+                  ) : null}
+                </Fragment>
+              ))
+            ) : (
+              <>
+                {/* Excerpt actions only on a landed reply: mid-stream the list follows the tail, so a menu anchored to a moving unit would drift off it. */}
+                <Markdown
+                  source={revealedContent}
+                  className="flex-1"
+                  anchorSpace={anchorSpace}
+                  {...(showActionRow
+                    ? { onLongPressExcerpt: handleLongPressExcerpt }
+                    : {})}
+                  highlightPrefix={String(message.id)}
+                  activeHighlightKey={activeHighlightKey}
+                />
+                {showCursor ? <StreamingCursor /> : null}
+              </>
+            )}
           </View>
         ) : null}
         {isStreaming && toolActivity ? (
@@ -228,8 +276,6 @@ function AssistantMessageImpl({
             <SearchingIndicator activity={toolActivity} />
           </View>
         ) : null}
-        {/* Persisted tool steps: rendered on every row (old turns read from SQLite), expanding to args + result. */}
-        <ToolCallsBlock messageId={message.id} />
         {showThinkingIndicator ? <ThinkingIndicator /> : null}
         {showWebSearchFailed ? <WebSearchFailedNote /> : null}
         {isError ? (
