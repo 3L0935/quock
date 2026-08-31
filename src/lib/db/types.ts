@@ -1,6 +1,6 @@
 // Repository-layer types, decoupled from `codegen/gotypes.gen.ts` so storage can evolve independently from the wire format.
 
-import type { AttachmentId, ChatId, MessageId } from "@/lib/types/ids";
+import type { AttachmentId, ChatId, MemoryId, MessageId } from "@/lib/types/ids";
 
 export type MessageRole = "user" | "assistant" | "tool";
 // Assistant lifecycle: pending -> streaming -> complete|error|interrupted. User and tool rows are always `complete`.
@@ -27,6 +27,8 @@ export interface DbChat {
   // Sticky composer toggles remembered per chat (both default false). Reset to false when the bound model loses the capability.
   thinkEnabled: boolean;
   webSearchEnabled: boolean;
+  // Agent mode (memory + device tools + injected system context). Capability-gated like the other two modes.
+  agentEnabled: boolean;
 }
 
 export interface DbMessage {
@@ -63,6 +65,17 @@ export interface DbAttachment {
   // Set when the app derived this row from another attachment (a rendered PDF page): shown to the model, hidden from
   // the bubble, since the user attached the document and not its pages.
   derivedFrom: AttachmentId | null;
+}
+
+export interface DbMemory {
+  id: MemoryId;
+  userId: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+  lastAccessedAt: number;
+  // What wrote the row — "model" today, kept nullable so a future user-edit surface can set its own value.
+  source: string | null;
 }
 
 export interface ChatSummary {
