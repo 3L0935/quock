@@ -260,6 +260,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         thinkingTimeEnd: null,
         sentWithThink: forceThink,
         sentWithWebSearch: input.webSearch === true,
+        sentWithAgent: agentEnabled && hasTools,
       });
       const insertedAttachments: DbAttachment[] = [];
       // Kept for this turn only: the render decision and the password toast are send-time concerns, while the wire
@@ -542,12 +543,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
     },
     [
+      agentEnabled,
       attachments,
       buildAgentPayload,
       chatId,
       chats,
       failPending,
       forceThink,
+      hasTools,
       hasVision,
       messages,
       model,
@@ -772,10 +775,12 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const userMessage = dbMessages[userIndex];
       // Re-sending an edited prompt: refresh the mode indicators to the modes active now.
       const sentWithWebSearch = webSearchEnabled && hasTools;
+      const sentWithAgent = agentEnabled && hasTools;
       await messages.update(userMessageId, {
         content: newContent,
         sentWithThink: forceThink,
         sentWithWebSearch,
+        sentWithAgent,
       });
       await messages.deleteAfter(chatId, userMessageId);
       // Attachments stay bound to the user message; vision-gating mirrors `send`.
@@ -856,6 +861,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
     },
     [
+      agentEnabled,
       attachments,
       buildAgentPayload,
       chatId,
