@@ -462,15 +462,28 @@ export async function runStream(
           result = `Tool ${call.function.name} failed.`;
         }
         // Persist the step for the bubble's history (best-effort inside the repo): name + args + how it ended.
-        void toolCalls?.record({
-          messageId: assistantId,
-          chatId,
-          name: call.function.name,
-          arguments: JSON.stringify(call.function.arguments),
-          result,
-          status: toolFailed ? "failed" : "complete",
-          round,
-        });
+        // The per-turn cache is invalidated on success so an open bubble re-reads; the pipeline has no React
+        // subscription, this invalidation is the only signal the step list ever gets mid-stream.
+        const recordPromise = toolCalls
+          ?.record({
+            messageId: assistantId,
+            chatId,
+            name: call.function.name,
+            arguments: JSON.stringify(call.function.arguments),
+            result,
+            status: toolFailed ? "failed" : "complete",
+            round,
+          })
+          .catch((err: unknown) => {
+            console.warn("[chat] tool-call persist failed:", err);
+          });
+        if (recordPromise) {
+          void recordPromise.then(() => {
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.messageToolCalls(assistantId),
+            });
+          });
+        }
         turnMessages = [
           ...turnMessages,
           { role: "tool", content: result, tool_name: call.function.name },
