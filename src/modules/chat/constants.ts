@@ -71,6 +71,13 @@ export const ATTACH_SHEET_SNAP_WITH_TOOLS = "37%" as const;
 // Web search: results per query (Ollama default 5, max 10) and a ceiling on agentic tool rounds so a misbehaving model can't loop forever.
 export const WEB_SEARCH_MAX_RESULTS = 5;
 export const WEB_SEARCH_MAX_TOOL_ROUNDS = 4;
+
+// Agent mode: memory tools add cheap local rounds (no network), so the default cap sits above web search's. The live
+// cap is the Settings value (clamped to the choices); these constants seed the store and bound the control.
+export const AGENT_MAX_TOOL_ROUNDS_DEFAULT = 8;
+export const AGENT_MAX_TOOL_ROUNDS_CHOICES = [4, 8, 12, 16] as const;
+// Memories injected as system context per agent send: enough continuity, bounded tokens (~30 lines x 200 chars).
+export const AGENT_MEMORY_INJECT_MAX = 30;
 export const CHAT_HISTORY_SHEET_SNAP = "75%" as const;
 // Select-text sheet: tall so a long reply is comfortable to read and select.
 export const SELECT_TEXT_SHEET_SNAP = "85%" as const;
