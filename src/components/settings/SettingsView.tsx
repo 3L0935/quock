@@ -39,8 +39,7 @@ import {
   SETTINGS_SCROLL_PAD_TOP,
 } from "@/modules/settings/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
-import { useDb } from "@/lib/contexts/DbContext";
-import { useToast } from "@/lib/hooks/useToast";
+import { useAgentMemories } from "@/modules/settings/hooks/useAgentMemories";
 
 // The two excerpt-menu actions whose wording is editable.
 type ExcerptAction = "deepDive" | "webSearch" | "agent";
@@ -56,11 +55,14 @@ export interface SettingsViewProps {
   // Publishes the centered overlay (the clear-chats chooser) up to AccountSheet so it renders in the Sheet's
   // `overlays` slot — full-display centering, not inside the settings card. Null clears it.
   onRenderOverlays?: (overlays: React.ReactNode) => void;
+  // Opens the agent-memory drill pane (long-term store listing + per-entry delete).
+  onOpenAgentMemory?: () => void;
 }
 
 export function SettingsView({
   onChangeModel,
   onRenderOverlays,
+  onOpenAgentMemory,
 }: SettingsViewProps): React.ReactElement {
   const colors = useThemeColors();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -94,13 +96,16 @@ export function SettingsView({
   const setAgentMaxToolRounds = useSettingsStore(
     (st) => st.setAgentMaxToolRounds,
   );
-  const { memories } = useDb();
-  const toast = useToast();
+  // Count-only read for the drill-in row's trailingMeta; the pane itself owns the full list.
+  const agentMemories = useAgentMemories();
+  const memoryCount = agentMemories.data?.length;
+  const handleOpenAgentMemory = useCallback((): void => {
+    onOpenAgentMemory?.();
+  }, [onOpenAgentMemory]);
   // Which excerpt action is being reworded, and the live draft. Null = the editor is closed.
   const [editingAction, setEditingAction] = useState<ExcerptAction | null>(
     null,
   );
-  const [isClearMemoryOpen, setIsClearMemoryOpen] = useState<boolean>(false);
   const [draft, setDraft] = useState<string>("");
   const openEditor = useCallback((action: ExcerptAction): void => {
     setDraft(
@@ -188,32 +193,10 @@ export function SettingsView({
           onConfirm={saveEditor}
           onCancel={closeEditor}
         />
-        {/* Same pattern as ClearChatsChooser: the confirm dialog owns the destructive action, toast reports it. */}
-        <ConfirmDialog
-          visible={isClearMemoryOpen}
-          title="Clear agent memory"
-          message="Every fact the agent saved for this account is deleted. This cannot be undone."
-          confirmLabel="Clear"
-          destructive
-          onConfirm={(): void => {
-            setIsClearMemoryOpen(false);
-            void (async (): Promise<void> => {
-              try {
-                await memories.clearAll();
-                toast({ title: "Agent memory cleared", tone: "success" });
-              } catch (err) {
-                console.warn("SettingsView: failed to clear agent memory", err);
-                toast({ title: "Could not clear agent memory", tone: "error" });
-              }
-            })();
-          }}
-          onCancel={(): void => setIsClearMemoryOpen(false)}
-        />
       </>
     ),
     [
       isChooserOpen,
-      isClearMemoryOpen,
       totalChatBytes,
       deviceBytes,
       clearMine,
@@ -223,8 +206,6 @@ export function SettingsView({
       editingAction,
       saveEditor,
       closeEditor,
-      memories,
-      toast,
     ],
   );
   useEffect(() => {
@@ -325,6 +306,26 @@ export function SettingsView({
           />
           <ListRow
             icon={Bot}
+            label="Memories"
+            subtitle="What the agent remembers about you across chats"
+            trailingMeta={
+              memoryCount === undefined
+                ? undefined
+                : memoryCount === 0
+                  ? "Empty"
+                  : String(memoryCount)
+            }
+            onPress={handleOpenAgentMemory}
+            trailing={
+              <ChevronRight
+                size={iconSize.md}
+                color={colors.labelTertiary}
+                strokeWidth={strokeWidth.bold}
+              />
+            }
+          />
+          <ListRow
+            icon={Bot}
             label="Max tool rounds"
             subtitle="How many tool steps the agent may chain before it must answer"
             trailing={
@@ -340,13 +341,6 @@ export function SettingsView({
                 />
               </View>
             }
-          />
-          <ListRow
-            icon={Trash2}
-            label="Clear agent memory"
-            destructive
-            onPress={(): void => setIsClearMemoryOpen(true)}
-            showDivider={false}
           />
         </Section>
         <Section label="Chat">
