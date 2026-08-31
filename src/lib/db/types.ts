@@ -1,6 +1,11 @@
 // Repository-layer types, decoupled from `codegen/gotypes.gen.ts` so storage can evolve independently from the wire format.
 
-import type { AttachmentId, ChatId, MemoryId, MessageId } from "@/lib/types/ids";
+import type {
+  AttachmentId,
+  ChatId,
+  MemoryId,
+  MessageId,
+} from "@/lib/types/ids";
 
 export type MessageRole = "user" | "assistant" | "tool";
 // Assistant lifecycle: pending -> streaming -> complete|error|interrupted. User and tool rows are always `complete`.
@@ -11,11 +16,7 @@ export type MessageStatus =
   | "error"
   | "interrupted";
 // Discriminator persisted to `messages.error_code` so AssistantMessage can pick copy and gate Retry.
-export type MessageErrorCode =
-  | "network"
-  | "cloud"
-  | "subscription"
-  | "unknown";
+export type MessageErrorCode = "network" | "cloud" | "subscription" | "unknown";
 export interface DbChat {
   id: ChatId;
   title: string;
@@ -86,4 +87,22 @@ export interface ChatSummary {
   updatedAt: number;
   /** Approximate on-device bytes used by this chat (message content + thinking + attachment blobs). */
   sizeBytes: number;
+}
+
+// Lifecycle of one executed tool call, mirrored from the pipeline: failed tools surface in history as a
+// "Tool X unavailable" row rather than being retried or hidden.
+export type ToolCallStatus = "complete" | "failed";
+
+export interface DbToolCall {
+  messageId: MessageId;
+  chatId: ChatId;
+  name: string;
+  // JSON-encoded arguments exactly as the model requested them.
+  arguments: string;
+  // Serialized tool output fed back to the model; null only when the process died mid-execution.
+  result: string | null;
+  status: ToolCallStatus;
+  // Tool-loop round this call belonged to (0-based), so the UI can group sequential steps.
+  round: number;
+  createdAt: number;
 }

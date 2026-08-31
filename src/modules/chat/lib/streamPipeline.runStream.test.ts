@@ -21,8 +21,12 @@ import { executeToolCall, type WireToolCall } from "@/modules/chat/lib/tools";
 jest.mock("@/modules/chat/api/chat", () => ({ sendChatMessage: jest.fn() }));
 jest.mock("@/modules/chat/lib/tools", () => ({ executeToolCall: jest.fn() }));
 
-const mockSendChat = sendChatMessage as jest.MockedFunction<typeof sendChatMessage>;
-const mockExecuteTool = executeToolCall as jest.MockedFunction<typeof executeToolCall>;
+const mockSendChat = sendChatMessage as jest.MockedFunction<
+  typeof sendChatMessage
+>;
+const mockExecuteTool = executeToolCall as jest.MockedFunction<
+  typeof executeToolCall
+>;
 
 const CHAT_ID = asChatId("chat-1");
 const ASSISTANT_ID = asMessageId(1);
@@ -82,12 +86,14 @@ function makeCtx() {
   const setReasoning = jest.fn();
   const endStream = jest.fn();
   const light = jest.fn();
+  const record = jest.fn().mockResolvedValue(undefined);
 
   const ctx: RunStreamContext = {
     client: {} as ApiClient,
     chatId: CHAT_ID,
     messages: { update } as unknown as MessageRepository,
     memories: null,
+    toolCalls: { record } as never,
     queryClient,
     startStream: jest.fn(),
     endStream,
@@ -106,6 +112,7 @@ function makeCtx() {
     setReasoning,
     endStream,
     light,
+    record,
   };
 }
 
@@ -122,7 +129,14 @@ function tailMessage(queryClient: QueryClient) {
 const USER_MESSAGES: WireChatMessage[] = [{ role: "user", content: "hi" }];
 
 function run(ctx: RunStreamContext): Promise<void> {
-  return runStream(ctx, "kimi", ASSISTANT_ID, USER_MESSAGES, undefined, undefined);
+  return runStream(
+    ctx,
+    "kimi",
+    ASSISTANT_ID,
+    USER_MESSAGES,
+    undefined,
+    undefined,
+  );
 }
 
 describe("runStream tool-round loop", () => {
@@ -188,7 +202,9 @@ describe("runStream tool-round loop", () => {
     });
     expect(setToolActivity).toHaveBeenLastCalledWith(CHAT_ID, null);
     // Content accumulates across rounds: the pre-tool narration stays in the bubble ahead of the answer.
-    expect(tailMessage(queryClient).content).toBe("Let me searchHere is the answer");
+    expect(tailMessage(queryClient).content).toBe(
+      "Let me searchHere is the answer",
+    );
   });
 
   it("stops re-streaming once the round cap trips", async () => {
@@ -228,6 +244,49 @@ describe("runStream tool-round loop", () => {
     expect(update).toHaveBeenLastCalledWith(
       ASSISTANT_ID,
       expect.objectContaining({ status: "complete", webSearchFailed: true }),
+    );
+  });
+
+  it("persists each executed tool call with its arguments and completion status", async () => {
+    scriptTurns([
+      [chatEvent("searching"), toolCallsEvent([wsCall("quock app")])],
+      [chatEvent("answer")],
+    ]);
+    mockExecuteTool.mockResolvedValue('{"results":[]}');
+    const { ctx, record } = makeCtx();
+
+    await run(ctx);
+
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith({
+      messageId: ASSISTANT_ID,
+      chatId: CHAT_ID,
+      name: "web_search",
+      arguments: JSON.stringify({ query: "quock app" }),
+      result: '{"results":[]}',
+      status: "complete",
+      round: 0,
+    });
+  });
+
+  it("persists a failed tool call with the failed status and the fallback result", async () => {
+    scriptTurns([
+      [chatEvent("searching"), toolCallsEvent([wsCall("q")])],
+      [chatEvent("done anyway")],
+    ]);
+    mockExecuteTool.mockRejectedValue(new Error("network down"));
+    const { ctx, record } = makeCtx();
+
+    await run(ctx);
+
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: ASSISTANT_ID,
+        name: "web_search",
+        result: "Tool web_search failed.",
+        status: "failed",
+        round: 0,
+      }),
     );
   });
 

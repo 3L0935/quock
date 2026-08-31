@@ -9,12 +9,10 @@ import {
 } from "@/lib/api/errors";
 import type { MemoryRepository } from "@/lib/db/memoryRepository";
 import type { MessageRepository } from "@/lib/db/messageRepository";
-import type {
-  MessageErrorCode,
-  MessageStatus,
-} from "@/lib/db/types";
+import type { MessageErrorCode, MessageStatus } from "@/lib/db/types";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
+import type { ToolCallRepository } from "@/lib/db/toolCallRepository";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import {
   type ChatEventUnion,
@@ -68,6 +66,8 @@ export interface RunStreamContext {
   messages: MessageRepository;
   // Null while the DB opens; local agent tools then degrade (memory_save returns storage error, memory_read answers "No memories stored yet.").
   memories: MemoryRepository | null;
+  // Persists one row per executed tool call so history can show them; failures to write are logged inside the repo, never fatal.
+  toolCalls: ToolCallRepository | null;
   queryClient: QueryClient;
   startStream: (chatId: ChatId, controller: AbortController) => void;
   endStream: (chatId: ChatId) => void;
@@ -169,6 +169,7 @@ export async function runStream(
     chatId,
     messages,
     memories,
+    toolCalls,
     queryClient,
     startStream,
     endStream,
@@ -446,14 +447,26 @@ export async function runStream(
           query: toolActivityTerm(call),
         });
         let result: string;
+        let toolFailed = false;
         try {
           result = await executeToolCall({ client, memories }, call);
         } catch (err) {
           console.warn("[chat] tool call failed:", err);
           // Surface a non-fatal note on the finished bubble; the model still answers from the failed tool result.
           buffers.webSearchFailed = true;
+          toolFailed = true;
           result = `Tool ${call.function.name} failed.`;
         }
+        // Persist the step for the bubble's history (best-effort inside the repo): name + args + how it ended.
+        void toolCalls?.record({
+          messageId: assistantId,
+          chatId,
+          name: call.function.name,
+          arguments: JSON.stringify(call.function.arguments),
+          result,
+          status: toolFailed ? "failed" : "complete",
+          round,
+        });
         turnMessages = [
           ...turnMessages,
           { role: "tool", content: result, tool_name: call.function.name },

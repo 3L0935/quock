@@ -116,6 +116,24 @@ const ADD_MESSAGE_SENT_WITH_AGENT = `
   ALTER TABLE messages ADD COLUMN sent_with_agent INTEGER NOT NULL DEFAULT 0;
 `;
 
+// One row per tool the model invoked during an agent turn (the pipeline used to keep these wire-only). arguments is
+// JSON-encoded; status records how the execution ended so history shows failures, not just successes. FK cascades with
+// chat deletion, like messages/attachments.
+const ADD_TOOL_CALLS_TABLE = `
+  CREATE TABLE IF NOT EXISTS tool_calls (
+    message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    arguments TEXT NOT NULL,
+    result TEXT,
+    status TEXT NOT NULL,
+    round INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_tool_calls_message
+    ON tool_calls(message_id);
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
   { id: 2, up: ADD_MESSAGE_STATUS },
@@ -130,6 +148,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 12, up: ADD_MEMORY_TABLE },
   { id: 13, up: ADD_CHAT_AGENT_MODE },
   { id: 14, up: ADD_MESSAGE_SENT_WITH_AGENT },
+  { id: 15, up: ADD_TOOL_CALLS_TABLE },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0

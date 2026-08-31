@@ -7,12 +7,14 @@ import { ChatRepository } from "@/lib/db/chatRepository";
 import { openDb } from "@/lib/db/client";
 import { MemoryRepository } from "@/lib/db/memoryRepository";
 import { MessageRepository } from "@/lib/db/messageRepository";
+import { ToolCallRepository } from "@/lib/db/toolCallRepository";
 
 export interface DbContextValue {
   chats: ChatRepository;
   messages: MessageRepository;
   attachments: AttachmentRepository;
   memories: MemoryRepository;
+  toolCalls: ToolCallRepository;
 }
 
 interface DbContextState {
@@ -41,6 +43,7 @@ function buildRepositories(
     messages: new MessageRepository(db),
     attachments: new AttachmentRepository(db),
     memories: new MemoryRepository(db, getUserId),
+    toolCalls: new ToolCallRepository(db),
   };
 }
 
@@ -69,7 +72,10 @@ export function DbProvider({
         try {
           await value.messages.interruptOrphanedStreams();
         } catch (reconcileErr) {
-          console.warn("DbProvider: stream reconciliation failed", reconcileErr);
+          console.warn(
+            "DbProvider: stream reconciliation failed",
+            reconcileErr,
+          );
         }
         if (isCancelled) return;
         setState({
