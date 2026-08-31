@@ -15,6 +15,7 @@ import Share2 from "lucide-react-native/icons/share-2";
 import Smartphone from "lucide-react-native/icons/smartphone";
 import Wrench from "lucide-react-native/icons/wrench";
 import type { LucideIcon } from "lucide-react-native";
+import clsx from "clsx";
 import { toolCallTerm } from "@/modules/chat/lib/toolCallDisplay";
 import type { DbToolCall } from "@/lib/db/types";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
@@ -83,6 +84,20 @@ function ToolStep({ call }: { call: DbToolCall }): React.ReactElement {
   const Icon = toolIcon(call.name);
   const term = toolCallTerm(call.arguments);
   const isFailed = call.status === "failed";
+  // An empty arguments object is meaningful on the wire (memory_read has only optional params — the model asked
+  // for "recent memories" with no filter), but showing "Arguments {}" is just noise: the section hides instead.
+  const hasArgs = React.useMemo((): boolean => {
+    try {
+      const parsed: unknown = JSON.parse(call.arguments);
+      return (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        Object.keys(parsed).length > 0
+      );
+    } catch {
+      return call.arguments.trim().length > 0;
+    }
+  }, [call.arguments]);
   const expandedArgs = React.useMemo((): string => {
     try {
       return JSON.stringify(JSON.parse(call.arguments), null, 2);
@@ -148,18 +163,27 @@ function ToolStep({ call }: { call: DbToolCall }): React.ReactElement {
       </Pressable>
       {isExpanded ? (
         <View className="mb-1">
-          <Text className="font-sans text-caption-1 text-muted-foreground">
-            Arguments
-          </Text>
-          <Text
-            className="font-mono text-caption-2 text-muted-foreground"
-            selectable
-          >
-            {expandedArgs}
-          </Text>
+          {hasArgs ? (
+            <>
+              <Text className="font-sans text-caption-1 text-muted-foreground">
+                Arguments
+              </Text>
+              <Text
+                className="font-mono text-caption-2 text-muted-foreground"
+                selectable
+              >
+                {expandedArgs}
+              </Text>
+            </>
+          ) : null}
           {expandedResult.length > 0 ? (
             <>
-              <Text className="font-sans text-caption-1 text-muted-foreground mt-1">
+              <Text
+                className={clsx(
+                  "font-sans text-caption-1 text-muted-foreground",
+                  hasArgs && "mt-1",
+                )}
+              >
                 Result
               </Text>
               <Text
