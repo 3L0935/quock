@@ -12,7 +12,6 @@ import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes"
 import type { DbAttachment, DbMessage } from "@/lib/db/types";
 import type { AttachmentId, ChatId, MessageId } from "@/lib/types/ids";
 import {
-  useHasThinkingCapability,
   useHasToolsCapability,
   useHasVisionCapability,
 } from "@/modules/models/hooks/useModelCapabilities";
@@ -92,12 +91,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const { model } = useChatModel(chatId);
   const hasVision = useHasVisionCapability(model?.name);
   const hasTools = useHasToolsCapability(model?.name);
-  const hasThinking = useHasThinkingCapability(model?.name);
-  // Sticky modes persisted per chat. Thinking is OPTIONAL: only an explicit on (and a thinking-capable model)
-  // forces `think: true`; otherwise the flag is omitted so the model decides. Applied uniformly to every path.
-  const { thinkEnabled, webSearchEnabled, agentEnabled } =
-    useChatComposerModes(chatId);
-  const forceThink = thinkEnabled && hasThinking;
+  // Sticky modes persisted per chat. Thinking has NO user control: the `think` flag is always omitted so the
+  // model follows its own default, which is what the old toggle could not change anyway (OFF never suppressed it).
+  const { webSearchEnabled, agentEnabled } = useChatComposerModes(chatId);
   // Agent mode sends: standing instructions + tool-round ceiling live in Settings, read once per send.
   const agentInstructions = useSettingsStore((s) => s.agentInstructions);
   const agentMaxToolRounds = useSettingsStore((s) => s.agentMaxToolRounds);
@@ -273,7 +269,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model: null,
         thinkingTimeStart: null,
         thinkingTimeEnd: null,
-        sentWithThink: forceThink,
+        sentWithThink: false,
         sentWithWebSearch: input.webSearch === true,
         sentWithAgent: agentEnabled && hasTools,
       });
@@ -555,8 +551,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        // Thinking is optional: force it on only when the chat's preference is on AND the model supports it; otherwise omit the flag so the model decides for itself.
-        forceThink || undefined,
+        // The think flag is always omitted: thinking-capable models follow their own default.
+        undefined,
         agentPayload.tools,
         agentPayload.systemMessages,
         agentPayload.maxToolRounds,
@@ -569,7 +565,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       chatId,
       chats,
       failPending,
-      forceThink,
       hasTools,
       hasVision,
       messages,
@@ -659,8 +654,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
-        forceThink || undefined,
+        // The think flag is always omitted: thinking-capable models follow their own default.
+        undefined,
         agentPayload.tools,
         agentPayload.systemMessages,
         agentPayload.maxToolRounds,
@@ -672,7 +667,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       chatId,
       chats,
       failPending,
-      forceThink,
       hasVision,
       messages,
       model,
@@ -764,8 +758,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         assistantMessageId,
         wireMessages,
-        // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
-        forceThink || undefined,
+        // The think flag is always omitted: thinking-capable models follow their own default.
+        undefined,
         agentPayload.tools,
         agentPayload.systemMessages,
         agentPayload.maxToolRounds,
@@ -777,7 +771,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       chatId,
       chats,
       failPending,
-      forceThink,
       hasVision,
       messages,
       model,
@@ -806,7 +799,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const sentWithAgent = agentEnabled && hasTools;
       await messages.update(userMessageId, {
         content: newContent,
-        sentWithThink: forceThink,
+        sentWithThink: false,
         sentWithWebSearch,
         sentWithAgent,
       });
@@ -830,7 +823,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const editedUser: DbMessage = {
         ...userMessage,
         content: newContent,
-        sentWithThink: forceThink,
+        sentWithThink: false,
         sentWithWebSearch,
         updatedAt: Date.now(),
       };
@@ -886,8 +879,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        // Edit re-runs honoring the chat's sticky modes (matches a fresh send): force think only if on+supported, web search when on+supported.
-        forceThink || undefined,
+        // The think flag is always omitted: thinking-capable models follow their own default.
+        undefined,
         agentPayload.tools,
         agentPayload.systemMessages,
         agentPayload.maxToolRounds,
@@ -900,7 +893,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       chatId,
       chats,
       failPending,
-      forceThink,
       hasTools,
       hasVision,
       messages,
