@@ -10,13 +10,21 @@ import Reanimated, {
 } from "react-native-reanimated";
 import Pencil from "lucide-react-native/icons/pencil";
 import Trash2 from "lucide-react-native/icons/trash-2";
+import FolderInput from "lucide-react-native/icons/folder-input";
+import Bot from "lucide-react-native/icons/bot";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { GlassOrb } from "@/components/ui/GlassOrb";
 import { ListRow } from "@/components/ui/ListRow";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { withAlpha } from "@/lib/design/color";
-import { iconSize, motion, opacity, timingsNamed } from "@/lib/design/tokens";
+import {
+  iconSize,
+  motion,
+  opacity,
+  strokeWidth,
+  timingsNamed,
+} from "@/lib/design/tokens";
 import type { ChatSummary } from "@/lib/db/types";
 import type { ChatId } from "@/lib/types/ids";
 
@@ -27,6 +35,8 @@ export interface ChatRowProps {
   onTap: (id: ChatId) => void;
   onDelete: (id: ChatId) => void;
   onRename: (id: ChatId, currentTitle: string) => void;
+  /** Opens the move-to-folder sheet for this chat (the swipe's third action). */
+  onMove: (id: ChatId) => void;
   /** Called whenever this row's swipe opens. The parent uses it to enforce a "single open at a time" rule by closing any previously opened row. */
   onSwipeOpen?: (swipeable: SwipeableMethods | null) => void;
 }
@@ -34,12 +44,14 @@ export interface ChatRowProps {
 interface RightActionsProps {
   progress: SharedValue<number>;
   onRename: () => void;
+  onMove: () => void;
   onDelete: () => void;
 }
 // Own component so `useAnimatedStyle` (a hook) can read the progress SharedValue from renderRightActions.
 function RightActions({
   progress,
   onRename,
+  onMove,
   onDelete,
 }: RightActionsProps): React.ReactElement {
   const colors = useThemeColors();
@@ -84,6 +96,20 @@ function RightActions({
         variant="regular"
         lift="contained"
         interactive
+        onPress={onMove}
+        tintColor={withAlpha(colors.secondary, opacity.tint)}
+        borderRadius={999}
+        accessibilityLabel="Move chat to folder"
+        testID="chat-row-move"
+      >
+        <View className="w-9.5 h-9.5 items-center justify-center">
+          <FolderInput size={iconSize.lg} color={colors.primaryForeground} />
+        </View>
+      </GlassOrb>
+      <GlassOrb
+        variant="regular"
+        lift="contained"
+        interactive
         onPress={onDelete}
         tintColor={withAlpha(colors.destructive, opacity.tint)}
         borderRadius={999}
@@ -105,6 +131,7 @@ export function ChatRow({
   onTap,
   onDelete,
   onRename,
+  onMove,
   onSwipeOpen,
 }: ChatRowProps): React.ReactElement {
   const swipeableRef = useRef<SwipeableMethods>(null);
@@ -120,6 +147,12 @@ export function ChatRow({
       onRename(chat.id, chat.title);
     }, timingsNamed.swipeCloseTail);
   }, [chat.id, chat.title, onRename]);
+  const handleMovePress = useCallback((): void => {
+    swipeableRef.current?.close();
+    pendingActionRef.current = setTimeout(() => {
+      onMove(chat.id);
+    }, timingsNamed.swipeCloseTail);
+  }, [chat.id, onMove]);
   const handleDeletePress = useCallback((): void => {
     swipeableRef.current?.close();
     pendingActionRef.current = setTimeout(() => {
@@ -139,10 +172,11 @@ export function ChatRow({
       <RightActions
         progress={progress}
         onRename={handleRenamePress}
+        onMove={handleMovePress}
         onDelete={handleDeletePress}
       />
     ),
-    [handleRenamePress, handleDeletePress],
+    [handleRenamePress, handleMovePress, handleDeletePress],
   );
   // Fallback to the excerpt when the chat has no title yet (drafts).
   const rowLabel = chat.title.length > 0 ? chat.title : chat.excerpt;
@@ -181,6 +215,19 @@ export function ChatRow({
           label={rowLabel}
           subtitle={sizeLabel}
           subtitleTiny
+          // Agent conversations carry a small bot glyph up front so the mode chosen at creation stays readable at
+          // all times (a "sent with agent" chip only exists inside the thread).
+          leading={
+            chat.agentEnabled ? (
+              <View className="w-7 h-7 items-center justify-center">
+                <Bot
+                  size={iconSize.md}
+                  color={colors.mutedForeground}
+                  strokeWidth={strokeWidth.bold}
+                />
+              </View>
+            ) : undefined
+          }
           trailingMeta={trailingMeta}
           hideTrailingMeta={isSwipeOpen}
           onPress={(): void => onTap(chat.id)}

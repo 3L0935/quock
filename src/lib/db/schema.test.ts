@@ -177,6 +177,14 @@ describe("MIGRATIONS", () => {
     );
   });
 
+  it("creates the chat_folders table and chats.folder_id in the latest migration", () => {
+    const last = MIGRATIONS[MIGRATIONS.length - 1];
+    expect(last.id).toBe(17);
+    expect(last.up).toContain("CREATE TABLE IF NOT EXISTS chat_folders");
+    expect(last.up).toContain("ALTER TABLE chats ADD COLUMN folder_id");
+    expect(planMigration(last.up, () => false).unreadable).toEqual([]);
+  });
+
   it("never adds the same column twice across migrations", () => {
     const seen = new Set<string>();
     for (const migration of MIGRATIONS) {

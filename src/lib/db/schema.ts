@@ -116,6 +116,20 @@ const ADD_MESSAGE_SENT_WITH_AGENT = `
   ALTER TABLE messages ADD COLUMN sent_with_agent INTEGER NOT NULL DEFAULT 0;
 `;
 
+// Named chat folders for manual triage. folder_id is NULL for chats in the normal timeline; a folder row's deletion
+// loosens its members back to that default (ON DELETE SET NULL), so removing a folder never deletes conversations.
+const ADD_CHAT_FOLDERS = `
+  CREATE TABLE IF NOT EXISTS chat_folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  ALTER TABLE chats ADD COLUMN folder_id INTEGER;
+  CREATE INDEX IF NOT EXISTS idx_chats_folder ON chats(folder_id);
+  CREATE INDEX IF NOT EXISTS idx_folders_user ON chat_folders(user_id, created_at ASC);
+`;
+
 // One row per tool the model invoked during an agent turn (the pipeline used to keep these wire-only). arguments is
 // JSON-encoded; status records how the execution ended so history shows failures, not just successes. FK cascades
 // with chat deletion, like messages/attachments.
@@ -156,6 +170,9 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 14, up: ADD_MESSAGE_SENT_WITH_AGENT },
   { id: 15, up: ADD_TOOL_CALLS_TABLE },
   { id: 16, up: ADD_TOOL_CALLS_OFFSET },
+  // 17, never 16: the offset column already ships as migration 16 (tool-call history PR), and an id is spent the
+  // moment any install runs it (see planMigration), so folders take the next free id.
+  { id: 17, up: ADD_CHAT_FOLDERS },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
