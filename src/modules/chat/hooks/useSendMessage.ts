@@ -87,7 +87,8 @@ export interface UseSendMessageResult {
 
 export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const { client } = useApi();
-  const { chats, messages, attachments, memories, toolCalls } = useDb();
+  const { chats, messages, attachments, memories, toolCalls, chatHistory } =
+    useDb();
   const { model } = useChatModel(chatId);
   const hasVision = useHasVisionCapability(model?.name);
   const hasTools = useHasToolsCapability(model?.name);
@@ -172,6 +173,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           messages,
           memories,
           toolCalls,
+          chatHistory,
           queryClient,
           startStream,
           endStream,
@@ -202,6 +204,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       setToolActivity,
       startStream,
       toolCalls,
+      chatHistory,
       updateProgress,
     ],
   );

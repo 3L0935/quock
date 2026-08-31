@@ -11,8 +11,12 @@ import * as WebBrowser from "expo-web-browser";
 import { Platform, Share } from "react-native";
 import type { ApiClient } from "@/lib/api/client";
 import type { MemoryRepository } from "@/lib/db/memoryRepository";
+import {
+  type ChatHistorySearch,
+  type ReadChatWindow,
+} from "@/lib/db/chatHistorySearch";
 import { filterMemoriesByQuery } from "@/lib/db/memoryRepository";
-import { asMemoryId } from "@/lib/types/ids";
+import { asChatId, asMemoryId } from "@/lib/types/ids";
 import { webFetch, webSearch } from "@/modules/chat/api/webSearch";
 
 // JSON-schema tool definition sent in ChatRequest.tools (mirrors Ollama's Tool shape).
@@ -38,6 +42,7 @@ export interface WireToolCall {
 export interface ToolContext {
   client: ApiClient;
   memories: MemoryRepository | null;
+  chatHistory: ChatHistorySearch | null;
 }
 
 const WEB_SEARCH_TOOL: ToolDefinition = {
@@ -107,7 +112,8 @@ const MEMORY_READ_TOOL: ToolDefinition = {
       properties: {
         query: {
           type: "string",
-          description: "Optional: only return memories matching any word in this query.",
+          description:
+            "Optional: only return memories matching any word in this query.",
         },
         limit: {
           type: "number",
@@ -138,10 +144,60 @@ const MEMORY_FORGET_TOOL: ToolDefinition = {
   },
 };
 
+const SEARCH_CHATS_TOOL: ToolDefinition = {
+  type: "function",
+  function: {
+    name: "search_chats",
+    description:
+      "Search the user's past conversations (stored on this device) for messages matching a keyword. Returns the matching chats with a snippet so you can recall what was said before. Use when the user refers to a previous conversation or asks what was discussed.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Keyword(s) to look for, literally.",
+        },
+      },
+      required: ["query"],
+    },
+  },
+};
+
+const READ_CHAT_TOOL: ToolDefinition = {
+  type: "function",
+  function: {
+    name: "read_chat",
+    description:
+      "Read a WINDOW of one past conversation by its chatId (from search_chats). Returns ~3 exchanges plus the window bounds; call again with before/after to move through the thread. Default window is the most recent turns.",
+    parameters: {
+      type: "object",
+      properties: {
+        chatId: {
+          type: "string",
+          description: "The chatId from a search_chats result.",
+        },
+        before: {
+          type: "number",
+          description:
+            "Read the window ENDING just before this turn index (older turns).",
+        },
+        after: {
+          type: "number",
+          description:
+            "Read the window STARTING at this turn index (newer turns).",
+        },
+      },
+      required: ["chatId"],
+    },
+  },
+};
+
 export const MEMORY_TOOLS: readonly ToolDefinition[] = [
   MEMORY_SAVE_TOOL,
   MEMORY_READ_TOOL,
   MEMORY_FORGET_TOOL,
+  SEARCH_CHATS_TOOL,
+  READ_CHAT_TOOL,
 ];
 
 // Timezone + weekday ride along so the model can reason about "tomorrow" / day-specific wording without a follow-up.
@@ -150,7 +206,7 @@ const GET_CURRENT_TIME_TOOL: ToolDefinition = {
   function: {
     name: "get_current_time",
     description:
-      "Get the device's current date and time. Use when the question depends on \"now\", today's date, or relative times (\"in two hours\").",
+      'Get the device\'s current date and time. Use when the question depends on "now", today\'s date, or relative times ("in two hours").',
     parameters: { type: "object", properties: {}, required: [] },
   },
 };
@@ -263,7 +319,10 @@ const READ_SAVED_FILE_TOOL: ToolDefinition = {
     parameters: {
       type: "object",
       properties: {
-        name: { type: "string", description: "The file name used at save time." },
+        name: {
+          type: "string",
+          description: "The file name used at save time.",
+        },
       },
       required: ["name"],
     },
@@ -306,15 +365,9 @@ function stringArg(call: WireToolCall, key: string): string {
 }
 
 // Numeric argument, same tolerance: anything but a finite number falls back to the default.
-function numberArg(
-  call: WireToolCall,
-  key: string,
-  fallback: number,
-): number {
+function numberArg(call: WireToolCall, key: string, fallback: number): number {
   const value = call.function.arguments[key];
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : fallback;
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 const MEMORY_READ_DEFAULT_LIMIT = 30;
@@ -379,8 +432,7 @@ async function handleMemoryRead(
     const limit = numberArg(call, "limit", MEMORY_READ_DEFAULT_LIMIT);
     const all = await ctx.memories.listRecent(limit);
     const query = stringArg(call, "query");
-    const matched =
-      query.length > 0 ? filterMemoriesByQuery(all, query) : all;
+    const matched = query.length > 0 ? filterMemoriesByQuery(all, query) : all;
     if (matched.length === 0) {
       return "No memories stored yet.";
     }
@@ -415,6 +467,56 @@ async function handleMemoryForget(
   } catch (err) {
     console.warn("memory_forget failed:", err);
     return `Memory ${id} not found.`;
+  }
+}
+
+async function handleSearchChats(
+  ctx: ToolContext,
+  call: WireToolCall,
+): Promise<string> {
+  if (!ctx.chatHistory) return "Chat history is unavailable.";
+  try {
+    const hits = await ctx.chatHistory.searchChats(stringArg(call, "query"));
+    if (hits.length === 0) return "No matching past conversations.";
+    return JSON.stringify(
+      hits.map((h) => ({
+        chatId: h.chatId,
+        chatTitle: h.chatTitle,
+        snippet: h.snippet,
+        messageDate: h.messageDate,
+      })),
+    );
+  } catch (err) {
+    console.warn("search_chats failed:", err);
+    return "Chat history is unavailable.";
+  }
+}
+
+async function handleReadChat(
+  ctx: ToolContext,
+  call: WireToolCall,
+): Promise<string> {
+  if (!ctx.chatHistory) return "Chat history is unavailable.";
+  const chatId = stringArg(call, "chatId");
+  if (chatId.length === 0) return "Chat not found.";
+  // Window args are optional numbers; anything mistyped falls back to the tail window.
+  const beforeRaw = call.function.arguments["before"];
+  const afterRaw = call.function.arguments["after"];
+  const hasBefore = typeof beforeRaw === "number" && Number.isFinite(beforeRaw);
+  const hasAfter = typeof afterRaw === "number" && Number.isFinite(afterRaw);
+  const window: ReadChatWindow = hasBefore
+    ? { before: beforeRaw as number }
+    : hasAfter
+      ? { after: afterRaw as number }
+      : {};
+  try {
+    const read = await ctx.chatHistory.readChat(asChatId(chatId), window);
+    if (read === null) return "Chat not found.";
+    // Echo the bounds so the model can chain before/after without recomputing anything.
+    return JSON.stringify(read);
+  } catch (err) {
+    console.warn("read_chat failed:", err);
+    return "Chat not found.";
   }
 }
 
@@ -574,6 +676,10 @@ export async function executeToolCall(
       return handleMemoryRead(ctx, call);
     case "memory_forget":
       return handleMemoryForget(ctx, call);
+    case "search_chats":
+      return handleSearchChats(ctx, call);
+    case "read_chat":
+      return handleReadChat(ctx, call);
     case "get_current_time":
       return handleGetCurrentTime();
     case "copy_to_clipboard":

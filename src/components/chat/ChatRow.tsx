@@ -12,6 +12,7 @@ import Pencil from "lucide-react-native/icons/pencil";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import FolderInput from "lucide-react-native/icons/folder-input";
 import Bot from "lucide-react-native/icons/bot";
+import MessageCircle from "lucide-react-native/icons/message-circle";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { GlassOrb } from "@/components/ui/GlassOrb";
@@ -215,18 +216,24 @@ export function ChatRow({
           label={rowLabel}
           subtitle={sizeLabel}
           subtitleTiny
-          // Agent conversations carry a small bot glyph up front so the mode chosen at creation stays readable at
-          // all times (a "sent with agent" chip only exists inside the thread).
+          // Every conversation shows its mode up front: Bot for agent (tools + memory), chat bubble for a plain
+          // chat. Same slot, same tint, so the row only ever differs by the glyph.
           leading={
-            chat.agentEnabled ? (
-              <View className="w-7 h-7 items-center justify-center">
+            <View className="w-7 h-7 items-center justify-center">
+              {chat.agentEnabled ? (
                 <Bot
                   size={iconSize.md}
                   color={colors.mutedForeground}
                   strokeWidth={strokeWidth.bold}
                 />
-              </View>
-            ) : undefined
+              ) : (
+                <MessageCircle
+                  size={iconSize.md}
+                  color={colors.mutedForeground}
+                  strokeWidth={strokeWidth.bold}
+                />
+              )}
+            </View>
           }
           trailingMeta={trailingMeta}
           hideTrailingMeta={isSwipeOpen}

@@ -11,6 +11,7 @@ import Clipboard from "lucide-react-native/icons/clipboard";
 import Database from "lucide-react-native/icons/database";
 import FileText from "lucide-react-native/icons/file-text";
 import Globe from "lucide-react-native/icons/globe";
+import MessageCircle from "lucide-react-native/icons/message-circle";
 import Share2 from "lucide-react-native/icons/share-2";
 import Smartphone from "lucide-react-native/icons/smartphone";
 import Wrench from "lucide-react-native/icons/wrench";
@@ -39,6 +40,8 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
   memory_save: Database,
   memory_read: Database,
   memory_forget: Database,
+  search_chats: MessageCircle,
+  read_chat: MessageCircle,
   get_current_time: Clock,
   copy_to_clipboard: Clipboard,
   share_text: Share2,
@@ -56,6 +59,8 @@ const TOOL_LABELS: Record<string, string> = {
   memory_save: "Save memory",
   memory_read: "Read memory",
   memory_forget: "Forget memory",
+  search_chats: "Search chats",
+  read_chat: "Read chat",
   get_current_time: "Check time",
   copy_to_clipboard: "Copy",
   share_text: "Share",
