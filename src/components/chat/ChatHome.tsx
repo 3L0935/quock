@@ -20,7 +20,6 @@ import { useUIStore } from "@/lib/stores/ui.store";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import { Composer } from "@/components/chat/Composer";
 import { EmptyState } from "@/components/chat/EmptyState";
-import { NewChatModeSwitch } from "@/components/chat/NewChatModeSwitch";
 import {
   MessageList,
   type MessageListHandle,
@@ -259,7 +258,10 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
           </View>
         ) : showEmpty ? (
           <View className="flex-1 pb-25" style={{ paddingTop: listTopInset }}>
-            <EmptyState />
+            <EmptyState
+              agentEnabled={agentEnabled}
+              onChangeAgentEnabled={setAgentEnabled}
+            />
           </View>
         ) : (
           <MessageList
@@ -285,13 +287,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         onHeightChange={setComposerHeight}
         isJumpToLatestVisible={isScrolledUp}
         onJumpToLatest={() => messageListRef.current?.scrollToLatest()}
-      />
-      {/* New-conversation mode pill: floats above the composer while the thread is empty, gone once committed. */}
-      <NewChatModeSwitch
-        agentEnabled={agentEnabled}
-        onChange={setAgentEnabled}
-        visible={showEmpty}
-        testID="new-chat-mode-switch"
       />
       {/* Sheets render unconditionally so their mount cost is paid once at
           screen-mount rather than on first open. */}
