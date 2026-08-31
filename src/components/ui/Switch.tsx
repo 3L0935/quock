@@ -1,4 +1,4 @@
-// Boolean toggle with iOS 26 UISwitch geometry — values flow through `componentLayout.switchControl`, `motion`, `shadow`.
+// Boolean toggle with iOS 27 geometry (wide track, white pill knob) — values flow through `componentLayout.toggleSwitch`, `motion`, `shadow`.
 
 import React, { useEffect } from "react";
 import Animated, {
@@ -13,10 +13,11 @@ import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import {
   baseAnimationDurationMs,
+  pressSpring,
   springEasing,
   toggleSpring,
 } from "@/lib/design/motion";
-import { componentLayout, motion, shadow } from "@/lib/design/tokens";
+import { componentLayout, motion, shadow, size } from "@/lib/design/tokens";
 
 export interface SwitchProps {
   value: boolean;
@@ -25,7 +26,9 @@ export interface SwitchProps {
   testID?: string;
   accessibilityLabel?: string;
 }
-const S = componentLayout.switchControl;
+const S = componentLayout.toggleSwitch;
+// Vertical slop lifts the 28pt track to the 44pt HIG hit target (width already exceeds it).
+const HIT_SLOP_Y = (size.hitTargetMin - S.trackHeight) / 2;
 
 export function Switch({
   value,
@@ -38,8 +41,11 @@ export function Switch({
   // Track crossfades on timing (smooth color), thumb travels on spring (settled overshoot).
   const trackProgress = useSharedValue(value ? 1 : 0);
   const thumbProgress = useSharedValue(value ? 1 : 0);
-  const offColor = colors.secondary;
-  const onColor = colors.primary;
+  // 0..1 press-state: the knob stretches while the finger is down (iOS pressed variant).
+  const pressProgress = useSharedValue(0);
+  // OFF = solid system fill inside the surface, ON = the semantic toggle green.
+  const offColor = colors.fillSecondary;
+  const onColor = colors.toggleOn;
   useEffect(() => {
     trackProgress.value = withTiming(value ? 1 : 0, {
       duration: baseAnimationDurationMs,
@@ -47,13 +53,18 @@ export function Switch({
     });
     thumbProgress.value = withSpring(value ? 1 : 0, toggleSpring);
   }, [value, trackProgress, thumbProgress]);
-  // Clamp the spring overshoot so the thumb never visually exits the track.
+  // Clamp the spring overshoot so the thumb never visually exits the track. Travel derives from the
+  // live knob width, so the press-stretch stays anchored to the active edge (translateX shrinks as width grows).
+  const knobWidth = useDerivedValue(
+    () => S.knobWidth + pressProgress.value * S.knobStretch,
+  );
   const thumbX = useDerivedValue(
     () =>
       Math.min(
         1 + motion.thumbOvershoot,
         Math.max(-motion.thumbOvershoot, thumbProgress.value),
-      ) * S.thumbTravel,
+      ) *
+      (S.trackWidth - knobWidth.value - S.inset * 2),
   );
   const trackStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
@@ -63,18 +74,28 @@ export function Switch({
     ),
   }));
   const thumbStyle = useAnimatedStyle(() => ({
+    width: knobWidth.value,
     transform: [{ translateX: thumbX.value }],
   }));
   const handlePress = (): void => {
     if (disabled) return;
     onValueChange(!value);
   };
+  const handlePressIn = (): void => {
+    pressProgress.value = withSpring(1, pressSpring);
+  };
+  const handlePressOut = (): void => {
+    pressProgress.value = withSpring(0, pressSpring);
+  };
   return (
-    // Disable press-scale so only the thumb animates; rely on Pressable for haptics + hit area.
+    // Disable press-scale so only the knob animates; Pressable supplies haptics, hit area, and the disabled opacity tier.
     <Pressable
       onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled}
       scale={1}
+      hitSlop={{ top: HIT_SLOP_Y, bottom: HIT_SLOP_Y }}
       testID={testID}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="switch"
@@ -86,7 +107,7 @@ export function Switch({
             width: S.trackWidth,
             height: S.trackHeight,
             borderRadius: S.trackHeight / 2,
-            padding: S.thumbPadding,
+            padding: S.inset,
             justifyContent: "center",
           },
           trackStyle,
@@ -95,9 +116,8 @@ export function Switch({
         <Animated.View
           style={[
             {
-              width: S.thumbSize,
-              height: S.thumbSize,
-              borderRadius: S.thumbSize / 2,
+              height: S.knobHeight,
+              borderRadius: S.knobHeight / 2,
               backgroundColor: colors.thumbFill,
               shadowColor: colors.shadow,
               shadowOpacity: shadow.thumb.opacity,

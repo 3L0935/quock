@@ -2,7 +2,10 @@
 
 import type { SQLiteDatabase } from "expo-sqlite";
 import { asChatId, type ChatId, newChatId } from "@/lib/types/ids";
-import { EXCERPT_LENGTH } from "@/lib/constants/magic-numbers";
+import {
+  EXCERPT_LENGTH,
+  WEB_SEARCH_DEFAULT_ON,
+} from "@/lib/constants/magic-numbers";
 import type { ChatSummary, DbChat } from "@/lib/db/types";
 
 interface ChatRow {
@@ -61,13 +64,14 @@ export class ChatRepository {
           LIMIT 1
         )             AS excerpt,
         (
-          SELECT COALESCE(SUM(LENGTH(m.content)) + SUM(COALESCE(LENGTH(m.thinking), 0)), 0)
+        -- LENGTH() counts characters on TEXT and bytes on BLOB, so the cast is what makes every figure bytes.
+          SELECT COALESCE(SUM(LENGTH(CAST(m.content AS BLOB))) + SUM(COALESCE(LENGTH(CAST(m.thinking AS BLOB)), 0)), 0)
           FROM messages m
           WHERE m.chat_id = c.id
         )
         +
         (
-          SELECT COALESCE(SUM(LENGTH(a.data)), 0)
+          SELECT COALESCE(SUM(LENGTH(a.data)) + SUM(COALESCE(LENGTH(CAST(a.text_content AS BLOB)), 0)), 0)
           FROM attachments a
           JOIN messages m ON a.message_id = m.id
           WHERE m.chat_id = c.id
@@ -93,14 +97,15 @@ export class ChatRepository {
       `
       SELECT
         (
-          SELECT COALESCE(SUM(LENGTH(m.content)) + SUM(COALESCE(LENGTH(m.thinking), 0)), 0)
+        -- LENGTH() counts characters on TEXT and bytes on BLOB, so the cast is what makes every figure bytes.
+          SELECT COALESCE(SUM(LENGTH(CAST(m.content AS BLOB))) + SUM(COALESCE(LENGTH(CAST(m.thinking AS BLOB)), 0)), 0)
           FROM messages m
           JOIN chats c ON m.chat_id = c.id
           WHERE c.user_id = ?
         )
         +
         (
-          SELECT COALESCE(SUM(LENGTH(a.data)), 0)
+          SELECT COALESCE(SUM(LENGTH(a.data)) + SUM(COALESCE(LENGTH(CAST(a.text_content AS BLOB)), 0)), 0)
           FROM attachments a
           JOIN messages m ON a.message_id = m.id
           JOIN chats c ON m.chat_id = c.id
@@ -117,12 +122,13 @@ export class ChatRepository {
       `
       SELECT
         (
-          SELECT COALESCE(SUM(LENGTH(content)) + SUM(COALESCE(LENGTH(thinking), 0)), 0)
+        -- LENGTH() counts characters on TEXT and bytes on BLOB, so the cast is what makes every figure bytes.
+          SELECT COALESCE(SUM(LENGTH(CAST(content AS BLOB))) + SUM(COALESCE(LENGTH(CAST(thinking AS BLOB)), 0)), 0)
           FROM messages
         )
         +
         (
-          SELECT COALESCE(SUM(LENGTH(data)), 0)
+          SELECT COALESCE(SUM(LENGTH(data)) + SUM(COALESCE(LENGTH(CAST(text_content AS BLOB)), 0)), 0)
           FROM attachments
         )       AS total
       `,
@@ -136,6 +142,8 @@ export class ChatRepository {
       await this.db.execAsync("DELETE FROM messages");
       await this.db.execAsync("DELETE FROM chats");
     });
+    // Outside the transaction, where VACUUM is allowed: this is the flow whose whole purpose is freeing the disk.
+    await this.reclaimSpace();
   }
   async get(id: ChatId): Promise<DbChat | null> {
     const userId = this.getUserId();
@@ -150,10 +158,11 @@ export class ChatRepository {
     const now = Date.now();
     const resolvedTitle = title ?? "";
     const userId = this.getUserId();
-    // model is left NULL so a new chat follows the user's global default until they pin one; mode toggles default off (0). user_id scopes the chat to the signed-in account.
+    // model NULL follows the user's global default; think off lets the model's own default apply.
+    // user_id scopes the chat to the signed-in account.
     await this.db.runAsync(
-      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, 0)",
-      [id, userId, resolvedTitle, now, now],
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, ?)",
+      [id, userId, resolvedTitle, now, now, WEB_SEARCH_DEFAULT_ON ? 1 : 0],
     );
     return {
       id,
@@ -163,7 +172,7 @@ export class ChatRepository {
       syncedAt: null,
       model: null,
       thinkEnabled: false,
-      webSearchEnabled: false,
+      webSearchEnabled: true,
     };
   }
   // Pins a model to this chat so it persists across restarts and stays scoped to this chat alone. We deliberately do NOT touch updated_at: changing the model isn't conversational activity and shouldn't reorder the history list.
@@ -199,6 +208,11 @@ export class ChatRepository {
       "UPDATE chats SET title = ?, updated_at = ? WHERE id = ?",
       [title, now, id],
     );
+  }
+  // SQLite hands deleted pages to a freelist inside the file, so only VACUUM returns them to the filesystem. Public so
+  // a caller deleting many chats in a loop can reclaim ONCE at the end: this rewrites the whole file.
+  async reclaimSpace(): Promise<void> {
+    await this.db.execAsync("VACUUM;");
   }
   async delete(id: ChatId): Promise<void> {
     await this.db.runAsync("DELETE FROM chats WHERE id = ?", [id]);

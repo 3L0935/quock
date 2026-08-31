@@ -5,6 +5,7 @@ import {
   asAttachmentId,
   asMessageId,
   type AttachmentId,
+  type ChatId,
   type MessageId,
 } from "@/lib/types/ids";
 import type { DbAttachment } from "@/lib/db/types";
@@ -17,6 +18,8 @@ interface AttachmentRow {
   data: Uint8Array;
   uri: string | null;
   size_bytes: number;
+  text_content: string | null;
+  derived_from: number | null;
 }
 
 function rowToAttachment(row: AttachmentRow): DbAttachment {
@@ -28,21 +31,39 @@ function rowToAttachment(row: AttachmentRow): DbAttachment {
     data: row.data,
     uri: row.uri,
     sizeBytes: row.size_bytes,
+    textContent: row.text_content,
+    derivedFrom:
+      row.derived_from === null ? null : asAttachmentId(row.derived_from),
   };
 }
-// Add input lets callers omit `uri` and `sizeBytes`; sizeBytes defaults to `data.byteLength`.
+// Add input lets callers omit `uri`, `sizeBytes` and `textContent`; sizeBytes defaults to `data.byteLength`.
 export type AttachmentAddInput = Omit<
   DbAttachment,
-  "id" | "uri" | "sizeBytes"
+  "id" | "uri" | "sizeBytes" | "textContent" | "derivedFrom"
 > &
-  Partial<Pick<DbAttachment, "uri" | "sizeBytes">>;
+  Partial<
+    Pick<DbAttachment, "uri" | "sizeBytes" | "textContent" | "derivedFrom">
+  >;
+
+// Only messages that own something get an entry, so a caller can keep treating a miss as "no attachments".
+export function groupByMessageId(
+  attachments: readonly DbAttachment[],
+): Map<MessageId, DbAttachment[]> {
+  const byMessage = new Map<MessageId, DbAttachment[]>();
+  for (const attachment of attachments) {
+    const list = byMessage.get(attachment.messageId);
+    if (list) list.push(attachment);
+    else byMessage.set(attachment.messageId, [attachment]);
+  }
+  return byMessage;
+}
 
 export class AttachmentRepository {
   constructor(private readonly db: SQLiteDatabase) {}
   async listByMessage(messageId: MessageId): Promise<DbAttachment[]> {
     const rows = await this.db.getAllAsync<AttachmentRow>(
       `
-      SELECT id, message_id, filename, mime_type, data, uri, size_bytes
+      SELECT id, message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from
       FROM attachments
       WHERE message_id = ?
       ORDER BY id ASC
@@ -51,13 +72,55 @@ export class AttachmentRepository {
     );
     return rows.map(rowToAttachment);
   }
+  // Every attachment of a chat the UI can show, in ONE query and already grouped: hydrating a chat message by message
+  // put a round-trip on every turn. Derived rows are excluded because the only consumer filters them out anyway.
+  async listByChatForUi(
+    chatId: ChatId,
+  ): Promise<Map<MessageId, DbAttachment[]>> {
+    const rows = await this.db.getAllAsync<AttachmentRow>(
+      `
+      SELECT a.id, a.message_id, a.filename, a.mime_type, a.data, a.uri, a.size_bytes, a.text_content, a.derived_from
+      FROM attachments a
+      JOIN messages m ON m.id = a.message_id
+      WHERE m.chat_id = ? AND m.role = 'user' AND a.derived_from IS NULL
+      ORDER BY a.id ASC
+      `,
+      [chatId],
+    );
+    return groupByMessageId(rows.map(rowToAttachment));
+  }
+  // Every attachment of a chat in ONE query, for building the wire: a query per message would put a round-trip on every turn.
+  // `data` is blanked for what the wire cannot use — a PDF (its text is stored) and, on a text-only model, every image — because reading blobs the caller then discards costs megabytes a turn. Not for the UI, which needs the real bytes.
+  async listByChatForWire(
+    chatId: ChatId,
+    hasVision: boolean,
+  ): Promise<DbAttachment[]> {
+    const rows = await this.db.getAllAsync<AttachmentRow>(
+      `
+      SELECT a.id, a.message_id, a.filename, a.mime_type, a.uri, a.size_bytes, a.text_content, a.derived_from,
+             CASE
+               WHEN a.text_content IS NOT NULL THEN x''
+               WHEN ? = 0 AND a.mime_type LIKE 'image/%' THEN x''
+               ELSE a.data
+             END AS data
+      FROM attachments a
+      JOIN messages m ON m.id = a.message_id
+      WHERE m.chat_id = ?
+      ORDER BY a.id ASC
+      `,
+      [hasVision ? 1 : 0, chatId],
+    );
+    return rows.map(rowToAttachment);
+  }
   async add(input: AttachmentAddInput): Promise<DbAttachment> {
     const uri = input.uri ?? null;
     const sizeBytes = input.sizeBytes ?? input.data.byteLength;
+    const textContent = input.textContent ?? null;
+    const derivedFrom = input.derivedFrom ?? null;
     const result = await this.db.runAsync(
       `
-      INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         input.messageId,
@@ -66,6 +129,8 @@ export class AttachmentRepository {
         input.data,
         uri,
         sizeBytes,
+        textContent,
+        derivedFrom,
       ],
     );
     return {
@@ -73,7 +138,17 @@ export class AttachmentRepository {
       id: asAttachmentId(result.lastInsertRowId),
       uri,
       sizeBytes,
+      textContent,
+      derivedFrom,
     };
+  }
+  // The OCR of a scan lands after the row exists (it needs the rendered pages), so its text is written back here
+  // rather than at insert time; every later turn then replays it like any other extracted text.
+  async setTextContent(id: AttachmentId, textContent: string): Promise<void> {
+    await this.db.runAsync(
+      "UPDATE attachments SET text_content = ? WHERE id = ?",
+      [textContent, id],
+    );
   }
   async delete(id: AttachmentId): Promise<void> {
     await this.db.runAsync("DELETE FROM attachments WHERE id = ?", [id]);

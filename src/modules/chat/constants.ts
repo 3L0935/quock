@@ -36,21 +36,38 @@ export const DOCUMENT_TEXT_TOTAL_MAX_CHARS = 200_000;
 // Binary sniff: a decoded doc with more than this ratio of U+FFFD chars in its first N chars is rejected as binary.
 export const DOCUMENT_BINARY_SNIFF_CHARS = 1000;
 export const DOCUMENT_BINARY_REPLACEMENT_RATIO = 0.1;
+// Average characters per page below which a PDF's pages ARE pictures (a scan) and the vision half earns its cost; a
+// digital document averages thousands and renders nothing. No page-count cap on either half — bytes are the ceiling.
+export const PDF_TEXT_THIN_CHARS_PER_PAGE = 100;
+// Ceiling on the images REPLAYED across a whole conversation, kept apart from the per-message cap above: every turn
+// re-uploads them (the cloud is stateless), so without its own bound one fat turn would tax every turn after it.
+export const ATTACHMENT_REPLAY_MAX_BYTES = 20_000_000;
+// 2048 / 842pt (A4's long edge): the render lands ON the upload ceiling instead of 57px past it, so the resize pass —
+// which decodes and redraws the whole page just to shave those pixels — never runs for A4 or Letter.
+export const PDF_PAGE_RENDER_SCALE = 2.43;
+// Filenames a failure toast spells out before falling back to "and N more": its body is clamped to two lines, and a
+// third name pushes the count past what fits.
+export const TOAST_MAX_NAMED_FILES = 2;
+// Pages of a SCAN that get rendered and read. A scan costs a render plus a recognition per page — around a second each
+// — so this bounds the wait, not the payload; a document that reads as text has no cap at all.
+export const PDF_OCR_MAX_PAGES = 30;
 
-// ThinkingDots cadence: each dot loops opacity over DURATION_MS with STAGGER_MS lag so the trio reads as a wave.
-export const THINKING_DOT_DURATION_MS = 900;
-export const THINKING_DOT_STAGGER_MS = 140;
-export const THINKING_DOT_MIN_OPACITY = 0.3;
+// Steady painting speed for a streaming answer, and how far behind the model the screen may fall while spending a
+// burst. Faster than comfortable reading on purpose: the pacing is there to remove stutter, not to slow the answer.
+export const STREAM_REVEAL_CHARS_PER_SEC = 280;
+export const STREAM_REVEAL_MAX_LAG_MS = 350;
+// How long a live stream must produce nothing before the UI says so. Short enough to cover a pause the eye notices,
+// long enough that the gaps between ordinary tokens never trip it.
+export const STREAM_SILENCE_MS = 600;
 
-// Composer: send/stop icon cross-fade window, line height, and visible-rows cap (8 = Telegram-style sweet spot) before the TextField starts scrolling internally.
+// Composer: send/stop icon cross-fade window and visible-rows cap (8 = Telegram-style sweet spot) before the TextField starts scrolling internally. Line height lives in componentLayout.composer.inputLineHeight — one home.
 export const COMPOSER_SEND_MORPH_DURATION_MS = 200;
-export const COMPOSER_LINE_HEIGHT = 21;
 export const COMPOSER_MAX_LINES = 8;
 
 // Sheet snap points owned by the chat feature.
 export const ATTACH_SHEET_SNAP = "25%" as const;
-// Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area.
-export const ATTACH_SHEET_SNAP_WITH_TOOLS = "33%" as const;
+// Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area — 37% covers the sheet card's internal home-indicator padding on 812-874pt devices (33% left the second tool row ~15pt inside the safe-area band).
+export const ATTACH_SHEET_SNAP_WITH_TOOLS = "37%" as const;
 // Web search: results per query (Ollama default 5, max 10) and a ceiling on agentic tool rounds so a misbehaving model can't loop forever.
 export const WEB_SEARCH_MAX_RESULTS = 5;
 export const WEB_SEARCH_MAX_TOOL_ROUNDS = 4;
@@ -73,3 +90,7 @@ export const USER_MESSAGE_EDIT_MAX_LINES = 6;
 
 // First-message preview used to auto-title a brand-new chat in the sidebar list.
 export const CHAT_AUTO_TITLE_MAX_CHARS = 60;
+
+// Excerpt spotlight rim: one lap of the edge light. Slow enough to read as drift, and long enough that a menu open for
+// two or three seconds never shows the light repeat.
+export const EXCERPT_GLOW_LAP_MS = 3200;

@@ -2,17 +2,15 @@
 
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import {
-  ChevronRight,
-  Info,
-  Settings as SettingsIcon,
-} from "lucide-react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Info from "lucide-react-native/icons/info";
+import SettingsIcon from "lucide-react-native/icons/settings";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ListRow } from "@/components/ui/ListRow";
 import { Section } from "@/components/ui/Section";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { iconSize, size } from "@/lib/design/tokens";
+import { componentLayout, iconSize, size } from "@/lib/design/tokens";
 
 export interface AccountViewProps {
   userName: string;
@@ -37,8 +35,9 @@ export function AccountView({
   return (
     <View className="flex-1">
       <View
-        className="flex-row items-center gap-3.5 px-4.5 py-3.5"
+        className="flex-row items-center gap-3.5 py-3.5"
         style={{
+          paddingHorizontal: componentLayout.listSection.insetX,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: colors.border,
         }}
@@ -47,14 +46,15 @@ export function AccountView({
         <View className="flex-1 min-w-0">
           <View className="flex-row items-center gap-2 mb-0.5">
             <Text
-              className="font-sans font-semibold text-foreground shrink text-lg"
+              className="font-sans font-semibold text-headline text-foreground shrink"
               numberOfLines={1}
             >
               {userName}
             </Text>
             {userPlan ? (
-              <View className="px-2 py-0.5 rounded bg-primary">
-                <Text className="font-mono text-xs text-primary-foreground uppercase tracking-wide">
+              // Pill badge on the system shape language (§Shape language) — the mono-uppercase eyebrow was the classic style.
+              <View className="px-2 py-0.5 rounded-full bg-primary">
+                <Text className="font-sans text-caption-2 text-primary-foreground">
                   {userPlan.toUpperCase()}
                 </Text>
               </View>
@@ -62,7 +62,7 @@ export function AccountView({
           </View>
           {userEmail.length > 0 ? (
             <Text
-              className="font-sans text-muted-foreground text-sm"
+              className="font-sans text-footnote text-muted-foreground"
               numberOfLines={1}
             >
               {userEmail}
@@ -79,7 +79,8 @@ export function AccountView({
             onPress={onOpenSettings}
             testID="account-settings"
             trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+              // §15 drill-in chevrons carry the tertiary label tint (external-link rows stay secondary).
+              <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
             }
           />
           <ListRow
@@ -88,13 +89,16 @@ export function AccountView({
             onPress={onOpenAbout}
             testID="account-about"
             trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+              <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
             }
             showDivider={false}
           />
         </Section>
         <View className="flex-1" />
-        <View className="px-4.5 pt-3 pb-6">
+        <View
+          className="pt-3 pb-6"
+          style={{ paddingHorizontal: componentLayout.listSection.insetX }}
+        >
           <Button
             variant="destructiveSoft"
             size="lg"

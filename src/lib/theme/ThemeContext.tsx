@@ -58,6 +58,19 @@ function palette(c: DesignColors): Record<string, string> {
     "--color-border": c.border,
     "--color-input": c.input,
     "--color-ring": c.ring,
+    // iOS 27 label ramp.
+    "--color-label": c.label,
+    "--color-label-secondary": c.labelSecondary,
+    "--color-label-tertiary": c.labelTertiary,
+    // iOS 27 separators.
+    "--color-separator": c.separator,
+    "--color-separator-opaque": c.separatorOpaque,
+    // iOS 27 system fills.
+    "--color-fill-secondary": c.fillSecondary,
+    "--color-fill-tertiary": c.fillTertiary,
+    "--color-fill-quaternary": c.fillQuaternary,
+    // Segmented control selected-option pill.
+    "--color-segmented-selected": c.segmentedSelected,
     // Apple HIG system colors.
     "--color-red": c.red,
     "--color-orange": c.orange,

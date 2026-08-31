@@ -9,7 +9,7 @@ import { useDb } from "@/lib/contexts/DbContext";
 import { useStreamingStore } from "@/modules/chat/stores/streaming.store";
 import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
 import type { DbAttachment, DbMessage } from "@/lib/db/types";
-import type { ChatId, MessageId } from "@/lib/types/ids";
+import type { AttachmentId, ChatId, MessageId } from "@/lib/types/ids";
 import {
   useHasThinkingCapability,
   useHasToolsCapability,
@@ -18,27 +18,42 @@ import {
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import { useHaptics } from "@/lib/hooks/useHaptics";
+import { useToast } from "@/lib/hooks/useToast";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
-import {
-  runStream,
-  type ApiAttachment,
-} from "@/modules/chat/lib/streamPipeline";
+import { runStream } from "@/modules/chat/lib/streamPipeline";
 import {
   bumpSidebar,
+  describePageCuts,
+  describePickFailures,
   gateVisionAttachments,
   locateAssistantTurn,
-  narrowApiAttachments,
   patchChatCache,
   pruneAttachmentMap,
   toWireHistory,
+  topNotice,
+  type PageCutCause,
+  type PickFailure,
+  type SendNotice,
 } from "@/modules/chat/lib/sendHelpers";
 import { WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
 import {
-  appendDocumentText,
-  isTextDocument,
-} from "@/modules/chat/lib/documentText";
+  closePdfRender,
+  extractPdfText,
+  isPdf,
+  mergeOcrPages,
+  pageToAttachment,
+  pagesToRender,
+  renderPdfPages,
+  type PdfTextResult,
+} from "@/modules/chat/lib/pdfDocument";
+import { serializePdfText } from "@/modules/chat/lib/attachmentText";
+import { ocrPages } from "@/modules/chat/lib/pdfOcr";
 import { materializeImageAttachment } from "@/modules/chat/lib/imageUpload";
-import { CHAT_AUTO_TITLE_MAX_CHARS } from "@/modules/chat/constants";
+import {
+  ATTACHMENT_MAX_TOTAL_BYTES,
+  CHAT_AUTO_TITLE_MAX_CHARS,
+  PDF_OCR_MAX_PAGES,
+} from "@/modules/chat/constants";
 
 // Full UiAttachment in (carries `uri` for the DB write); API send narrows below.
 export interface SendMessageInput {
@@ -76,12 +91,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const endStream = useStreamingStore((s) => s.endStream);
   const updateProgress = useStreamingStore((s) => s.updateProgress);
   const setToolActivity = useStreamingStore((s) => s.setToolActivity);
+  const setReasoning = useStreamingStore((s) => s.setReasoning);
   const ctxAbort = useStreamingStore((s) => s.abort);
   const isStreaming = useStreamingStore((s) =>
     s.streamingChatIds.has(chatId),
   );
   const queryClient = useQueryClient();
   const haptics = useHaptics();
+  const toast = useToast();
   // Tracking the active controller keeps `abort` working even if the streaming map updates after capture.
   const controllerRef = React.useRef<AbortController | null>(null);
   // Auto-abort on unmount or chatId change so an in-flight stream cannot leak its reader. Reading `controllerRef.current` in the cleanup is intentional (we want the LATEST controller at unmount, not the one captured when the effect first mounted) — the linter cannot see the cross-file mutation in `runStream` now that the pipeline is a separate module.
@@ -103,7 +120,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       modelName: string,
       assistantId: MessageId,
       wireMessages: WireChatMessage[],
-      apiAttachments: ApiAttachment[],
       think: boolean | undefined,
       tools: readonly ToolDefinition[] | undefined,
     ): Promise<void> => {
@@ -117,13 +133,13 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           endStream,
           updateProgress,
           setToolActivity,
+          setReasoning,
           haptics,
           controllerRef,
         },
         modelName,
         assistantId,
         wireMessages,
-        apiAttachments,
         think,
         tools,
       );
@@ -135,10 +151,40 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       haptics,
       messages,
       queryClient,
+      setReasoning,
       setToolActivity,
       startStream,
       updateProgress,
     ],
+  );
+  // A throw between the placeholder row and the stream leaves that row `pending` forever: the chat sits on the typing
+  // dots with nothing to retry and no reason shown. Mark the turn failed instead, so the failure is visible and retryable.
+  const failPending = React.useCallback(
+    async (assistantId: MessageId, err: unknown): Promise<void> => {
+      console.warn("useSendMessage: failed before the stream started:", err);
+      try {
+        await messages.update(assistantId, {
+          status: "error",
+          errorCode: "unknown",
+        });
+      } catch (writeErr) {
+        console.warn("useSendMessage: could not mark the turn failed:", writeErr);
+      }
+      queryClient.setQueryData<UseChatData>(queryKeys.chat(chatId), (prev) =>
+        prev === undefined
+          ? prev
+          : {
+              ...prev,
+              messages: prev.messages.map((m) =>
+                m.id === assistantId
+                  ? { ...m, status: "error" as const, errorCode: "unknown" as const }
+                  : m,
+              ),
+            },
+      );
+      toast({ title: "Couldn't send", tone: "error" });
+    },
+    [chatId, messages, queryClient, toast],
   );
   const send = React.useCallback(
     async (input: SendMessageInput): Promise<void> => {
@@ -172,6 +218,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         sentWithWebSearch: input.webSearch === true,
       });
       const insertedAttachments: DbAttachment[] = [];
+      // Kept for this turn only: the render decision and the password toast are send-time concerns, while the wire
+      // content is rebuilt from the rows so a later turn needs no side channel.
+      const pdfResults = new Map<AttachmentId, PdfTextResult>();
+      // A failure is said the instant it happens — a locked document must not wait for another attachment's OCR — while
+      // the quieter outcomes are collected and said once, since the store keeps only the last and must not bury it.
+      let hasSaidFailure = false;
+      const notices: SendNotice[] = [];
+      const pickFailures: PickFailure[] = [];
       for (const att of inputAttachments) {
         try {
           // Optimistically-attached images carry no bytes yet (downscale + byte read were deferred off the attach
@@ -180,6 +234,10 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           if (ready.data === undefined) {
             throw new Error("attachment has no data after materialize");
           }
+          // Read BEFORE the insert so the row is written complete: that stored text is what every later turn replays.
+          const pdfResult = isPdf(ready.mimeType, ready.filename)
+            ? await extractPdfText(ready.uri)
+            : null;
           const row = await attachments.add({
             messageId: userMessage.id,
             filename: ready.filename,
@@ -187,12 +245,34 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             data: ready.data,
             uri: ready.uri,
             sizeBytes: ready.sizeBytes || ready.data.byteLength,
+            textContent:
+              pdfResult === null ? null : serializePdfText(pdfResult),
           });
+          if (pdfResult !== null) {
+            pdfResults.set(row.id, pdfResult);
+            // A PDF that could not be read is empty at every layer, so say so: sending nothing in silence looks exactly
+            // like a model that ignored the attachment, and only the prompt would carry the reason.
+            if (pdfResult.failure !== undefined) {
+              pickFailures.push({
+                filename: ready.filename,
+                reason: pdfResult.failure,
+              });
+            }
+          }
           insertedAttachments.push(row);
         } catch (err) {
-          // Attachment writes are best-effort so one bad blob cannot block the rest of the turn.
-          console.error("useSendMessage: attachment write failed:", err);
+          // Best-effort so one bad blob cannot block the rest of the turn, but never silent: the file would otherwise
+          // vanish from its own bubble, and the question would be asked about a document the model never got.
+          console.warn("useSendMessage: attachment write failed:", err);
+          pickFailures.push({ filename: att.filename, reason: "write" });
         }
+      }
+      // Said before the render phase, so a locked document is named the moment it is picked rather than after a scan's
+      // OCR, and said once, because a toast per file would leave only the last one on screen.
+      const pickNotice = describePickFailures(pickFailures);
+      if (pickNotice !== null) {
+        hasSaidFailure = true;
+        toast(pickNotice);
       }
 
       const placeholderAssistant = await messages.append({
@@ -248,31 +328,167 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // The user message is persisted above, so clear the draft regardless of the cache-patch outcome — gating it
       // on a found chat row would strand an already-sent draft; useChat re-reads from SQLite anyway.
       input.onPersisted?.();
-      // Narrow to the wire shape from the SUCCESSFULLY-PERSISTED set (not the raw picks) so the API never
-      // receives an attachment the DB/cache lacks if an insert failed.
-      const apiAttachments = narrowApiAttachments(insertedAttachments);
-      // Replay the full history each send (`/api/chat` is stateless). Read from SQLite, not the cache: a cold cache
-      // (sending in a just-opened chat) would replay EMPTY history. Exclude the two rows just appended; user turn re-added below.
-      const dbForWire = await messages.listByChat(chatId);
-      const wireHistory = toWireHistory(
-        dbForWire.filter(
-          (m) => m.id !== userMessage.id && m.id !== placeholderAssistant.id,
-        ),
-      );
-      // Fold text-document attachments into THIS turn's wire content (the cloud /api/chat has no
-      // document slot; images ride images[]). The persisted bubble keeps the user's typed text.
-      const textDocs = insertedAttachments.filter((a) =>
-        isTextDocument(a.mimeType, a.filename),
-      );
-      const wireMessages: WireChatMessage[] = [
-        ...wireHistory,
-        { role: "user", content: appendDocumentText(text, textDocs) },
-      ];
+      // A document whose text layer already says everything skips all of this, which is the fast path. One whose pages
+      // ARE pictures gets rendered even without vision, because the render is what OCR reads to recover the text.
+      {
+        // Only what actually rides the wire counts against the budget: a PDF's own blob is stored, never sent.
+        const wireBytes = insertedAttachments
+          .filter((a) => a.mimeType?.startsWith("image/") === true)
+          .reduce((sum, a) => sum + a.sizeBytes, 0);
+        let budget = Math.max(0, ATTACHMENT_MAX_TOTAL_BYTES - wireBytes);
+        const pageRows: DbAttachment[] = [];
+        const cutCauses = new Set<PageCutCause>();
+        for (const row of insertedAttachments) {
+          const result = pdfResults.get(row.id);
+          if (result === undefined) continue;
+          const scanned = pagesToRender(result);
+          if (scanned.length === 0) continue;
+          // A scan is bounded by pages, not by the image budget: that budget exists to cap what rides the wire, and
+          // capping the READING with it left a text-only model told less than we had actually extracted.
+          const toRead = scanned.slice(0, PDF_OCR_MAX_PAGES);
+          const rendered = await renderPdfPages(row.uri ?? "", toRead);
+          try {
+            if (rendered.isCutShort) cutCauses.add("error");
+            if (toRead.length < scanned.length) cutCauses.add("pages");
+            // Read the pixels back as text: this is the whole reason a scan is rendered even for a model without
+            // vision, and it turns "I cannot read images" into an answer.
+            const recognised = await ocrPages(rendered.pages);
+            if (recognised.length > 0) {
+              try {
+                await attachments.setTextContent(
+                  row.id,
+                  serializePdfText(mergeOcrPages(result, recognised)),
+                );
+              } catch (err) {
+                // The wire is rebuilt from the row, so text that failed to store is text this turn does not carry
+                // either — and for a vision model the pages hide it, so nothing else would report the loss.
+                console.warn("useSendMessage: could not store the OCR text", err);
+                notices.push({
+                  title: `Couldn't keep the text read from ${row.filename}`,
+                  description: "Attach it again to have it read once more.",
+                  tone: "warning",
+                });
+              }
+            }
+            // The pixels are only worth keeping for a model that can see them; otherwise the render was just the means
+            // to the text, and converting it to JPEG and back through JS would be work nobody reads.
+            if (!hasVision) {
+              // Pages rendered but nothing recognised in them, and no text layer either: the document reaches the model
+              // empty. Only when pages DID render, because otherwise the reason is the render and the cut notice says it.
+              if (
+                rendered.pages.length > 0 &&
+                recognised.length === 0 &&
+                result.pages.length === 0
+              ) {
+                notices.push({
+                  title: `No text could be read from ${row.filename}`,
+                  description:
+                    "Attach it again with a model that can read images.",
+                  tone: "warning",
+                });
+              }
+              continue;
+            }
+            for (const page of rendered.pages) {
+              const attachment = await pageToAttachment(page, row.filename);
+              // A page that would not convert is a page the model never sees, which is exactly what the toast is for.
+              if (attachment === null) {
+                cutCauses.add("error");
+                continue;
+              }
+              if (attachment.sizeBytes > budget) {
+                cutCauses.add("bytes");
+                break;
+              }
+              budget -= attachment.sizeBytes;
+              try {
+                pageRows.push(
+                  await attachments.add({
+                    messageId: userMessage.id,
+                    filename: attachment.filename,
+                    mimeType: attachment.mimeType,
+                    data: attachment.data,
+                    // Its JPEG is already deleted and a derived page is never shown, so there is no path worth storing.
+                    uri: null,
+                    sizeBytes: attachment.sizeBytes,
+                    textContent: null,
+                    // Marks it as ours, not something the user picked: the bubble hides it, the wire keeps it.
+                    derivedFrom: row.id,
+                  }),
+                );
+              } catch (err) {
+                // Best-effort like the picks above: a failed page must not reject the send and strand the pending row.
+                // It still counts as a page the model will not see, which is what the cut toast exists to say.
+                console.warn("useSendMessage: page write failed:", err);
+                cutCauses.add("error");
+              }
+            }
+          } finally {
+            // Deletes the rendered files too, which is why it can only happen once OCR and the conversion are done.
+            await closePdfRender(row.uri ?? "");
+          }
+        }
+        if (cutCauses.size > 0) {
+          notices.push({
+            title: "Some pages were left out",
+            description: describePageCuts(cutCauses),
+          });
+        }
+        // Fresh array and Map: the first patch handed the previous ones to the cache, and mutating those in place
+        // changes a cached snapshot behind React's back, so the memoised rows never notice the pages arriving.
+        if (pageRows.length > 0) {
+          const withPages = [...insertedAttachments, ...pageRows];
+          const patched = new Map(updatedAttachments);
+          patched.set(userMessage.id, withPages);
+          try {
+            await patchChatCache(
+              queryClient,
+              chats,
+              chatId,
+              queryClient.getQueryData<UseChatData>(queryKeys.chat(chatId)),
+              [...updatedMessages],
+              patched,
+            );
+          } catch (err) {
+            // The rows are already written, so a failed patch costs a redraw, never the turn: rejecting here would
+            // strand the pending assistant row on the typing dots with nothing to retry.
+            console.warn("useSendMessage: could not show the pages", err);
+          }
+        }
+      }
+      // Replay the full history each send (`/api/chat` is stateless), read from SQLite because a cold cache (sending in a
+      // just-opened chat) would replay EMPTY. Every user turn re-folds its own rows, so a PDF three questions back is there.
+      let wireMessages: WireChatMessage[];
+      try {
+        const dbForWire = await messages.listByChat(chatId);
+        const attachmentRows = await attachments.listByChatForWire(
+          chatId,
+          hasVision,
+        );
+        const wire = toWireHistory(
+          dbForWire.filter((m) => m.id !== placeholderAssistant.id),
+          attachmentRows,
+          hasVision,
+        );
+        wireMessages = wire.messages;
+        if (wire.isTruncated) {
+          notices.push({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(placeholderAssistant.id, err);
+        return;
+      }
+      // Nothing quiet may overwrite a failure the user has already been shown.
+      const notice = hasSaidFailure ? null : topNotice(notices);
+      if (notice !== null) toast(notice);
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        apiAttachments,
         // Thinking is optional: force it on only when the chat's preference is on AND the model supports it; otherwise omit the flag so the model decides for itself.
         forceThink || undefined,
         // Grant the web tools when web search is on and the model supports tools.
@@ -283,6 +499,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,
@@ -290,6 +507,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
     ],
   );
   const regenerate = React.useCallback(
@@ -343,16 +561,30 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         preservedAttachments,
       );
 
-      const apiAttachments = narrowApiAttachments(
-        gateVisionAttachments(persistedAttachments, hasVision),
-      );
       // Wire history for regenerate: every turn UP TO AND INCLUDING the user message we're re-asking. `headSlice` already excludes the assistant turn being replaced.
-      const wireMessages = toWireHistory(headSlice);
+      let wireMessages: WireChatMessage[];
+      try {
+        const wire = toWireHistory(
+          headSlice,
+          await attachments.listByChatForWire(chatId, hasVision),
+          hasVision,
+        );
+        wireMessages = wire.messages;
+        if (wire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(placeholderAssistant.id, err);
+        return;
+      }
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        apiAttachments,
         // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
         forceThink || undefined,
         // Web search is sticky: regenerate with it when it's currently on (and supported), so retrying for a better answer keeps searching.
@@ -363,6 +595,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,
@@ -370,6 +603,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
       webSearchEnabled,
     ],
   );
@@ -427,15 +661,29 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         preservedAttachments,
       );
 
-      const apiAttachments = narrowApiAttachments(
-        gateVisionAttachments(persistedAttachments, hasVision),
-      );
-      const wireMessages = toWireHistory(headSlice);
+      let wireMessages: WireChatMessage[];
+      try {
+        const wire = toWireHistory(
+          headSlice,
+          await attachments.listByChatForWire(chatId, hasVision),
+          hasVision,
+        );
+        wireMessages = wire.messages;
+        if (wire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(assistantMessageId, err);
+        return;
+      }
       await runStreamWithContext(
         model.name,
         assistantMessageId,
         wireMessages,
-        apiAttachments,
         // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
         forceThink || undefined,
         // Web search is sticky: retry with it when it's currently on (and supported).
@@ -446,6 +694,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,
@@ -453,6 +702,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
       webSearchEnabled,
     ],
   );
@@ -522,19 +772,31 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         updatedMessages,
         preservedAttachments,
       );
-      const apiAttachments = narrowApiAttachments(
-        gateVisionAttachments(persistedAttachments, hasVision),
-      );
-      // Wire history: every prior turn + the freshly-edited user content as the last entry.
-      const wireMessages: WireChatMessage[] = [
-        ...toWireHistory(headSlice),
-        { role: "user", content: newContent },
-      ];
+      // The edited turn goes THROUGH the builder rather than being appended by hand: hand-building it left its own
+      // documents and images out, so editing a prompt that carried a PDF re-asked the question without the PDF.
+      let wireMessages: WireChatMessage[];
+      try {
+        const editedWire = toWireHistory(
+          [...headSlice, { ...userMessage, content: newContent }],
+          await attachments.listByChatForWire(chatId, hasVision),
+          hasVision,
+        );
+        wireMessages = editedWire.messages;
+        if (editedWire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(placeholderAssistant.id, err);
+        return;
+      }
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        apiAttachments,
         // Edit re-runs honoring the chat's sticky modes (matches a fresh send): force think only if on+supported, web search when on+supported.
         forceThink || undefined,
         webSearchEnabled && hasTools ? WEB_TOOLS : undefined,
@@ -544,6 +806,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,
@@ -551,6 +814,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
       webSearchEnabled,
     ],
   );

@@ -36,13 +36,6 @@ import type {
   ToolActivity,
 } from "@/modules/chat/stores/streaming.store";
 
-// API-side narrowed attachment shape (no `uri`). Used by both `send` and `regenerate` paths.
-export interface ApiAttachment {
-  filename: string;
-  data: Uint8Array;
-  mimeType?: string;
-}
-
 // Per-call mutable buffer held in a closure so it survives every flush micro-task.
 interface StreamBuffers {
   // Visible answer (inline <think> stripped out); derived from `rawContent` on each chat event.
@@ -77,6 +70,7 @@ export interface RunStreamContext {
   endStream: (chatId: ChatId) => void;
   updateProgress: (chatId: ChatId, progress: DownloadProgress) => void;
   setToolActivity: (chatId: ChatId, activity: ToolActivity | null) => void;
+  setReasoning: (chatId: ChatId, isReasoning: boolean) => void;
   haptics: UseHapticsResult;
   // Ref is shared with the hook so `abort()` on the hook still cancels the active controller; we set + clear it from inside the pipeline.
   controllerRef: React.MutableRefObject<AbortController | null>;
@@ -102,9 +96,12 @@ const THINK_CLOSE = "</think>";
 export function splitInlineThink(raw: string): {
   content: string;
   thinking: string;
+  // Whether the buffer ENDS inside an unclosed think span. Comparing answer lengths across chunks cannot tell: a close
+  // tag reclassifies text already on screen, so the visible answer can shrink at the moment the model resumes writing.
+  isThinking: boolean;
 } {
   if (!raw.includes(THINK_OPEN) && !raw.includes(THINK_CLOSE)) {
-    return { content: raw, thinking: "" };
+    return { content: raw, thinking: "", isThinking: false };
   }
   let content = "";
   let thinking = "";
@@ -144,7 +141,7 @@ export function splitInlineThink(raw: string): {
   if (partial) {
     content = content.slice(0, content.length - partial[0].length);
   }
-  return { content, thinking };
+  return { content, thinking, isThinking: inThink };
 }
 
 export async function runStream(
@@ -152,7 +149,6 @@ export async function runStream(
   modelName: string,
   assistantId: MessageId,
   wireMessages: WireChatMessage[],
-  apiAttachments: ApiAttachment[],
   think: boolean | undefined,
   tools: readonly ToolDefinition[] | undefined,
 ): Promise<void> {
@@ -165,6 +161,7 @@ export async function runStream(
     endStream,
     updateProgress,
     setToolActivity,
+    setReasoning,
     haptics,
     controllerRef,
   } = ctx;
@@ -333,8 +330,6 @@ export async function runStream(
         chatId,
         messages: turnMessages,
         model: modelName,
-        // Images ride only on the first turn's user message; later turns end in tool results.
-        attachments: round === 0 ? apiAttachments : undefined,
         think,
         tools,
         signal: controller.signal,
@@ -352,6 +347,9 @@ export async function runStream(
               const split = splitInlineThink(buffers.rawContent);
               buffers.content = split.content;
               buffers.inlineThinking = split.thinking;
+              // The parser knows whether the buffer ends mid-thought. Deducing it from the answer's length cannot: a
+              // close tag reclassifies text already shown, so the answer shrinks while the model is writing again.
+              setReasoning(chatId, split.isThinking);
               tokenCount += 1;
               if (!buffers.hasStreamedToken) {
                 buffers.hasStreamedToken = true;
@@ -366,6 +364,7 @@ export async function runStream(
           }
           case "thinking": {
             if (event.thinking) {
+              setReasoning(chatId, true);
               buffers.thinking += event.thinking;
               scheduleReactFlush();
               scheduleDbFlush();

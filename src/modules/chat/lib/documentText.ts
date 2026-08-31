@@ -1,5 +1,5 @@
-// The cloud `/api/chat` has no document slot (only content + images), so text/code attachments are read as
-// UTF-8 on-device and folded into the message content. Binary docs (pdf/docx) can't be decoded — they need a parser.
+// The cloud `/api/chat` has no document slot (only content + images), so a text attachment is read as UTF-8 on-device
+// and folded into the message. A PDF goes through a native extractor (pdfDocument); Office formats need their own.
 
 import {
   DOCUMENT_BINARY_REPLACEMENT_RATIO,
@@ -105,27 +105,72 @@ export interface TextDocInput {
   data: Uint8Array;
 }
 
-// Folds each document's decoded text onto the user's typed message, capped per-file and in total so a
-// huge file can't blow the model context. Returns baseText unchanged when there is nothing to add.
-export function appendDocumentText(
-  baseText: string,
-  docs: TextDocInput[],
-): string {
-  if (docs.length === 0) return baseText;
-  const blocks: string[] = [];
-  let total = 0;
-  for (const doc of docs) {
-    if (total >= DOCUMENT_TEXT_TOTAL_MAX_CHARS) break;
-    const decoded = decodeDocumentText(doc.data);
-    if (isLikelyBinary(decoded)) continue;
-    const budget = Math.min(
-      DOCUMENT_TEXT_MAX_CHARS,
-      DOCUMENT_TEXT_TOTAL_MAX_CHARS - total,
-    );
-    const text = decoded.slice(0, budget);
-    if (text.length === 0) continue;
-    total += text.length;
-    blocks.push(`\n\n--- ${doc.filename} ---\n${text}`);
+// Text already in hand: a decoded document, or a PDF's text layer, which arrives as a string from a native call.
+export interface TextBlockInput {
+  filename: string;
+  text: string;
+}
+
+// Decodes byte documents and drops the ones that turn out to be binary, so they can share one fold with text that
+// never was bytes.
+export function textDocBlocks(docs: TextDocInput[]): TextBlockInput[] {
+  return docs.flatMap((doc) => {
+    const text = decodeDocumentText(doc.data);
+    return isLikelyBinary(text) ? [] : [{ filename: doc.filename, text }];
+  });
+}
+
+export interface BlockAllocation {
+  groups: TextBlockInput[][];
+  isTruncated: boolean;
+}
+
+// Allocates the character budget across the conversation NEWEST FIRST, so the document just attached arrives whole and
+// an older one yields. Groups come in and go out in chronological order.
+export function allocateBlocks(
+  groups: readonly (readonly TextBlockInput[])[],
+): BlockAllocation {
+  const out: TextBlockInput[][] = groups.map(() => []);
+  let remaining = DOCUMENT_TEXT_TOTAL_MAX_CHARS;
+  let isTruncated = false;
+  for (let g = groups.length - 1; g >= 0; g -= 1) {
+    const kept: TextBlockInput[] = [];
+    let omitted = 0;
+    for (const block of groups[g]) {
+      const budget = Math.min(DOCUMENT_TEXT_MAX_CHARS, remaining);
+      const text = block.text.slice(0, budget);
+      if (text.length < block.text.length) isTruncated = true;
+      if (text.length === 0) {
+        if (block.text.length > 0) omitted += 1;
+        continue;
+      }
+      remaining -= text.length;
+      // A cut has to be visible to the model: asked for a value that fell past the cut, it would otherwise answer from
+      // a document it believes it read whole. Worse on a table, where the rows simply stop.
+      const marked =
+        text.length < block.text.length
+          ? `${text}\n[... cut here: ${text.length} of ${block.text.length} characters sent ...]`
+          : text;
+      kept.push({ filename: block.filename, text: marked });
+    }
+    // One note per turn rather than per block: a spent budget usually drops a whole document, not a stray page.
+    if (omitted > 0) {
+      kept.push({
+        filename: `${omitted} document part${omitted > 1 ? "s" : ""}`,
+        text: "[... omitted: the character budget went to more recent messages ...]",
+      });
+    }
+    out[g] = kept;
   }
-  return blocks.length > 0 ? baseText + blocks.join("") : baseText;
+  return { groups: out, isTruncated };
+}
+
+// Frames already-allocated blocks onto a message's text. Capping lives in allocateBlocks, so this never drops anything.
+export function foldBlocks(
+  baseText: string,
+  blocks: readonly TextBlockInput[],
+): string {
+  if (blocks.length === 0) return baseText;
+  const framed = blocks.map((b) => `\n\n--- ${b.filename} ---\n${b.text}`);
+  return baseText + framed.join("");
 }

@@ -10,7 +10,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { FileText, X } from "lucide-react-native";
+import FileText from "lucide-react-native/icons/file-text";
+import X from "lucide-react-native/icons/x";
 import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { componentLayout, iconSize, motion, strokeWidth } from "@/lib/design/tokens";
@@ -95,7 +96,7 @@ export function AttachmentChip({
           <View
             className={clsx(
               "rounded-2xl overflow-hidden border bg-muted",
-              isInvalid ? "border-destructive" : "border-gray4",
+              isInvalid ? "border-destructive" : "border-border",
             )}
             style={{
               position: "absolute",
@@ -133,7 +134,7 @@ export function AttachmentChip({
               "flex-row items-center border rounded-xl px-2.5 py-1.5",
               isInvalid
                 ? "bg-destructive-soft border-destructive"
-                : "bg-card border-gray4",
+                : "bg-card border-border",
             )}
             style={{ maxWidth: componentLayout.attachmentChipMaxWidth }}
           >
@@ -148,10 +149,13 @@ export function AttachmentChip({
             </View>
             <Text
               className={clsx(
-                "font-sans flex-shrink text-xs",
+                "font-sans flex-shrink text-caption-1",
                 isInvalid ? "text-destructive" : "text-foreground",
               )}
               numberOfLines={1}
+              // Middle, not tail: two files sharing a long prefix ("Invoice 2026 Q1 — …") differ only in the part a tail
+              // ellipsis eats. iOS honours it; Android falls back to tail, which is what it does today anyway.
+              ellipsizeMode="middle"
             >
               {filename}
             </Text>
