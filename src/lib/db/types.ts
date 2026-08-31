@@ -3,6 +3,7 @@
 import type {
   AttachmentId,
   ChatId,
+  FolderId,
   MemoryId,
   MessageId,
 } from "@/lib/types/ids";
@@ -87,6 +88,18 @@ export interface ChatSummary {
   updatedAt: number;
   /** Approximate on-device bytes used by this chat (message content + thinking + attachment blobs). */
   sizeBytes: number;
+  // Folder this chat is filed under, null = normal timeline. Read by the drawer to render folder sections.
+  folderId: FolderId | null;
+  // True when the chat was created in agent mode (tools + memory), so the drawer row can badge it.
+  agentEnabled: boolean;
+}
+
+// A named triage folder holding chats; scoped per account like the chats it groups.
+export interface DbChatFolder {
+  id: FolderId;
+  userId: string;
+  name: string;
+  createdAt: number;
 }
 
 // Lifecycle of one executed tool call, mirrored from the pipeline: failed tools surface in history as a

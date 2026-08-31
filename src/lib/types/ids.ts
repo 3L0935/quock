@@ -10,6 +10,8 @@ export type AttachmentId = number & { readonly __brand: "AttachmentId" };
 
 export type MemoryId = number & { readonly __brand: "MemoryId" };
 
+export type FolderId = number & { readonly __brand: "FolderId" };
+
 export function asChatId(value: string): ChatId {
   return value as ChatId;
 }
@@ -24,6 +26,10 @@ export function asAttachmentId(value: number): AttachmentId {
 
 export function asMemoryId(value: number): MemoryId {
   return value as MemoryId;
+}
+
+export function asFolderId(value: number): FolderId {
+  return value as FolderId;
 }
 // Uses expo-crypto so UUID generation works identically on iOS, Android and web.
 export function newChatId(): ChatId {

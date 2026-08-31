@@ -18,6 +18,7 @@ import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { withAlpha } from "@/lib/design/color";
 import { componentLayout, iconSize, opacity } from "@/lib/design/tokens";
 import { useChats } from "@/modules/chat/hooks/useChats";
+import { useChatFolders } from "@/modules/chat/hooks/useChatFolders";
 import { useDeleteChat } from "@/modules/chat/hooks/useDeleteChat";
 import { useRenameChat } from "@/modules/chat/hooks/useRenameChat";
 import { useToast } from "@/lib/hooks/useToast";
@@ -26,6 +27,8 @@ import {
   groupChats,
   type Bucket,
 } from "@/modules/chat/lib/chatTimestamp";
+import type { ChatSummary } from "@/lib/db/types";
+import { MoveChatSheet } from "@/components/chat/MoveChatSheet";
 import type { ChatId } from "@/lib/types/ids";
 
 export interface ChatHistoryPanelProps {
@@ -46,6 +49,7 @@ export function ChatHistoryPanel({
   currentChatId,
 }: ChatHistoryPanelProps): React.ReactElement {
   const chatsQuery = useChats();
+  const foldersQuery = useChatFolders();
   const deleteChat = useDeleteChat();
   const renameChat = useRenameChat();
   const toast = useToast();
@@ -56,6 +60,8 @@ export function ChatHistoryPanel({
   const [pendingDelete, setPendingDelete] = useState<ChatId | null>(null);
   const [renamingId, setRenamingId] = useState<ChatId | null>(null);
   const [renameValue, setRenameValue] = useState<string>("");
+  // The chat whose swipe "Move" action is open; null = the move sheet is closed.
+  const [movingId, setMovingId] = useState<ChatId | null>(null);
   // Sweep empty drafts on each open since /c creates a row on every new-chat tap.
   React.useEffect(() => {
     if (!isOpen) return;
@@ -75,14 +81,12 @@ export function ChatHistoryPanel({
       (c) => c.title.trim().length > 0 || c.excerpt.trim().length > 0,
     );
     const trimmed = query.trim().toLowerCase();
-    const filtered =
-      trimmed.length === 0
-        ? nonEmpty
-        : nonEmpty.filter(
-            (c) =>
-              c.title.toLowerCase().includes(trimmed) ||
-              c.excerpt.toLowerCase().includes(trimmed),
-          );
+    const matches = (c: ChatSummary): boolean =>
+      trimmed.length === 0 ||
+      c.title.toLowerCase().includes(trimmed) ||
+      c.excerpt.toLowerCase().includes(trimmed);
+    // Only unfiled chats live in the date buckets; filed ones render under their folder heading below.
+    const filtered = nonEmpty.filter((c) => c.folderId === null && matches(c));
     return groupChats(filtered);
   }, [chatsQuery.data, query]);
   // Pin `now` to dataUpdatedAt so timestamps don't tick mid-session but stay accurate across refetches.
@@ -91,6 +95,25 @@ export function ChatHistoryPanel({
     () => new Date(dataUpdatedAt > 0 ? dataUpdatedAt : Date.now()),
     [dataUpdatedAt],
   );
+  // Filed chats grouped BY folder so each folder renders as its own heading + rows block, after the date buckets.
+  const folderSections = useMemo<
+    { id: number; name: string; rows: ChatSummary[] }[]
+  >(() => {
+    const raw = chatsQuery.data ?? [];
+    const folders = foldersQuery.data ?? [];
+    const trimmed = query.trim().toLowerCase();
+    const matches = (c: ChatSummary): boolean =>
+      trimmed.length === 0 ||
+      c.title.toLowerCase().includes(trimmed) ||
+      c.excerpt.toLowerCase().includes(trimmed);
+    return folders
+      .map((folder) => ({
+        id: folder.id,
+        name: folder.name,
+        rows: raw.filter((c) => c.folderId === folder.id && matches(c)),
+      }))
+      .filter((section) => section.rows.length > 0);
+  }, [chatsQuery.data, foldersQuery.data, query]);
   const handleSelect = useCallback(
     (id: ChatId): void => {
       onSelectChat(id);
@@ -194,7 +217,7 @@ export function ChatHistoryPanel({
           </View>
         </GlassOrb>
       </View>
-      {buckets.length === 0 ? (
+      {buckets.length === 0 && folderSections.length === 0 ? (
         <View className="flex-1 px-4 py-10 items-center">
           <Text className="font-sans font-semibold text-body text-foreground text-center mb-1">
             {query.trim().length > 0
@@ -234,28 +257,55 @@ export function ChatHistoryPanel({
                   >
                     {bucket.label}
                   </Text>
-                  {bucket.rows.map((chat) => {
-                    return (
-                      <ChatRow
-                        key={chat.id}
-                        chat={chat}
-                        // No hairlines here: the bucket headings already group the rows, and a full-bleed line is the
-                        // one element that stays pin-sharp while the page scales, so it fights the arrival.
-                        showDivider={false}
-                        trailingMeta={formatRelativeTimestamp(
-                          chat.updatedAt,
-                          now,
-                        )}
-                        onTap={handleSelect}
-                        onDelete={handleDelete}
-                        onRename={handleRename}
-                        onSwipeOpen={handleSwipeOpen}
-                      />
-                    );
-                  })}
+                  {bucket.rows.map((chat) => (
+                    <ChatRow
+                      key={chat.id}
+                      chat={chat}
+                      // No hairlines here: the bucket headings already group the rows, and a full-bleed line is the
+                      // one element that stays pin-sharp while the page scales, so it fights the arrival.
+                      showDivider={false}
+                      trailingMeta={formatRelativeTimestamp(
+                        chat.updatedAt,
+                        now,
+                      )}
+                      onTap={handleSelect}
+                      onDelete={handleDelete}
+                      onRename={handleRename}
+                      onMove={setMovingId}
+                      onSwipeOpen={handleSwipeOpen}
+                    />
+                  ))}
                 </View>
               );
             })}
+            {folderSections.map((section) => (
+              <View key={`folder-${section.id}`}>
+                <Text
+                  // Folder headings read exactly like the date buckets: these are just another grouping, not a
+                  // different hierarchy, so only the label content tells them apart.
+                  className={clsx(
+                    "font-sans font-semibold text-footnote text-label-tertiary mb-2",
+                    "mt-6",
+                  )}
+                  style={{ paddingLeft: componentLayout.listSection.insetX }}
+                >
+                  {section.name}
+                </Text>
+                {section.rows.map((chat) => (
+                  <ChatRow
+                    key={chat.id}
+                    chat={chat}
+                    showDivider={false}
+                    trailingMeta={formatRelativeTimestamp(chat.updatedAt, now)}
+                    onTap={handleSelect}
+                    onDelete={handleDelete}
+                    onRename={handleRename}
+                    onMove={setMovingId}
+                    onSwipeOpen={handleSwipeOpen}
+                  />
+                ))}
+              </View>
+            ))}
           </View>
         </ScrollView>
       )}
@@ -295,6 +345,11 @@ export function ChatHistoryPanel({
           clearOpenSwipeable();
           setRenamingId(null);
         }}
+      />
+      <MoveChatSheet
+        visible={movingId !== null}
+        onClose={(): void => setMovingId(null)}
+        chatId={movingId}
       />
     </View>
   );

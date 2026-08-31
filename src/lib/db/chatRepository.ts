@@ -1,12 +1,18 @@
 // Chat repository: CRUD over the `chats` table plus the join needed to build the sidebar list.
 
 import type { SQLiteDatabase } from "expo-sqlite";
-import { asChatId, type ChatId, newChatId } from "@/lib/types/ids";
+import {
+  asChatId,
+  asFolderId,
+  type ChatId,
+  type FolderId,
+  newChatId,
+} from "@/lib/types/ids";
 import {
   EXCERPT_LENGTH,
   WEB_SEARCH_DEFAULT_ON,
 } from "@/lib/constants/magic-numbers";
-import type { ChatSummary, DbChat } from "@/lib/db/types";
+import type { ChatSummary, DbChat, DbChatFolder } from "@/lib/db/types";
 
 interface ChatRow {
   id: string;
@@ -18,6 +24,7 @@ interface ChatRow {
   think_enabled: number;
   web_search_enabled: number;
   agent_enabled: number;
+  folder_id: number | null;
 }
 
 interface ChatSummaryRow {
@@ -26,6 +33,24 @@ interface ChatSummaryRow {
   updated_at: number;
   excerpt: string | null;
   size_bytes: number | null;
+  folder_id: number | null;
+  agent_enabled: number;
+}
+
+interface FolderRow {
+  id: number;
+  user_id: string;
+  name: string;
+  created_at: number;
+}
+
+function rowToFolder(row: FolderRow): DbChatFolder {
+  return {
+    id: asFolderId(row.id),
+    userId: row.user_id,
+    name: row.name,
+    createdAt: row.created_at,
+  };
 }
 
 function rowToChat(row: ChatRow): DbChat {
@@ -58,6 +83,8 @@ export class ChatRepository {
         c.id          AS id,
         c.title       AS title,
         c.updated_at  AS updated_at,
+        c.folder_id   AS folder_id,
+        c.agent_enabled AS agent_enabled,
         (
           SELECT m.content
           FROM messages m
@@ -90,6 +117,8 @@ export class ChatRepository {
       updatedAt: row.updated_at,
       excerpt: (row.excerpt ?? "").slice(0, EXCERPT_LENGTH),
       sizeBytes: row.size_bytes ?? 0,
+      folderId: row.folder_id === null ? null : asFolderId(row.folder_id),
+      agentEnabled: row.agent_enabled === 1,
     }));
   }
   // Aggregates total bytes across all chats — used by the "Clear all chats" confirm dialog so the user sees how much storage they will free. A single scan, no per-chat round-trip.
@@ -210,6 +239,52 @@ export class ChatRepository {
       enabled ? 1 : 0,
       id,
     ]);
+  }
+  // Folder CRUD: folders are per-account triage labels; deleting one leaves its chats in place (folder_id NULL).
+  async listFolders(): Promise<DbChatFolder[]> {
+    const userId = this.getUserId();
+    const rows = await this.db.getAllAsync<FolderRow>(
+      "SELECT id, user_id, name, created_at FROM chat_folders WHERE user_id = ? ORDER BY created_at ASC",
+      [userId],
+    );
+    return rows.map(rowToFolder);
+  }
+  async createFolder(name: string): Promise<DbChatFolder> {
+    const userId = this.getUserId();
+    const now = Date.now();
+    const result = await this.db.runAsync(
+      "INSERT INTO chat_folders (user_id, name, created_at) VALUES (?, ?, ?)",
+      [userId, name, now],
+    );
+    return {
+      id: asFolderId(result.lastInsertRowId),
+      userId,
+      name,
+      createdAt: now,
+    };
+  }
+  async deleteFolder(id: FolderId): Promise<void> {
+    const userId = this.getUserId();
+    await this.db.runAsync(
+      "DELETE FROM chat_folders WHERE id = ? AND user_id = ?",
+      [id, userId],
+    );
+  }
+  // Filing = assigning the chat to a folder; null pulls it back into the normal timeline. folder_id is NOT a user
+  // column so the parameterisation below passes the id straight through with the account scope on the WHERE.
+  async setFolder(id: ChatId, folderId: FolderId | null): Promise<void> {
+    const userId = this.getUserId();
+    if (folderId === null) {
+      await this.db.runAsync(
+        "UPDATE chats SET folder_id = NULL WHERE id = ? AND user_id = ?",
+        [id, userId],
+      );
+      return;
+    }
+    await this.db.runAsync(
+      "UPDATE chats SET folder_id = ? WHERE id = ? AND user_id = ?",
+      [folderId, id, userId],
+    );
   }
   async rename(id: ChatId, title: string): Promise<void> {
     const now = Date.now();

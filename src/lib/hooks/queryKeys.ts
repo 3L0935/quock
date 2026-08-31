@@ -23,4 +23,6 @@ export const queryKeys = {
   messageToolCalls: (id: MessageId) => ["chat", "toolCalls", id] as const,
   // The signed-in account's agent memories (long-term store), read by the Settings management sheet.
   agentMemories: () => ["agentMemories"] as const,
+  // Named triage folders and their membership (chats carry folder_id).
+  chatFolders: () => ["chatFolders"] as const,
 } as const;

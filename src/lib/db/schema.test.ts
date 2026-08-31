@@ -156,10 +156,21 @@ describe("MIGRATIONS", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("creates the tool_calls table in the latest migration", () => {
-    const last = MIGRATIONS[MIGRATIONS.length - 1];
-    expect(last.up).toContain("CREATE TABLE IF NOT EXISTS tool_calls");
+  it("creates the tool_calls table in its migration", () => {
+    const migration = MIGRATIONS.find((m) => m.id === 15);
+    expect(migration).toBeDefined();
+    expect(migration?.up).toContain("CREATE TABLE IF NOT EXISTS tool_calls");
     // The add-column guard only understands bare identifiers; a CREATE TABLE has none to half-read.
+    expect(planMigration(migration?.up ?? "", () => false).unreadable).toEqual(
+      [],
+    );
+  });
+
+  it("creates the chat_folders table and chats.folder_id in the latest migration", () => {
+    const last = MIGRATIONS[MIGRATIONS.length - 1];
+    expect(last.id).toBe(16);
+    expect(last.up).toContain("CREATE TABLE IF NOT EXISTS chat_folders");
+    expect(last.up).toContain("ALTER TABLE chats ADD COLUMN folder_id");
     expect(planMigration(last.up, () => false).unreadable).toEqual([]);
   });
 
