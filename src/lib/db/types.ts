@@ -49,6 +49,7 @@ export interface DbMessage {
   // Modes active when a USER turn was sent — drives the small read-only indicators on the bubble. Always false on assistant/tool rows.
   sentWithThink: boolean;
   sentWithWebSearch: boolean;
+  sentWithAgent: boolean;
 }
 
 export interface DbAttachment {

@@ -37,9 +37,14 @@ import {
   SETTINGS_SCROLL_PAD_TOP,
 } from "@/modules/settings/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
+import {
+  AGENT_MAX_TOOL_ROUNDS_CHOICES,
+} from "@/modules/chat/constants";
+import { useDb } from "@/lib/contexts/DbContext";
+import Bot from "lucide-react-native/icons/bot";
 
 // The two excerpt-menu actions whose wording is editable.
-type ExcerptAction = "deepDive" | "webSearch";
+type ExcerptAction = "deepDive" | "webSearch" | "agent";
 
 const THEME_OPTIONS: readonly SegmentedOption[] = [
   { value: "system", label: "System" },
@@ -82,6 +87,15 @@ export function SettingsView({
   const setWebSearchInstruction = useSettingsStore(
     (st) => st.setWebSearchInstruction,
   );
+  const agentInstructions = useSettingsStore((st) => st.agentInstructions);
+  const setAgentInstructions = useSettingsStore(
+    (st) => st.setAgentInstructions,
+  );
+  const agentMaxToolRounds = useSettingsStore((st) => st.agentMaxToolRounds);
+  const setAgentMaxToolRounds = useSettingsStore(
+    (st) => st.setAgentMaxToolRounds,
+  );
+  const { memories } = useDb();
   // Which excerpt action is being reworded, and the live draft. Null = the editor is closed.
   const [editingAction, setEditingAction] = useState<ExcerptAction | null>(
     null,
@@ -92,8 +106,10 @@ export function SettingsView({
       action === "deepDive"
         ? (useSettingsStore.getState().deepDiveInstruction ??
             DEFAULT_DEEP_DIVE_INSTRUCTION)
-        : (useSettingsStore.getState().webSearchInstruction ??
-            DEFAULT_WEB_SEARCH_INSTRUCTION),
+        : action === "webSearch"
+          ? (useSettingsStore.getState().webSearchInstruction ??
+            DEFAULT_WEB_SEARCH_INSTRUCTION)
+          : (useSettingsStore.getState().agentInstructions ?? ""),
     );
     setEditingAction(action);
   }, []);
@@ -110,8 +126,12 @@ export function SettingsView({
   const saveEditor = useCallback((): void => {
     if (editingAction === "deepDive") setDeepDiveInstruction(draft);
     if (editingAction === "webSearch") setWebSearchInstruction(draft);
+    if (editingAction === "agent") setAgentInstructions(draft);
     setEditingAction(null);
-  }, [draft, editingAction, setDeepDiveInstruction, setWebSearchInstruction]);
+  }, [draft, editingAction, setDeepDiveInstruction, setWebSearchInstruction, setAgentInstructions]);
+  const handleEditAgent = useCallback((): void => {
+    openEditor("agent");
+  }, [openEditor]);
   const handleThemeChange = useCallback(
     (next: string): void => {
       setThemeMode(next as ThemeMode);
@@ -138,11 +158,19 @@ export function SettingsView({
         {/* Same dialog the rename flow uses: a multiline field over the two actions. */}
         <ConfirmDialog
           visible={editingAction !== null}
-          title={editingAction === "webSearch" ? "Web search" : "Deep dive"}
+          title={
+            editingAction === "webSearch"
+              ? "Web search"
+              : editingAction === "agent"
+                ? "Agent instructions"
+                : "Deep dive"
+          }
           message={
             editingAction === "webSearch"
               ? "Sent with the excerpt when you tap Web search."
-              : "Sent with the excerpt when you tap Deep dive."
+              : editingAction === "agent"
+                ? "Standing instructions the agent follows in every conversation where agent mode is on."
+                : "Sent with the excerpt when you tap Deep dive."
           }
           confirmLabel="Save"
           inputValue={draft}
@@ -247,6 +275,48 @@ export function SettingsView({
                 strokeWidth={strokeWidth.bold}
               />
             }
+            showDivider={false}
+          />
+        </Section>
+        <Section label="Agent">
+          <ListRow
+            icon={Bot}
+            label="Instructions"
+            subtitle={agentInstructions === null ? "None" : "Custom"}
+            onPress={handleEditAgent}
+            trailing={
+              <ChevronRight
+                size={iconSize.md}
+                color={colors.labelTertiary}
+                strokeWidth={strokeWidth.bold}
+              />
+            }
+          />
+          <ListRow
+            icon={Bot}
+            label="Max tool rounds"
+            subtitle="How many tool steps the agent may chain before it must answer"
+            trailing={
+              <View className="pr-2" style={{ width: size.segmentedSlot }}>
+                <SegmentedControl
+                  options={AGENT_MAX_TOOL_ROUNDS_CHOICES.map((n) => ({
+                    value: String(n),
+                    label: String(n),
+                  }))}
+                  value={String(agentMaxToolRounds)}
+                  onChange={(next): void => setAgentMaxToolRounds(Number(next))}
+                  size="compact"
+                />
+              </View>
+            }
+          />
+          <ListRow
+            icon={Trash2}
+            label="Clear agent memory"
+            destructive
+            onPress={async (): Promise<void> => {
+              await memories.clearAll();
+            }}
             showDivider={false}
           />
         </Section>

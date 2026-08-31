@@ -85,11 +85,15 @@ export function isAbortError(err: unknown): boolean {
   const e = err as { name?: unknown };
   return e.name === "AbortError";
 }
-// The term shown in "Searching for {term}…": the search query, or the fetched URL for web_fetch.
+// The term shown next to the tool name ("Searching for …" / "Saving to memory: …"). Cascade covers query (web),
+// url (fetch/open), content (memory_save), text (clipboard/share/file) and name (file ops).
 function toolActivityTerm(call: WireToolCall): string {
   const args = call.function.arguments;
-  const term = args.query ?? args.url;
-  return typeof term === "string" ? term : "";
+  const term = args.query ?? args.url ?? args.content ?? args.text ?? args.name;
+  if (typeof term !== "string") return "";
+  // One-line preview: long bodies (memory saves, file contents) would otherwise flood the indicator.
+  const singleLine = term.replace(/\s+/g, " ").trim();
+  return singleLine.length > 40 ? `${singleLine.slice(0, 40)}…` : singleLine;
 }
 
 const THINK_OPEN = "<think>";

@@ -110,6 +110,12 @@ const ADD_CHAT_AGENT_MODE = `
   ALTER TABLE chats ADD COLUMN agent_enabled INTEGER NOT NULL DEFAULT 0;
 `;
 
+// Marks a USER turn that ran under agent mode, so its bubble shows the same kind of read-only "sent with agent" chip
+// as the other two sent_with_* indicators.
+const ADD_MESSAGE_SENT_WITH_AGENT = `
+  ALTER TABLE messages ADD COLUMN sent_with_agent INTEGER NOT NULL DEFAULT 0;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
   { id: 2, up: ADD_MESSAGE_STATUS },
@@ -123,6 +129,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 11, up: ADD_ATTACHMENT_DERIVED },
   { id: 12, up: ADD_MEMORY_TABLE },
   { id: 13, up: ADD_CHAT_AGENT_MODE },
+  { id: 14, up: ADD_MESSAGE_SENT_WITH_AGENT },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
