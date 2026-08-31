@@ -197,13 +197,17 @@ function AssistantMessageImpl({
     message.webSearchFailed && !isError && !isInterrupted;
   // Action row visible only once the response is fully landed — hide during pending / streaming / error / interrupted so the icons never offer regenerate over an in-flight answer.
   const showActionRow = message.status === "complete" && hasContent;
-  // Interleaved tool steps only make sense once there is text to interleave into; the pure splitter is memoized
-  // with the same deps as the content reveal.
+  // Interleave against the FULL content: offsets were captured against everything the model had written at call
+  // time, so this is the only source the split can stay coherent with. The pacing (useRevealedContent) is skipped
+  // for turns that carry steps — painting a call's segment before its predecessors is impossible (offsets bound
+  // each segment), so the steady-reveal pacemaker would fight the segmentation for no visible benefit on those.
   const toolCallsQuery = useMessageToolCalls(message.id);
-  const interleaved =
-    toolCallsQuery.data && toolCallsQuery.data.length > 0
-      ? splitContentAroundCalls(revealedContent, toolCallsQuery.data)
-      : null;
+  const hasSteps =
+    toolCallsQuery.data !== undefined && toolCallsQuery.data.length > 0;
+  const interleaved = hasSteps
+    ? splitContentAroundCalls(message.content, toolCallsQuery.data ?? [])
+    : null;
+  const paintSource = hasSteps ? message.content : revealedContent;
   return (
     <View>
       <MessageBubble role="assistant" isStreaming={isStreaming}>
@@ -217,21 +221,18 @@ function AssistantMessageImpl({
           />
         ) : null}
         {hasContent || showCursor ? (
-          <View className="flex-row items-end flex-wrap">
-            {interleaved ? (
-              // Steps render INLINE at the offsets where the model interrupted its own answer.
-              interleaved.map((segment, i) => (
-                <Fragment key={`seg-${message.id}:${i}`}>
-                  {segment.calls.length > 0 ? (
-                    <View className="w-full">
+          // Column layout: each text segment is a full-width Markdown block; step groups sit between them. The
+          // previous flex-row nesting collapsed segments to zero height on Fabric (see platform notes).
+          <View>
+            {interleaved !== null
+              ? interleaved.map((segment, i) => (
+                  <Fragment key={`seg-${message.id}:${i}`}>
+                    {segment.calls.length > 0 ? (
                       <StepsGroup calls={segment.calls} />
-                    </View>
-                  ) : null}
-                  {segment.text.length > 0 ? (
-                    <View className="flex-1 flex-row items-end flex-wrap">
+                    ) : null}
+                    {segment.text.length > 0 ? (
                       <Markdown
                         source={segment.text}
-                        className="flex-1"
                         anchorSpace={anchorSpace}
                         {...(showActionRow
                           ? { onLongPressExcerpt: handleLongPressExcerpt }
@@ -239,23 +240,18 @@ function AssistantMessageImpl({
                         highlightPrefix={String(message.id)}
                         activeHighlightKey={activeHighlightKey}
                       />
-                      {/* Cursor rides the LAST segment only (live text tail). */}
-                      {showCursor && i === interleaved.length - 1 ? (
-                        <StreamingCursor />
-                      ) : null}
-                    </View>
-                  ) : showCursor && i === interleaved.length - 1 ? (
-                    <View>
+                    ) : null}
+                    {showCursor && i === interleaved.length - 1 ? (
                       <StreamingCursor />
-                    </View>
-                  ) : null}
-                </Fragment>
-              ))
-            ) : (
-              <>
-                {/* Excerpt actions only on a landed reply: mid-stream the list follows the tail, so a menu anchored to a moving unit would drift off it. */}
+                    ) : null}
+                  </Fragment>
+                ))
+              : null}
+            {/* No-steps path keeps the single paced Markdown block + cursor exactly as before. */}
+            {interleaved === null ? (
+              <View className="flex-row items-end flex-wrap">
                 <Markdown
-                  source={revealedContent}
+                  source={paintSource}
                   className="flex-1"
                   anchorSpace={anchorSpace}
                   {...(showActionRow
@@ -265,8 +261,8 @@ function AssistantMessageImpl({
                   activeHighlightKey={activeHighlightKey}
                 />
                 {showCursor ? <StreamingCursor /> : null}
-              </>
-            )}
+              </View>
+            ) : null}
           </View>
         ) : null}
         {isStreaming && toolActivity ? (

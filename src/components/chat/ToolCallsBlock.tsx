@@ -120,7 +120,9 @@ function ToolStep({ call }: { call: DbToolCall }): React.ReactElement {
               : "font-sans text-footnote text-muted-foreground"
           }
         >
-          {isFailed ? `${toolLabel(call.name)} unavailable` : "Done"}
+          {isFailed
+            ? `${toolLabel(call.name)} unavailable`
+            : toolLabel(call.name)}
         </Text>
         {term.length > 0 && !isFailed ? (
           <Text
