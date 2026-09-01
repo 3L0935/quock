@@ -12,10 +12,8 @@ import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
-import {
-  splitContentAroundCalls,
-  StepsGroup,
-} from "@/components/chat/ToolCallsBlock";
+import { StepsGroup } from "@/components/chat/ToolCallsBlock";
+import { splitContentAroundCalls } from "@/modules/chat/lib/toolCallDisplay";
 import { useMessageToolCalls } from "@/modules/chat/hooks/useMessageToolCalls";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth } from "@/lib/design/tokens";
