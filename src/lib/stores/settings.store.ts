@@ -2,11 +2,11 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { mmkvStorage } from "@/lib/stores/mmkv-storage";
 import {
   AGENT_MAX_TOOL_ROUNDS_CHOICES,
   AGENT_MAX_TOOL_ROUNDS_DEFAULT,
-} from "@/modules/chat/constants";
+} from "@/lib/constants/magic-numbers";
+import { mmkvStorage } from "@/lib/stores/mmkv-storage";
 
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -40,7 +40,9 @@ const DEFAULT_THEME: ThemeMode = "system";
 const DEFAULT_HAPTICS = true;
 
 // An instruction the user has blanked is not a valid prompt, so it collapses back to null = the shipped default.
-export function normaliseInstruction(instruction: string | null): string | null {
+export function normaliseInstruction(
+  instruction: string | null,
+): string | null {
   const trimmed = instruction?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
 }

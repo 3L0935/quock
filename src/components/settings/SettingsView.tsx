@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
+import Bot from "lucide-react-native/icons/bot";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Globe from "lucide-react-native/icons/globe";
 import Palette from "lucide-react-native/icons/palette";
@@ -23,6 +24,7 @@ import {
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
 import { iconSize, size, strokeWidth } from "@/lib/design/tokens";
+import { AGENT_MAX_TOOL_ROUNDS_CHOICES } from "@/lib/constants/magic-numbers";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -37,11 +39,8 @@ import {
   SETTINGS_SCROLL_PAD_TOP,
 } from "@/modules/settings/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
-import {
-  AGENT_MAX_TOOL_ROUNDS_CHOICES,
-} from "@/modules/chat/constants";
 import { useDb } from "@/lib/contexts/DbContext";
-import Bot from "lucide-react-native/icons/bot";
+import { useToast } from "@/lib/hooks/useToast";
 
 // The two excerpt-menu actions whose wording is editable.
 type ExcerptAction = "deepDive" | "webSearch" | "agent";
@@ -96,10 +95,12 @@ export function SettingsView({
     (st) => st.setAgentMaxToolRounds,
   );
   const { memories } = useDb();
+  const toast = useToast();
   // Which excerpt action is being reworded, and the live draft. Null = the editor is closed.
   const [editingAction, setEditingAction] = useState<ExcerptAction | null>(
     null,
   );
+  const [isClearMemoryOpen, setIsClearMemoryOpen] = useState<boolean>(false);
   const [draft, setDraft] = useState<string>("");
   const openEditor = useCallback((action: ExcerptAction): void => {
     setDraft(
@@ -128,7 +129,13 @@ export function SettingsView({
     if (editingAction === "webSearch") setWebSearchInstruction(draft);
     if (editingAction === "agent") setAgentInstructions(draft);
     setEditingAction(null);
-  }, [draft, editingAction, setDeepDiveInstruction, setWebSearchInstruction, setAgentInstructions]);
+  }, [
+    draft,
+    editingAction,
+    setDeepDiveInstruction,
+    setWebSearchInstruction,
+    setAgentInstructions,
+  ]);
   const handleEditAgent = useCallback((): void => {
     openEditor("agent");
   }, [openEditor]);
@@ -181,10 +188,32 @@ export function SettingsView({
           onConfirm={saveEditor}
           onCancel={closeEditor}
         />
+        {/* Same pattern as ClearChatsChooser: the confirm dialog owns the destructive action, toast reports it. */}
+        <ConfirmDialog
+          visible={isClearMemoryOpen}
+          title="Clear agent memory"
+          message="Every fact the agent saved for this account is deleted. This cannot be undone."
+          confirmLabel="Clear"
+          destructive
+          onConfirm={(): void => {
+            setIsClearMemoryOpen(false);
+            void (async (): Promise<void> => {
+              try {
+                await memories.clearAll();
+                toast({ title: "Agent memory cleared", tone: "success" });
+              } catch (err) {
+                console.warn("SettingsView: failed to clear agent memory", err);
+                toast({ title: "Could not clear agent memory", tone: "error" });
+              }
+            })();
+          }}
+          onCancel={(): void => setIsClearMemoryOpen(false)}
+        />
       </>
     ),
     [
       isChooserOpen,
+      isClearMemoryOpen,
       totalChatBytes,
       deviceBytes,
       clearMine,
@@ -194,6 +223,8 @@ export function SettingsView({
       editingAction,
       saveEditor,
       closeEditor,
+      memories,
+      toast,
     ],
   );
   useEffect(() => {
@@ -314,9 +345,7 @@ export function SettingsView({
             icon={Trash2}
             label="Clear agent memory"
             destructive
-            onPress={async (): Promise<void> => {
-              await memories.clearAll();
-            }}
+            onPress={(): void => setIsClearMemoryOpen(true)}
             showDivider={false}
           />
         </Section>
