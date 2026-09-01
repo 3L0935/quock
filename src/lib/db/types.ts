@@ -1,6 +1,11 @@
 // Repository-layer types, decoupled from `codegen/gotypes.gen.ts` so storage can evolve independently from the wire format.
 
-import type { AttachmentId, ChatId, MemoryId, MessageId } from "@/lib/types/ids";
+import type {
+  AttachmentId,
+  ChatId,
+  MemoryId,
+  MessageId,
+} from "@/lib/types/ids";
 
 export type MessageRole = "user" | "assistant" | "tool";
 // Assistant lifecycle: pending -> streaming -> complete|error|interrupted. User and tool rows are always `complete`.
@@ -11,11 +16,7 @@ export type MessageStatus =
   | "error"
   | "interrupted";
 // Discriminator persisted to `messages.error_code` so AssistantMessage can pick copy and gate Retry.
-export type MessageErrorCode =
-  | "network"
-  | "cloud"
-  | "subscription"
-  | "unknown";
+export type MessageErrorCode = "network" | "cloud" | "subscription" | "unknown";
 export interface DbChat {
   id: ChatId;
   title: string;

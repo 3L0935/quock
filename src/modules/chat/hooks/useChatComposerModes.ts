@@ -55,7 +55,10 @@ export function useChatComposerModes(
       // staleTime stops refetches, not the first fetch: a read issued at mount can resolve after this write and put
       // the old value back, which with the new default lands on the permissive side.
       queryClient.cancelQueries({ queryKey: key }).catch((err: unknown) => {
-        console.warn("useChatComposerModes: failed to cancel in-flight read", err);
+        console.warn(
+          "useChatComposerModes: failed to cancel in-flight read",
+          err,
+        );
       });
       const before =
         queryClient.getQueryData<ComposerModes>(key) ?? MODES_DEFAULT;
