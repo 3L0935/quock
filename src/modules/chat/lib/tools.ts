@@ -1,6 +1,5 @@
-// Tool-calling registry for the agentic web + on-device agent flows. The model receives these schemas on /api/chat;
-// when it emits a tool_call we execute it here and feed the result back as a tool message.
-// Adding a tool = one ToolDefinition + one branch in executeToolCall.
+// Tool-calling registry for the agentic web + on-device agent flows: the model gets these schemas on /api/chat and
+// we execute each tool_call here, feeding results back as tool messages. Adding a tool = one ToolDefinition + one branch.
 
 import * as Application from "expo-application";
 import * as Clipboard from "expo-clipboard";
@@ -14,6 +13,7 @@ import type { MemoryRepository } from "@/lib/db/memoryRepository";
 import { filterMemoriesByQuery } from "@/lib/db/memoryRepository";
 import { asMemoryId } from "@/lib/types/ids";
 import { webFetch, webSearch } from "@/modules/chat/api/webSearch";
+import { AGENT_MEMORY_INJECT_MAX } from "@/modules/chat/constants";
 
 // JSON-schema tool definition sent in ChatRequest.tools (mirrors Ollama's Tool shape).
 export interface ToolDefinition {
@@ -107,7 +107,8 @@ const MEMORY_READ_TOOL: ToolDefinition = {
       properties: {
         query: {
           type: "string",
-          description: "Optional: only return memories matching any word in this query.",
+          description:
+            "Optional: only return memories matching any word in this query.",
         },
         limit: {
           type: "number",
@@ -150,7 +151,7 @@ const GET_CURRENT_TIME_TOOL: ToolDefinition = {
   function: {
     name: "get_current_time",
     description:
-      "Get the device's current date and time. Use when the question depends on \"now\", today's date, or relative times (\"in two hours\").",
+      'Get the device\'s current date and time. Use when the question depends on "now", today\'s date, or relative times ("in two hours").',
     parameters: { type: "object", properties: {}, required: [] },
   },
 };
@@ -263,7 +264,10 @@ const READ_SAVED_FILE_TOOL: ToolDefinition = {
     parameters: {
       type: "object",
       properties: {
-        name: { type: "string", description: "The file name used at save time." },
+        name: {
+          type: "string",
+          description: "The file name used at save time.",
+        },
       },
       required: ["name"],
     },
@@ -306,20 +310,18 @@ function stringArg(call: WireToolCall, key: string): string {
 }
 
 // Numeric argument, same tolerance: anything but a finite number falls back to the default.
-function numberArg(
-  call: WireToolCall,
-  key: string,
-  fallback: number,
-): number {
+function numberArg(call: WireToolCall, key: string, fallback: number): number {
   const value = call.function.arguments[key];
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : fallback;
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-const MEMORY_READ_DEFAULT_LIMIT = 30;
+// Default and hard ceiling for memory_read: the model's limit arg is clamped to this so one call can never
+// materialize the whole table into the context — the same budget the injector enforces.
+export const MEMORY_READ_MAX = AGENT_MEMORY_INJECT_MAX;
 // Subdirectory inside Paths.document so model saves never collide with other app files; created lazily on first use.
 const SAVED_FILES_DIR_NAME = "agent-files";
+const SAVED_FILE_NAME_MAX_CHARS = 80;
+const SAVED_FILE_COLLISION_MAX = 1000;
 
 function savedFilesDir(): Directory {
   const dir = new Directory(Paths.document, SAVED_FILES_DIR_NAME);
@@ -333,7 +335,7 @@ function savedFilesDir(): Directory {
 export function sanitizeFilename(name: string): string {
   const stripped = name.replace(/[\\/]/g, "").replace(/\.\.+/g, ".");
   const trimmed = stripped.trim();
-  return trimmed.slice(0, 80) || "file.txt";
+  return trimmed.slice(0, SAVED_FILE_NAME_MAX_CHARS) || "file.txt";
 }
 
 // Collision rule: notes.txt -> notes-2.txt (suffix before the extension) so repeat saves never clobber prior ones.
@@ -342,7 +344,7 @@ function resolveCollision(dir: Directory, name: string): string {
   const dot = name.lastIndexOf(".");
   const base = dot === -1 ? name : name.slice(0, dot);
   const ext = dot === -1 ? "" : name.slice(dot);
-  for (let i = 2; i < 1000; i += 1) {
+  for (let i = 2; i < SAVED_FILE_COLLISION_MAX; i += 1) {
     const candidate = `${base}-${i}${ext}`;
     if (!new File(dir, candidate).exists) return candidate;
   }
@@ -376,17 +378,22 @@ async function handleMemoryRead(
 ): Promise<string> {
   if (!ctx.memories) return "No memories stored yet.";
   try {
-    const limit = numberArg(call, "limit", MEMORY_READ_DEFAULT_LIMIT);
+    // Clamp the model-provided limit so one call can never materialize the whole table into the context.
+    const limit = Math.min(
+      numberArg(call, "limit", MEMORY_READ_MAX),
+      MEMORY_READ_MAX,
+    );
     const all = await ctx.memories.listRecent(limit);
     const query = stringArg(call, "query");
-    const matched =
-      query.length > 0 ? filterMemoriesByQuery(all, query) : all;
+    const matched = query.length > 0 ? filterMemoriesByQuery(all, query) : all;
     if (matched.length === 0) {
       return "No memories stored yet.";
     }
     // Keep hot facts hot: touch is fire-and-forget so a failing write never blocks the read result.
     for (const m of matched) {
-      ctx.memories.touch(m.id).catch(() => {});
+      ctx.memories.touch(m.id).catch((err: unknown) => {
+        console.warn("memory touch failed:", err);
+      });
     }
     return JSON.stringify(
       matched.map((m) => ({
@@ -475,10 +482,8 @@ function handleGetDeviceInfo(): string {
 
 async function handleOpenUrl(call: WireToolCall): Promise<string> {
   const url = stringArg(call, "url");
-  // Strict allowlist: only http/https — blocks intent://, file://, javascript: and any future exotic scheme.
-  // Decision (elo, yolo): accept the residual prompt-injection surface — the browser opens on the user's own device,
-  // nothing executes headless, and no body is exfiltrated (worst case a query string on a URL the USER sees open).
-  // An allowlist of domains was considered and rejected for the added fragility with no real threat reduction here.
+  // Strict http/https allowlist blocks intent://, file://, javascript: — the in-app browser runs on the user's own
+  // device, nothing headless. A domain allowlist was rejected: fragile, and the user sees and dismisses every open.
   if (!/^https?:\/\//i.test(url)) {
     return JSON.stringify({ opened: false, reason: "scheme blocked" });
   }

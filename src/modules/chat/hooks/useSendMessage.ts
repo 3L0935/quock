@@ -37,7 +37,11 @@ import {
   type PickFailure,
   type SendNotice,
 } from "@/modules/chat/lib/sendHelpers";
-import { AGENT_TOOLS, WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
+import {
+  AGENT_TOOLS,
+  WEB_TOOLS,
+  type ToolDefinition,
+} from "@/modules/chat/lib/tools";
 import {
   closePdfRender,
   extractPdfText,
@@ -74,7 +78,10 @@ export interface UseSendMessageResult {
   regenerate: (assistantMessageId: MessageId) => Promise<void>;
   retry: (assistantMessageId: MessageId) => Promise<void>;
   // Updates a user message's content, drops every message after it (the now-stale assistant replies), then re-runs the stream from the edited turn. Mirrors ChatGPT / Claude "edit message" semantics.
-  editAndResend: (userMessageId: MessageId, newContent: string) => Promise<void>;
+  editAndResend: (
+    userMessageId: MessageId,
+    newContent: string,
+  ) => Promise<void>;
   abort: () => void;
   isStreaming: boolean;
 }
@@ -88,7 +95,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const hasThinking = useHasThinkingCapability(model?.name);
   // Sticky modes persisted per chat. Thinking is OPTIONAL: only an explicit on (and a thinking-capable model)
   // forces `think: true`; otherwise the flag is omitted so the model decides. Applied uniformly to every path.
-  const { thinkEnabled, webSearchEnabled, agentEnabled } = useChatComposerModes(chatId);
+  const { thinkEnabled, webSearchEnabled, agentEnabled } =
+    useChatComposerModes(chatId);
   const forceThink = thinkEnabled && hasThinking;
   // Agent mode sends: standing instructions + tool-round ceiling live in Settings, read once per send.
   const agentInstructions = useSettingsStore((s) => s.agentInstructions);
@@ -100,9 +108,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const setToolActivity = useStreamingStore((s) => s.setToolActivity);
   const setReasoning = useStreamingStore((s) => s.setReasoning);
   const ctxAbort = useStreamingStore((s) => s.abort);
-  const isStreaming = useStreamingStore((s) =>
-    s.streamingChatIds.has(chatId),
-  );
+  const isStreaming = useStreamingStore((s) => s.streamingChatIds.has(chatId));
   const queryClient = useQueryClient();
   const haptics = useHaptics();
   const toast = useToast();
@@ -121,9 +127,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const abort = React.useCallback((): void => {
     ctxAbort(chatId);
   }, [ctxAbort, chatId]);
-  // Resolves tools + wire-only system context + round ceiling for ONE send, given the chat's sticky modes.
-  // Web-search and agent sends must not collide: agent wins (its tool set is a superset) but keeps web semantics —
-  // the wire stays a single /api/chat call regardless of how many modes are on.
+  // Resolves tools + wire-only system context + round ceiling for ONE send given the chat's sticky modes.
+  // Agent wins over web search (superset) but keeps web semantics: one /api/chat call however many modes are on.
   const buildAgentPayload = React.useCallback(
     async (
       webSearchWanted: boolean,
@@ -212,7 +217,10 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           errorCode: "unknown",
         });
       } catch (writeErr) {
-        console.warn("useSendMessage: could not mark the turn failed:", writeErr);
+        console.warn(
+          "useSendMessage: could not mark the turn failed:",
+          writeErr,
+        );
       }
       queryClient.setQueryData<UseChatData>(queryKeys.chat(chatId), (prev) =>
         prev === undefined
@@ -221,7 +229,11 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
               ...prev,
               messages: prev.messages.map((m) =>
                 m.id === assistantId
-                  ? { ...m, status: "error" as const, errorCode: "unknown" as const }
+                  ? {
+                      ...m,
+                      status: "error" as const,
+                      errorCode: "unknown" as const,
+                    }
                   : m,
               ),
             },
@@ -334,7 +346,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       try {
         const current = await chats.get(chatId);
         if (current && current.title.trim().length === 0) {
-          const trimmed = text.trim().split("\n")[0]?.slice(0, CHAT_AUTO_TITLE_MAX_CHARS) ?? "";
+          const trimmed =
+            text.trim().split("\n")[0]?.slice(0, CHAT_AUTO_TITLE_MAX_CHARS) ??
+            "";
           if (trimmed.length > 0) {
             await chats.rename(chatId, trimmed);
           }
@@ -407,7 +421,10 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
               } catch (err) {
                 // The wire is rebuilt from the row, so text that failed to store is text this turn does not carry
                 // either — and for a vision model the pages hide it, so nothing else would report the loss.
-                console.warn("useSendMessage: could not store the OCR text", err);
+                console.warn(
+                  "useSendMessage: could not store the OCR text",
+                  err,
+                );
                 notices.push({
                   title: `Couldn't keep the text read from ${row.filename}`,
                   description: "Attach it again to have it read once more.",
@@ -597,10 +614,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
       // Regenerate drops every message after the prior user turn; prune their orphaned attachment entries and
       // re-assert the prior user turn's attachments from the DB so its chips survive even on a cold cache.
-      const preservedAttachments = pruneAttachmentMap(existing, updatedMessages, {
-        messageId: priorUser.id,
-        rows: persistedAttachments,
-      });
+      const preservedAttachments = pruneAttachmentMap(
+        existing,
+        updatedMessages,
+        {
+          messageId: priorUser.id,
+          rows: persistedAttachments,
+        },
+      );
       await patchChatCache(
         queryClient,
         chats,
@@ -699,10 +720,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
       // The cache keeps head + the reset row; prune orphaned attachment entries for any dropped tail and
       // re-assert the prior user turn's attachments from the DB so its chips survive even on a cold cache.
-      const preservedAttachments = pruneAttachmentMap(existing, updatedMessages, {
-        messageId: priorUser.id,
-        rows: persistedAttachments,
-      });
+      const preservedAttachments = pruneAttachmentMap(
+        existing,
+        updatedMessages,
+        {
+          messageId: priorUser.id,
+          rows: persistedAttachments,
+        },
+      );
       await patchChatCache(
         queryClient,
         chats,
@@ -784,7 +809,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       });
       await messages.deleteAfter(chatId, userMessageId);
       // Attachments stay bound to the user message; vision-gating mirrors `send`.
-      const persistedAttachments = await attachments.listByMessage(userMessageId);
+      const persistedAttachments =
+        await attachments.listByMessage(userMessageId);
       const placeholderAssistant = await messages.append({
         chatId,
         role: "assistant",
@@ -815,10 +841,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
       // deleteAfter dropped every message past the edited turn; prune their now-orphaned attachment entries and
       // re-assert the edited turn's own attachments from the DB so they survive even on a cold cache.
-      const preservedAttachments = pruneAttachmentMap(existing, updatedMessages, {
-        messageId: userMessageId,
-        rows: persistedAttachments,
-      });
+      const preservedAttachments = pruneAttachmentMap(
+        existing,
+        updatedMessages,
+        {
+          messageId: userMessageId,
+          rows: persistedAttachments,
+        },
+      );
       await patchChatCache(
         queryClient,
         chats,

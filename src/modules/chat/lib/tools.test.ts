@@ -4,6 +4,7 @@ import type { DbMemory } from "@/lib/db/types";
 import { asMemoryId } from "@/lib/types/ids";
 import {
   executeToolCall,
+  MEMORY_READ_MAX,
   sanitizeFilename,
   type WireToolCall,
 } from "@/modules/chat/lib/tools";
@@ -58,7 +59,10 @@ describe("executeToolCall", () => {
     const results = [{ title: "T", url: "https://x", content: "body" }];
     mockWebSearch.mockResolvedValue(results);
 
-    const out = await executeToolCall({ client, memories: null }, call("web_search", { query: "rust async" }));
+    const out = await executeToolCall(
+      { client, memories: null },
+      call("web_search", { query: "rust async" }),
+    );
 
     expect(mockWebSearch).toHaveBeenCalledWith(client, "rust async");
     expect(mockWebFetch).not.toHaveBeenCalled();
@@ -69,7 +73,10 @@ describe("executeToolCall", () => {
     const page = { title: "Page", content: "readable", links: ["https://a"] };
     mockWebFetch.mockResolvedValue(page);
 
-    const out = await executeToolCall({ client, memories: null }, call("web_fetch", { url: "https://example.com" }));
+    const out = await executeToolCall(
+      { client, memories: null },
+      call("web_fetch", { url: "https://example.com" }),
+    );
 
     expect(mockWebFetch).toHaveBeenCalledWith(client, "https://example.com");
     expect(mockWebSearch).not.toHaveBeenCalled();
@@ -82,12 +89,18 @@ describe("executeToolCall", () => {
     await executeToolCall({ client, memories: null }, call("web_search", {}));
     expect(mockWebSearch).toHaveBeenLastCalledWith(client, "");
 
-    await executeToolCall({ client, memories: null }, call("web_search", { query: 42 }));
+    await executeToolCall(
+      { client, memories: null },
+      call("web_search", { query: 42 }),
+    );
     expect(mockWebSearch).toHaveBeenLastCalledWith(client, "");
   });
 
   it("returns a not-available message for an unknown tool without touching the API", async () => {
-    const out = await executeToolCall({ client, memories: null }, call("delete_everything", {}));
+    const out = await executeToolCall(
+      { client, memories: null },
+      call("delete_everything", {}),
+    );
 
     expect(out).toBe("Tool delete_everything is not available.");
     expect(mockWebSearch).not.toHaveBeenCalled();
@@ -125,7 +138,9 @@ describe("executeToolCall", () => {
     expect(memories.touch).toHaveBeenCalledWith(asMemoryId(1));
     expect(memories.touch).not.toHaveBeenCalledWith(asMemoryId(2));
     expect(out).toBe(
-      JSON.stringify([{ id: 1, content: "drone is a Meteor75 Pro", createdAt: 1 }]),
+      JSON.stringify([
+        { id: 1, content: "drone is a Meteor75 Pro", createdAt: 1 },
+      ]),
     );
   });
 
@@ -136,6 +151,21 @@ describe("executeToolCall", () => {
       call("memory_read", { query: "nothing" }),
     );
     expect(out).toBe("No memories stored yet.");
+  });
+
+  it("memory_read clamps the model-provided limit to the injection budget", async () => {
+    (memories.listRecent as jest.Mock).mockResolvedValue([]);
+    await executeToolCall(
+      { client, memories },
+      call("memory_read", { limit: 1e9 }),
+    );
+    const capped = (memories.listRecent as jest.Mock).mock.calls[0][0];
+    expect(capped).toBe(MEMORY_READ_MAX);
+    expect(capped).toBeLessThan(1e9);
+
+    await executeToolCall({ client, memories }, call("memory_read", {}));
+    const defaulted = (memories.listRecent as jest.Mock).mock.calls[1][0];
+    expect(defaulted).toBe(MEMORY_READ_MAX);
   });
 
   it("memory_read degrades gracefully when the repository is unavailable", async () => {

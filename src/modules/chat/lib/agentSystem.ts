@@ -1,6 +1,5 @@
-// Builds the wire-only system context for an agent-mode send: a base tool-use contract, optional user instructions,
-// and the top-N memories as one block. Never persisted, never shown — streamPipeline injects it at the head of every
-// round's payload, and toWireHistory never reads it back from SQLite.
+// Builds the wire-only system context for an agent-mode send: base tool contract, optional user instructions, top-N
+// memories. Wire-only — streamPipeline injects it at the head of every round; toWireHistory never reads it back.
 
 import type { DbMemory } from "@/lib/db/types";
 import type { WireChatMessage } from "@/modules/chat/api/chat";
@@ -27,9 +26,9 @@ export function buildAgentSystemMessages(
   if (instructions.length > 0) {
     sections.push(`[Agent instructions]\n${instructions}`);
   }
-  const lines = memories.slice(0, AGENT_MEMORY_INJECT_MAX).map(
-    (m) => `- ${m.content.trim().slice(0, MEMORY_LINE_MAX_CHARS)}`,
-  );
+  const lines = memories
+    .slice(0, AGENT_MEMORY_INJECT_MAX)
+    .map((m) => `- ${m.content.trim().slice(0, MEMORY_LINE_MAX_CHARS)}`);
   if (lines.length > 0) {
     sections.push(`[Memory]\n${lines.join("\n")}`);
   }

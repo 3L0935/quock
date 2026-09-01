@@ -63,11 +63,12 @@ export class MemoryRepository {
     return rows.map(rowToMemory);
   }
 
-  // Marks a memory as used now, keeping injected facts hot in the ordering.
+  // Marks a memory as used now, keeping injected facts hot in the ordering. Scoped like every other write: a foreign
+  // id must never be bumpable, so the account predicate matches forget().
   async touch(id: MemoryId): Promise<void> {
     await this.db.runAsync(
-      "UPDATE memories SET last_accessed_at = ? WHERE id = ?",
-      [Date.now(), id],
+      "UPDATE memories SET last_accessed_at = ? WHERE id = ? AND user_id = ?",
+      [Date.now(), id, this.getUserId()],
     );
   }
 

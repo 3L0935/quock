@@ -9,10 +9,7 @@ import {
 } from "@/lib/api/errors";
 import type { MemoryRepository } from "@/lib/db/memoryRepository";
 import type { MessageRepository } from "@/lib/db/messageRepository";
-import type {
-  MessageErrorCode,
-  MessageStatus,
-} from "@/lib/db/types";
+import type { MessageErrorCode, MessageStatus } from "@/lib/db/types";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
 import type { ChatId, MessageId } from "@/lib/types/ids";
@@ -87,13 +84,17 @@ export function isAbortError(err: unknown): boolean {
 }
 // The term shown next to the tool name ("Searching for …" / "Saving to memory: …"). Cascade covers query (web),
 // url (fetch/open), content (memory_save), text (clipboard/share/file) and name (file ops).
+// Preview cap for the tool-activity indicator: long bodies (memory saves, file contents) would flood it otherwise.
+const TOOL_ACTIVITY_PREVIEW_CHARS = 40;
+
 function toolActivityTerm(call: WireToolCall): string {
   const args = call.function.arguments;
   const term = args.query ?? args.url ?? args.content ?? args.text ?? args.name;
   if (typeof term !== "string") return "";
-  // One-line preview: long bodies (memory saves, file contents) would otherwise flood the indicator.
   const singleLine = term.replace(/\s+/g, " ").trim();
-  return singleLine.length > 40 ? `${singleLine.slice(0, 40)}…` : singleLine;
+  return singleLine.length > TOOL_ACTIVITY_PREVIEW_CHARS
+    ? `${singleLine.slice(0, TOOL_ACTIVITY_PREVIEW_CHARS)}…`
+    : singleLine;
 }
 
 const THINK_OPEN = "<think>";
