@@ -38,6 +38,7 @@ import {
 } from "@/modules/chat/lib/sendHelpers";
 import {
   AGENT_TOOLS,
+  MEMORY_TOOLS,
   WEB_TOOLS,
   type ToolDefinition,
 } from "@/modules/chat/lib/tools";
@@ -140,7 +141,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           ? await memories.searchRecent("", AGENT_MEMORY_INJECT_MAX)
           : [];
         return {
-          tools: AGENT_TOOLS,
+          // Consent, not capability: the globe toggle governs web egress even in agent mode. AGENT_TOOLS layers
+          // the memory + history tools over WEB_TOOLS only when the chat's web search is on.
+          tools: webSearchWanted ? AGENT_TOOLS : MEMORY_TOOLS,
           systemMessages: buildAgentSystemMessages(injected, agentInstructions),
           maxToolRounds: agentMaxToolRounds,
         };

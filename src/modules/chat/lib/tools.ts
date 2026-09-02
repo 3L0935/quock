@@ -99,7 +99,7 @@ const MEMORY_READ_TOOL: ToolDefinition = {
   function: {
     name: "memory_read",
     description:
-      "Read recently saved memories for this account, optionally filtered by a query. Use before answering questions about the user's preferences, devices, or anything they may have asked to remember.",
+      "Read recently saved memories for this account, optionally filtered by a query. Use before answering questions about the user's preferences, devices, or anything they may have asked to remember. If the result says memory storage could not be read, tell the user rather than claiming nothing is stored.",
     parameters: {
       type: "object",
       properties: {
