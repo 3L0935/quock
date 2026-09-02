@@ -10,17 +10,14 @@ import Animated, {
 } from "react-native-reanimated";
 import { springEasing } from "@/lib/design/motion";
 import { EMPTY_STATE_FADE_MS } from "@/modules/chat/constants";
-import { NewChatModeSwitch } from "@/components/chat/NewChatModeSwitch";
 
 export interface EmptyStateProps {
-  // Drives the hero caption + the Chat/Agent pill visibility (only a brand-new, still-empty thread offers the choice).
+  // Drives the hero caption (agent mode explains what it adds on every new thread).
   agentEnabled: boolean;
-  onChangeAgentEnabled: (agentEnabled: boolean) => void;
 }
 
 export function EmptyState({
   agentEnabled,
-  onChangeAgentEnabled,
 }: EmptyStateProps): React.ReactElement {
   // Hero fade-in driven by explicit shared value so it fires once at mount, not on every parent re-render.
   const opacity = useSharedValue(0);
@@ -43,15 +40,6 @@ export function EmptyState({
             ? "The agent can use tools and remembers what matters across chats."
             : "Ask anything to get started."}
         </Text>
-        {/* Mode choice lives with the hero it configures: visible while empty, gone once the first send commits it. */}
-        <View className="mt-6">
-          <NewChatModeSwitch
-            agentEnabled={agentEnabled}
-            onChange={onChangeAgentEnabled}
-            visible
-            testID="new-chat-mode-switch"
-          />
-        </View>
       </View>
     </Animated.View>
   );

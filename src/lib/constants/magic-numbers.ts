@@ -11,6 +11,6 @@ export const INITIAL_USER_VERSION = 0;
 // downstream so a model without tools ignores it. Existing chats keep whatever they already had.
 export const WEB_SEARCH_DEFAULT_ON = true;
 
-// Agent tool-round cap (settings store + Settings control): seeds the default and bounds the segmented control.
-export const AGENT_MAX_TOOL_ROUNDS_DEFAULT = 8;
-export const AGENT_MAX_TOOL_ROUNDS_CHOICES = [4, 8, 12, 16] as const;
+// Agent tool-round cap: a model that keeps requesting tools must be stopped. Implementation detail, not a user
+// setting (per PR review) — the cap lives in constants, not in front of the user.
+export const AGENT_MAX_TOOL_ROUNDS = 8;

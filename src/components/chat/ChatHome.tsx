@@ -84,10 +84,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     useSendMessage(chatId);
   const { model } = useChatModel(chatId);
   const canWebSearch = useHasToolsCapability(model?.name);
-  // The Chat/Agent pill owns the agent flag on a NEW conversation: visible while the thread is empty, once the
-  // first message lands the mode is committed (the flag stops being editable here).
-  const { webSearchEnabled, agentEnabled, setAgentEnabled } =
-    useChatComposerModes(chatId);
+  const { webSearchEnabled } = useChatComposerModes(chatId);
+  // Agent is a global Settings switch, not a per-chat choice: every chat carries it from creation.
+  const agentEnabled = useSettingsStore((s) => s.agentEnabled);
   // Null means the user never reworded it, so the shipped default applies.
   const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
   const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
@@ -258,10 +257,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
           </View>
         ) : showEmpty ? (
           <View className="flex-1 pb-25" style={{ paddingTop: listTopInset }}>
-            <EmptyState
-              agentEnabled={agentEnabled}
-              onChangeAgentEnabled={setAgentEnabled}
-            />
+            <EmptyState agentEnabled={agentEnabled} />
           </View>
         ) : (
           <MessageList

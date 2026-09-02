@@ -1,5 +1,6 @@
 // Per-chat sticky composer toggles (think + web search) persisted on the chat row, mirroring the model pin.
-// A dedicated modes-only query keeps the composer off the heavy `chat(id)` entry's per-token re-renders.
+// A dedicated modes-only query keeps the composer off the heavy `chat(id)` entry's per-token re-renders. Agent
+// is NOT here: it is a global Settings switch (settings.store), not a per-chat toggle.
 
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,20 +12,17 @@ import type { ChatId } from "@/lib/types/ids";
 interface ComposerModes {
   thinkEnabled: boolean;
   webSearchEnabled: boolean;
-  agentEnabled: boolean;
 }
 
 export interface UseChatComposerModesResult extends ComposerModes {
   setThinkEnabled: (enabled: boolean) => void;
   setWebSearchEnabled: (enabled: boolean) => void;
-  setAgentEnabled: (enabled: boolean) => void;
 }
 
 // Mirrors the row default, so the globe reads right before the chat row resolves and for a chat that has no row.
 const MODES_DEFAULT: ComposerModes = {
   thinkEnabled: false,
   webSearchEnabled: WEB_SEARCH_DEFAULT_ON,
-  agentEnabled: false,
 };
 
 export function useChatComposerModes(
@@ -41,7 +39,6 @@ export function useChatComposerModes(
       return {
         thinkEnabled: chat?.thinkEnabled ?? false,
         webSearchEnabled: chat?.webSearchEnabled ?? WEB_SEARCH_DEFAULT_ON,
-        agentEnabled: chat?.agentEnabled ?? false,
       };
     },
     staleTime: Infinity,
@@ -68,9 +65,6 @@ export function useChatComposerModes(
       }
       if (next.webSearchEnabled !== undefined) {
         revert.webSearchEnabled = before.webSearchEnabled;
-      }
-      if (next.agentEnabled !== undefined) {
-        revert.agentEnabled = before.agentEnabled;
       }
       queryClient.setQueryData<ComposerModes>(key, (c) => ({
         ...(c ?? MODES_DEFAULT),
@@ -103,31 +97,18 @@ export function useChatComposerModes(
     },
     [chatId, chats, patch],
   );
-  const setAgentEnabled = React.useCallback(
-    (enabled: boolean): void => {
-      patch({ agentEnabled: enabled }, () =>
-        chats.setAgentEnabled(chatId, enabled),
-      );
-    },
-    [chatId, chats, patch],
-  );
-
   return React.useMemo<UseChatComposerModesResult>(
     () => ({
       thinkEnabled: modes.thinkEnabled,
       webSearchEnabled: modes.webSearchEnabled,
-      agentEnabled: modes.agentEnabled,
       setThinkEnabled,
       setWebSearchEnabled,
-      setAgentEnabled,
     }),
     [
       modes.thinkEnabled,
       modes.webSearchEnabled,
-      modes.agentEnabled,
       setThinkEnabled,
       setWebSearchEnabled,
-      setAgentEnabled,
     ],
   );
 }

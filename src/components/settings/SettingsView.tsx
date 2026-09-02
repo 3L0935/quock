@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
-import Bot from "lucide-react-native/icons/bot";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Globe from "lucide-react-native/icons/globe";
 import Palette from "lucide-react-native/icons/palette";
@@ -10,13 +9,14 @@ import Sparkles from "lucide-react-native/icons/sparkles";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import Vibrate from "lucide-react-native/icons/vibrate";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { InstructionEditorDialog } from "@/components/settings/InstructionEditorDialog";
 import { ListRow } from "@/components/ui/ListRow";
 import { Section } from "@/components/ui/Section";
 import {
   SegmentedControl,
   type SegmentedOption,
 } from "@/components/ui/SegmentedControl";
+import { AgentSettingsSection } from "@/components/settings/AgentSettingsSection";
 import { Switch } from "@/components/ui/Switch";
 import {
   useTheme,
@@ -24,7 +24,6 @@ import {
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
 import { iconSize, size, strokeWidth } from "@/lib/design/tokens";
-import { AGENT_MAX_TOOL_ROUNDS_CHOICES } from "@/lib/constants/magic-numbers";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -34,14 +33,12 @@ import {
   DEFAULT_WEB_SEARCH_INSTRUCTION,
 } from "@/modules/chat/lib/selectionPrompts";
 import {
-  EXCERPT_INSTRUCTION_MAX_CHARS,
   SETTINGS_SCROLL_PAD_BOTTOM,
   SETTINGS_SCROLL_PAD_TOP,
 } from "@/modules/settings/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
-import { useAgentMemories } from "@/modules/settings/hooks/useAgentMemories";
 
-// The two excerpt-menu actions whose wording is editable.
+// The excerpt-menu actions whose wording is editable (type shared with the editor dialog).
 type ExcerptAction = "deepDive" | "webSearch" | "agent";
 
 const THEME_OPTIONS: readonly SegmentedOption[] = [
@@ -88,17 +85,9 @@ export function SettingsView({
   const setWebSearchInstruction = useSettingsStore(
     (st) => st.setWebSearchInstruction,
   );
-  const agentInstructions = useSettingsStore((st) => st.agentInstructions);
   const setAgentInstructions = useSettingsStore(
     (st) => st.setAgentInstructions,
   );
-  const agentMaxToolRounds = useSettingsStore((st) => st.agentMaxToolRounds);
-  const setAgentMaxToolRounds = useSettingsStore(
-    (st) => st.setAgentMaxToolRounds,
-  );
-  // Count-only read for the drill-in row's trailingMeta; the pane itself owns the full list.
-  const agentMemories = useAgentMemories();
-  const memoryCount = agentMemories.data?.length;
   const handleOpenAgentMemory = useCallback((): void => {
     onOpenAgentMemory?.();
   }, [onOpenAgentMemory]);
@@ -167,29 +156,11 @@ export function SettingsView({
           onChooseDevice={clearDevice}
           onCancel={closeChooser}
         />
-        {/* Same dialog the rename flow uses: a multiline field over the two actions. */}
-        <ConfirmDialog
-          visible={editingAction !== null}
-          title={
-            editingAction === "webSearch"
-              ? "Web search"
-              : editingAction === "agent"
-                ? "Agent instructions"
-                : "Deep dive"
-          }
-          message={
-            editingAction === "webSearch"
-              ? "Sent with the excerpt when you tap Web search."
-              : editingAction === "agent"
-                ? "Standing instructions the agent follows in every conversation where agent mode is on."
-                : "Sent with the excerpt when you tap Deep dive."
-          }
-          confirmLabel="Save"
-          inputValue={draft}
-          onChangeInput={setDraft}
-          // Short on purpose: an empty multiline field is pinned to one line, so a long placeholder would be clipped.
-          inputPlaceholder="Default wording"
-          inputMaxLength={EXCERPT_INSTRUCTION_MAX_CHARS}
+        {/* Same dialog the rename flow uses: a multiline field over the actions. */}
+        <InstructionEditorDialog
+          action={editingAction}
+          draft={draft}
+          onChangeDraft={setDraft}
           onConfirm={saveEditor}
           onCancel={closeEditor}
         />
@@ -290,59 +261,10 @@ export function SettingsView({
             showDivider={false}
           />
         </Section>
-        <Section label="Agent">
-          <ListRow
-            icon={Bot}
-            label="Instructions"
-            subtitle={agentInstructions === null ? "None" : "Custom"}
-            onPress={handleEditAgent}
-            trailing={
-              <ChevronRight
-                size={iconSize.md}
-                color={colors.labelTertiary}
-                strokeWidth={strokeWidth.bold}
-              />
-            }
-          />
-          <ListRow
-            icon={Bot}
-            label="Memories"
-            subtitle="What the agent remembers about you across chats"
-            trailingMeta={
-              memoryCount === undefined
-                ? undefined
-                : memoryCount === 0
-                  ? "Empty"
-                  : String(memoryCount)
-            }
-            onPress={handleOpenAgentMemory}
-            trailing={
-              <ChevronRight
-                size={iconSize.md}
-                color={colors.labelTertiary}
-                strokeWidth={strokeWidth.bold}
-              />
-            }
-          />
-          <ListRow
-            icon={Bot}
-            label="Max tool rounds"
-            subtitle="How many tool steps the agent may chain before it must answer"
-            trailing={
-              <View className="pr-2" style={{ width: size.segmentedSlot }}>
-                <SegmentedControl
-                  options={AGENT_MAX_TOOL_ROUNDS_CHOICES.map((n) => ({
-                    value: String(n),
-                    label: String(n),
-                  }))}
-                  value={String(agentMaxToolRounds)}
-                  onChange={(next): void => setAgentMaxToolRounds(Number(next))}
-                  size="compact"
-                />
-              </View>
-            }
-          />
-        </Section>
+        <AgentSettingsSection
+          onOpenAgentMemory={handleOpenAgentMemory}
+          onEditInstructions={handleEditAgent}
+        />
         <Section label="Chat">
           <ListRow
             icon={Sparkles}

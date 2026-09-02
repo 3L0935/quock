@@ -184,16 +184,24 @@ export class ChatRepository {
     );
     return row ? rowToChat(row) : null;
   }
-  async create(title?: string): Promise<DbChat> {
+  async create(title?: string, agentEnabled?: boolean): Promise<DbChat> {
     const id = newChatId();
     const now = Date.now();
     const resolvedTitle = title ?? "";
     const userId = this.getUserId();
     // model NULL follows the user's global default; think off lets the model's own default apply.
-    // user_id scopes the chat to the signed-in account.
+    // user_id scopes the chat to the signed-in account. agentEnabled stamps the global master switch.
     await this.db.runAsync(
-      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, ?)",
-      [id, userId, resolvedTitle, now, now, WEB_SEARCH_DEFAULT_ON ? 1 : 0],
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled, agent_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, ?, ?)",
+      [
+        id,
+        userId,
+        resolvedTitle,
+        now,
+        now,
+        WEB_SEARCH_DEFAULT_ON ? 1 : 0,
+        agentEnabled ? 1 : 0,
+      ],
     );
     return {
       id,
@@ -204,7 +212,7 @@ export class ChatRepository {
       model: null,
       thinkEnabled: false,
       webSearchEnabled: true,
-      agentEnabled: false,
+      agentEnabled: agentEnabled ?? false,
     };
   }
   // Pins a model to this chat so it persists across restarts and stays scoped to this chat alone. We deliberately do NOT touch updated_at: changing the model isn't conversational activity and shouldn't reorder the history list.
@@ -233,12 +241,6 @@ export class ChatRepository {
       "UPDATE chats SET web_search_enabled = ? WHERE id = ?",
       [enabled ? 1 : 0, id],
     );
-  }
-  async setAgentEnabled(id: ChatId, enabled: boolean): Promise<void> {
-    await this.db.runAsync("UPDATE chats SET agent_enabled = ? WHERE id = ?", [
-      enabled ? 1 : 0,
-      id,
-    ]);
   }
   // Folder CRUD: folders are per-account triage labels; deleting one leaves its chats in place (folder_id NULL).
   async listFolders(): Promise<DbChatFolder[]> {

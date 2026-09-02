@@ -55,6 +55,7 @@ import {
 import { serializePdfText } from "@/modules/chat/lib/attachmentText";
 import { ocrPages } from "@/modules/chat/lib/pdfOcr";
 import { materializeImageAttachment } from "@/modules/chat/lib/imageUpload";
+import { AGENT_MAX_TOOL_ROUNDS } from "@/lib/constants/magic-numbers";
 import {
   AGENT_MEMORY_INJECT_MAX,
   ATTACHMENT_MAX_TOTAL_BYTES,
@@ -93,12 +94,12 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const { model } = useChatModel(chatId);
   const hasVision = useHasVisionCapability(model?.name);
   const hasTools = useHasToolsCapability(model?.name);
-  // Sticky modes persisted per chat. Thinking has NO user control: the `think` flag is always omitted so the
+  // Sticky mode persisted per chat. Thinking has NO user control: the `think` flag is always omitted so the
   // model follows its own default, which is what the old toggle could not change anyway (OFF never suppressed it).
-  const { webSearchEnabled, agentEnabled } = useChatComposerModes(chatId);
-  // Agent mode sends: standing instructions + tool-round ceiling live in Settings, read once per send.
+  const { webSearchEnabled } = useChatComposerModes(chatId);
+  // Agent is a global setting (master switch + standing instructions); the round cap is a compile-time constant.
+  const agentEnabled = useSettingsStore((s) => s.agentEnabled);
   const agentInstructions = useSettingsStore((s) => s.agentInstructions);
-  const agentMaxToolRounds = useSettingsStore((s) => s.agentMaxToolRounds);
   // Action references from the store are stable across renders (created once by `create`), so we read them via selectors without churning effect deps.
   const startStream = useStreamingStore((s) => s.startStream);
   const endStream = useStreamingStore((s) => s.endStream);
@@ -126,7 +127,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
     ctxAbort(chatId);
   }, [ctxAbort, chatId]);
   // Resolves tools + wire-only system context + round ceiling for ONE send given the chat's sticky modes.
-  // Agent wins over web search (superset) but keeps web semantics: one /api/chat call however many modes are on.
+  // Agent wins over web search but keeps web semantics: one /api/chat call however many modes are on.
   const buildAgentPayload = React.useCallback(
     async (
       webSearchWanted: boolean,
@@ -145,7 +146,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           // the memory + history tools over WEB_TOOLS only when the chat's web search is on.
           tools: webSearchWanted ? AGENT_TOOLS : MEMORY_TOOLS,
           systemMessages: buildAgentSystemMessages(injected, agentInstructions),
-          maxToolRounds: agentMaxToolRounds,
+          maxToolRounds: AGENT_MAX_TOOL_ROUNDS,
         };
       }
       return {
@@ -154,7 +155,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         maxToolRounds: WEB_SEARCH_MAX_TOOL_ROUNDS,
       };
     },
-    [agentEnabled, agentInstructions, agentMaxToolRounds, hasTools, memories],
+    [agentEnabled, agentInstructions, hasTools, memories],
   );
 
   // Thin wrapper: builds the RunStreamContext once per call and delegates to the pipeline module.

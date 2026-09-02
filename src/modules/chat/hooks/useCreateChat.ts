@@ -6,6 +6,7 @@ import {
   type UseMutationResult,
 } from "@tanstack/react-query";
 import { useDb } from "@/lib/contexts/DbContext";
+import { useSettingsStore } from "@/lib/stores/settings.store";
 import type { ChatId } from "@/lib/types/ids";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 
@@ -24,7 +25,11 @@ export function useCreateChat(): UseMutationResult<
     mutationFn: async (input): Promise<ChatId> => {
       // `void` in the union lets `mutate()` be called with no arguments; at runtime it is undefined.
       const title = input ? input.title : undefined;
-      const created = await chats.create(title);
+      // Agent is a global setting: a new chat row carries the master switch's state at creation.
+      const created = await chats.create(
+        title,
+        useSettingsStore.getState().agentEnabled,
+      );
       return created.id;
     },
     onSuccess: () => {
