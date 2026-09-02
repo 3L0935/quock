@@ -137,7 +137,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const isAgent = agentEnabled && hasTools;
       if (isAgent) {
         const injected = memories
-          ? await memories.listRecent(AGENT_MEMORY_INJECT_MAX)
+          ? await memories.searchRecent("", AGENT_MEMORY_INJECT_MAX)
           : [];
         return {
           tools: AGENT_TOOLS,

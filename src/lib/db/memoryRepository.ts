@@ -1,5 +1,5 @@
-// Memory repository: durable facts the agent saves, scoped per account like chats. The newest-first ordering feeds
-// prompt injection, so last_accessed_at bumps are the "hot facts stay hot" mechanism.
+// Memory repository: durable facts the agent saves, scoped per account like chats. The injection ordering ranks by
+// recency plus access frequency (last_accessed_at bumps on every read that returns a row), so hot facts stay hot.
 
 import type { SQLiteDatabase } from "expo-sqlite";
 import { asMemoryId, type MemoryId } from "@/lib/types/ids";
@@ -53,12 +53,28 @@ export class MemoryRepository {
     };
   }
 
-  // Most recently touched first; the caller caps the list (injection budget lives with the caller).
-  async listRecent(limit: number): Promise<DbMemory[]> {
+  // Hottest-first for injection; an optional query filters in SQL so a match sitting beyond any page is still
+  // reachable — an in-memory filter after LIMIT would make it invisible no matter what the model searches.
+  async searchRecent(query: string, limit: number): Promise<DbMemory[]> {
     const userId = this.getUserId();
+    const tokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+    // No meaningful tokens means unfiltered; a negative limit would read as "no limit" in SQLite.
+    if (tokens.length === 0 || limit <= 0) {
+      const capped = Math.max(0, limit);
+      const rows = await this.db.getAllAsync<MemoryRow>(
+        "SELECT id, user_id, content, created_at, updated_at, last_accessed_at, source FROM memories WHERE user_id = ? ORDER BY last_accessed_at DESC, id DESC LIMIT ?",
+        [userId, capped],
+      );
+      return rows.map(rowToMemory);
+    }
+    const predicates = tokens.map(() => "content LIKE ?").join(" OR ");
+    const params = tokens.map((t) => `%${t}%`);
     const rows = await this.db.getAllAsync<MemoryRow>(
-      "SELECT id, user_id, content, created_at, updated_at, last_accessed_at, source FROM memories WHERE user_id = ? ORDER BY last_accessed_at DESC, id DESC LIMIT ?",
-      [userId, limit],
+      `SELECT id, user_id, content, created_at, updated_at, last_accessed_at, source FROM memories WHERE user_id = ? AND (${predicates}) ORDER BY last_accessed_at DESC, id DESC LIMIT ?`,
+      [userId, ...params, limit],
     );
     return rows.map(rowToMemory);
   }
@@ -98,18 +114,10 @@ export class MemoryRepository {
   }
 }
 
-// Substring match against lowercase whitespace-split tokens — deliberately simple (no embeddings in v1).
-export function filterMemoriesByQuery(
-  memories: readonly DbMemory[],
-  query: string,
-): DbMemory[] {
-  const tokens = query
+// Query tokens for the SQL LIKE filter: lowercase whitespace-split. Empty means the read is unfiltered.
+export function memoryQueryTokens(query: string): string[] {
+  return query
     .toLowerCase()
     .split(/\s+/)
     .filter((t) => t.length > 0);
-  if (tokens.length === 0) return [...memories];
-  return memories.filter((m) => {
-    const haystack = m.content.toLowerCase();
-    return tokens.some((token) => haystack.includes(token));
-  });
 }
