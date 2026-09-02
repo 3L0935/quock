@@ -3,16 +3,11 @@
 
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import Clock from "lucide-react-native/icons/clock";
 import ChevronDown from "lucide-react-native/icons/chevron-down";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
-import Clipboard from "lucide-react-native/icons/clipboard";
 import Database from "lucide-react-native/icons/database";
-import FileText from "lucide-react-native/icons/file-text";
 import Globe from "lucide-react-native/icons/globe";
 import MessageCircle from "lucide-react-native/icons/message-circle";
-import Share2 from "lucide-react-native/icons/share-2";
-import Smartphone from "lucide-react-native/icons/smartphone";
 import Wrench from "lucide-react-native/icons/wrench";
 import type { LucideIcon } from "lucide-react-native";
 import clsx from "clsx";
@@ -34,14 +29,6 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
   memory_forget: Database,
   search_chats: MessageCircle,
   read_chat: MessageCircle,
-  get_current_time: Clock,
-  copy_to_clipboard: Clipboard,
-  share_text: Share2,
-  open_url: Globe,
-  get_device_info: Smartphone,
-  save_file: FileText,
-  read_saved_file: FileText,
-  list_saved_files: FileText,
 };
 
 // Labels for the collapsed row; unknown names fall back to the raw wire name.
@@ -53,14 +40,6 @@ const TOOL_LABELS: Record<string, string> = {
   memory_forget: "Forget memory",
   search_chats: "Search chats",
   read_chat: "Read chat",
-  get_current_time: "Check time",
-  copy_to_clipboard: "Copy",
-  share_text: "Share",
-  open_url: "Open link",
-  get_device_info: "Device info",
-  save_file: "Save file",
-  read_saved_file: "Read file",
-  list_saved_files: "List files",
 };
 
 function toolIcon(name: string): LucideIcon {

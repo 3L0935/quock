@@ -11,14 +11,6 @@ describe("isKnownToolName", () => {
       "memory_save",
       "memory_read",
       "memory_forget",
-      "get_current_time",
-      "copy_to_clipboard",
-      "share_text",
-      "open_url",
-      "get_device_info",
-      "save_file",
-      "read_saved_file",
-      "list_saved_files",
     ]) {
       expect(isKnownToolName(name)).toBe(true);
     }

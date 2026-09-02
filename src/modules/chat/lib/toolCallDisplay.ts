@@ -31,38 +31,6 @@ const TOOL_DISPLAYS: Record<string, ToolCallDisplay> = {
     label: "Forget memory",
     summary: "Deleted a memory",
   },
-  get_current_time: {
-    label: "Check time",
-    summary: "Checked the time",
-  },
-  copy_to_clipboard: {
-    label: "Copy",
-    summary: "Copied to clipboard",
-  },
-  share_text: {
-    label: "Share",
-    summary: "Opened the share sheet",
-  },
-  open_url: {
-    label: "Open link",
-    summary: "Opened a link",
-  },
-  get_device_info: {
-    label: "Device info",
-    summary: "Read device info",
-  },
-  save_file: {
-    label: "Save file",
-    summary: "Saved a file",
-  },
-  read_saved_file: {
-    label: "Read file",
-    summary: "Read a saved file",
-  },
-  list_saved_files: {
-    label: "List files",
-    summary: "Listed saved files",
-  },
 };
 
 const FALLBACK_LABEL = "Tool";
