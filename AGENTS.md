@@ -6,7 +6,7 @@ Single source of truth for any AI coding agent operating on this repository (Cla
 
 ## Project
 
-Quock is a community-built mobile client for **Ollama Cloud**. React Native + Expo, iOS + Android. The user signs in with an `ollama.com` account, picks a cloud-hosted model, and chats with streaming responses. Conversations persist locally in SQLite — the cloud only sees the message currently in flight.
+Quock is a community-built mobile client for **Ollama Cloud**. React Native + Expo, iOS + Android. The user signs in with an `ollama.com` account, picks a cloud-hosted model, and chats with streaming responses. Conversations persist locally in SQLite — the cloud sees the message currently in flight, plus (only with agent mode on in Settings) the agent's standing instructions and up to 30 saved memory facts injected on each send. No other local content ever leaves the device.
 
 Quock is **not affiliated with Ollama, Inc.** It is an unofficial third-party client, distributed under MIT with the original Ollama copyright preserved.
 
@@ -91,7 +91,7 @@ src/
   lib/                    Infra shared by 2+ modules: api/, db/, design/, contexts/, theme/, stores/, hooks/, constants/, types/.
 ```
 
-Features today: `chat`, `auth`, `models`, `settings` — plus `agent` (per-chat agent mode: on-device memory tools, device/utility tools, chat-history search, injected system context; registry in `src/modules/chat/lib/tools.ts`, memory in `src/lib/db/memoryRepository.ts`, history search in `src/lib/db/chatHistorySearch.ts`).
+Features today: `chat`, `auth`, `models`, `settings` — plus `agent` (global-switch agent mode: on-device memory tools, chat-history search, injected system context; registry in `src/modules/chat/lib/tools.ts`, memory in `src/lib/db/memoryRepository.ts`, history search in `src/lib/db/chatHistorySearch.ts`).
 
 **Placement rule.** Used by 2+ modules → `src/lib/` (or `components/ui/` for a primitive). Used by one module → inside that module. Used by one file → named constant at top of that file. When a module-local unit gets a second consumer, promote it in the same PR.
 
@@ -298,10 +298,11 @@ Non-server hooks (theme, haptics, keyboard state) keep plain `useX` names.
 
 ### Agent mode
 
-- Agent is a **conversation-level contract**, not a per-message toggle: the Chat/Agent pill lives in the empty-state hero (`NewChatModeSwitch`), shows only while the thread is empty, and the first send commits the mode. No mid-thread switching. The + hub keeps only web search (and thinking never had a home there anymore).
-- Every tool the model may call is one `ToolDefinition` + one `executeToolCall` branch in `src/modules/chat/lib/tools.ts`. Local tools never throw: they return a plain "unavailable" string while the DB is closed.
+- Agent's whole user surface is **one switch in Settings, on by default** (`agentEnabled` in the settings store). There is no per-chat agent control: every new chat row carries the switch's state at creation (`chats.create(title, agentEnabled)`), and the Chat/Agent pill (`NewChatModeSwitch`) was removed from the empty-state hero. The round cap is a compile-time constant (`AGENT_MAX_TOOL_ROUNDS` in magic-numbers), never a user setting — a control a user cannot reason about is not a setting.
+- Every tool the model may call is one `ToolDefinition` + one `executeToolCall` branch in `src/modules/chat/lib/tools.ts`. Local tools never throw: they return a plain "unavailable" string while the DB is closed. Device tools (clipboard, share, open-url, file scratchpad) stay out: they duplicated gestures the user does faster by hand, and file storage with no screen to find it again.
+- **The web search toggle governs web egress in agent mode.** `buildAgentPayload` grants `AGENT_TOOLS` only when the chat's web search is on; otherwise the agent gets `MEMORY_TOOLS` alone. Consent, not capability: agent mode must never re-admit web queries for a user who turned the globe off.
 - Tool steps persist to `tool_calls` (name, JSON arguments, result, status, round) and render on the assistant bubble as collapsible rows; keep display label/icon maps beside `ToolCallsBlock` (lib files run under Jest, lucide's ESM icons do not transform).
-- Long-term memory (`memory_save/read/forget`) is separate from the conversation archive: memories are injected as system context each agent send (hottest first); past conversations are reachable only through `search_chats` (LIKE over all messages, snippet) and `read_chat` (windowed turns with before/after paging). The read window exists to bound the tool-result budget — never widen it to "the whole chat".
+- Long-term memory (`memory_save/read/forget`) is separate from the conversation archive: memories are injected as system context each agent send (hottest first), and `memory_read` filters in SQL via `searchRecent` so a match beyond the injection page is still reachable; the limit is clamped on both ends (a negative LIMIT reads as "no limit" in SQLite). Empty table, no match, and storage failure return distinct strings — a failed read must never become a confident "no memories". Touch stamps only rows actually returned, or a filtered read would flatten the hottest-first ordering. Past conversations are reachable only through `search_chats` (LIKE over all messages, snippet) and `read_chat` (windowed turns with before/after paging). The read window exists to bound the tool-result budget — never widen it to "the whole chat".
 - History-drawer ergonomics are part of the agent contract: conversations badge their mode (Bot vs chat bubble in the leading slot), and named folders (`chat_folders`, migration 16) give the user manual triage — the swipe Move action files a chat, folder removal (SET NULL) returns members to the timeline, delete stays reachable from the same rail.
 
 ### Markdown rendering (LLM-defensive)
